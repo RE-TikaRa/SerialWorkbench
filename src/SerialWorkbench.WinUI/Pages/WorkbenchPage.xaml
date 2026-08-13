@@ -28,7 +28,7 @@
           </Grid.ColumnDefinitions>
           <ComboBox x:Name="PortComboBox" x:FieldModifier="public" Header="端口" DisplayMemberPath="DisplayName" PlaceholderText="选择串口" HorizontalAlignment="Stretch" />
           <Button x:Name="RefreshPortsButton" x:FieldModifier="public" Grid.Column="1" Click="RefreshPortsButton_Click" Style="{StaticResource ToolbarButtonStyle}" VerticalAlignment="Bottom" MinWidth="40" ToolTipService.ToolTip="刷新端口">
-            <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE72C;" FontSize="16" />
+            <FontIcon Glyph="&#xE72C;" FontSize="16" />
           </Button>
           <NumberBox x:Name="BaudRateNumberBox" x:FieldModifier="public" Grid.Column="2" Header="波特率" Value="115200" Minimum="50" Maximum="12000000" SpinButtonPlacementMode="Hidden" />
           <ComboBox x:Name="MonitorFormat" x:FieldModifier="public" Grid.Column="3" Header="显示" SelectedIndex="0">
@@ -129,7 +129,7 @@
                 <x:String>Float32 LE</x:String>
               </ComboBox>
               <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
-                <ToggleButton x:Name="PlotRunning" x:FieldModifier="public" Content="绘制中" IsChecked="True" Style="{StaticResource ToolbarButtonStyle}" />
+                <ToggleButton x:Name="PlotRunning" x:FieldModifier="public" Content="绘制中" IsChecked="True" MinWidth="84" MinHeight="36" CornerRadius="4" FontWeight="SemiBold" />
                 <Button Content="清空" Click="PlotClearButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
               </StackPanel>
             </Grid>
