@@ -115,6 +115,7 @@
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="170" />
             <ColumnDefinition Width="170" />
+            <ColumnDefinition Width="180" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
@@ -128,7 +129,15 @@
             <x:String>LF</x:String>
             <x:String>CRLF</x:String>
           </ComboBox>
-          <Button x:Name="SendButton" x:FieldModifier="public" Grid.Column="3" Content="发送" Click="SendButton_Click" Style="{StaticResource PrimaryButtonStyle}" VerticalAlignment="Bottom" />
+          <ComboBox x:Name="SendChecksum" x:FieldModifier="public" Grid.Column="2" Header="校验" SelectedIndex="0" HorizontalAlignment="Stretch">
+            <x:String>无</x:String>
+            <x:String>XOR</x:String>
+            <x:String>SUM8</x:String>
+            <x:String>CRC16-Modbus</x:String>
+            <x:String>CRC16-XModem</x:String>
+            <x:String>CRC32</x:String>
+          </ComboBox>
+          <Button x:Name="SendButton" x:FieldModifier="public" Grid.Column="4" Content="发送" Click="SendButton_Click" Style="{StaticResource PrimaryButtonStyle}" VerticalAlignment="Bottom" />
         </Grid>
         <InfoBar x:Name="SendStatus" x:FieldModifier="public" IsOpen="False" IsClosable="True" />
       </StackPanel>

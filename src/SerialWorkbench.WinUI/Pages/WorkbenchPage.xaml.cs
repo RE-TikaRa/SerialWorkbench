@@ -34,6 +34,7 @@ public sealed partial class WorkbenchPage : Page
     public string SendText => SendEditor.Text;
     public int SendFormatIndex => SendFormat.SelectedIndex;
     public int SendLineEndingIndex => SendLineEnding.SelectedIndex;
+    public int SendChecksumIndex => SendChecksum.SelectedIndex;
     public void SetConnectionBusy(bool busy) => ConnectButton.IsEnabled = !busy;
     public void SetSending(bool sending) => SendButton.IsEnabled = !sending;
     public void ShowSendResult(string message, InfoBarSeverity severity)

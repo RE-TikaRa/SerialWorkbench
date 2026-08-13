@@ -173,6 +173,7 @@ public sealed partial class MainWindow : Window
             var data = sendFormatIndex == 1
                 ? Protocols.HexCodec.Parse(sendText)
                 : Encoding.UTF8.GetBytes(sendText + GetLineEnding(lineEndingIndex));
+            data = AppendChecksum(data, workbenchPage?.SendChecksumIndex ?? 0);
             await client.SendAsync(new SendRequest(current, data, "winui.send"), CancellationToken.None);
             var severity = InfoBarSeverity.Success;
             workbenchPage?.ShowSendResult($"已发送 {data.Length:N0} 字节。", severity);
@@ -518,6 +519,28 @@ public sealed partial class MainWindow : Window
         3 => "\r\n",
         _ => "",
     };
+
+    private static byte[] AppendChecksum(byte[] data, int index)
+    {
+        switch (index)
+        {
+            case 1:
+                return [.. data, Protocols.Checksums.Xor(data)];
+            case 2:
+                return [.. data, Protocols.Checksums.Sum8(data)];
+            case 3:
+                var modbus = Protocols.Checksums.Crc16Modbus(data);
+                return [.. data, (byte)modbus, (byte)(modbus >> 8)];
+            case 4:
+                var xmodem = Protocols.Checksums.Crc16XModem(data);
+                return [.. data, (byte)(xmodem >> 8), (byte)xmodem];
+            case 5:
+                var crc32 = Protocols.Checksums.Crc32(data);
+                return [.. data, (byte)crc32, (byte)(crc32 >> 8), (byte)(crc32 >> 16), (byte)(crc32 >> 24)];
+            default:
+                return data;
+        }
+    }
 
     private void ShowHostError(string message)
     {
