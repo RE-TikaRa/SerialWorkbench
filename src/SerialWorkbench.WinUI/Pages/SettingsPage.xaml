@@ -1,3 +1,32 @@
-<Page x:Class="SerialWorkbench.WinUI.Pages.SettingsPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:SerialWorkbench.WinUI.Controls">
-  <ScrollView Padding="40,32" VerticalScrollBarVisibility="Auto"><StackPanel MaxWidth="960" Spacing="20"><controls:PageHeader Title="设置" Description="配置工作区、外观和应用行为。"/><controls:SettingsRow Title="工作区" Description="管理会话文件和工作区路径。" Glyph="&#xE8B7;"><controls:SettingsRow.Action><Button x:Name="ChooseWorkspaceButton" x:FieldModifier="public" Content="选择" Click="ChooseWorkspaceButton_Click" Style="{StaticResource ToolbarButtonStyle}"/></controls:SettingsRow.Action></controls:SettingsRow><TextBlock x:Name="WorkspacePath" x:FieldModifier="public" Text="尚未选择工作区" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/><controls:SettingsRow Title="外观" Description="使用 Windows 的主题和控件样式。" Glyph="&#xE790;"><controls:SettingsRow.Action><ComboBox Width="150" SelectedIndex="0"><x:String>跟随系统</x:String><x:String>浅色</x:String><x:String>深色</x:String></ComboBox></controls:SettingsRow.Action></controls:SettingsRow><controls:SettingsRow Title="关于 SerialWorkbench" Description="查看版本和运行环境信息。" Glyph="&#xE946;"/></StackPanel></ScrollView>
+<Page x:Class="SerialWorkbench.WinUI.Pages.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:SerialWorkbench.WinUI.Controls">
+  <ScrollView Padding="36,24,36,36" VerticalScrollBarVisibility="Auto">
+    <StackPanel MaxWidth="1064" Spacing="20">
+      <controls:PageHeader Title="设置" Description="配置工作区、外观和应用行为。" />
+
+      <controls:SettingsRow Title="工作区" Description="管理会话文件和工作区路径。" Glyph="&#xE8B7;">
+        <controls:SettingsRow.Action>
+          <Button x:Name="ChooseWorkspaceButton" x:FieldModifier="public" Content="选择" Click="ChooseWorkspaceButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
+        </controls:SettingsRow.Action>
+      </controls:SettingsRow>
+      <TextBlock x:Name="WorkspacePath" x:FieldModifier="public"
+          Text="尚未选择工作区"
+          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+          TextTrimming="CharacterEllipsis" />
+
+      <controls:SettingsRow Title="外观" Description="选择应用主题，或跟随 Windows 设置。" Glyph="&#xE790;">
+        <controls:SettingsRow.Action>
+          <ComboBox x:Name="ThemeSelector" x:FieldModifier="public" Width="150" SelectionChanged="ThemeSelector_SelectionChanged">
+            <x:String>跟随系统</x:String>
+            <x:String>浅色</x:String>
+            <x:String>深色</x:String>
+          </ComboBox>
+        </controls:SettingsRow.Action>
+      </controls:SettingsRow>
+
+      <controls:SettingsRow Title="关于 SerialWorkbench" Description="查看版本和运行环境信息。" Glyph="&#xE946;" />
+    </StackPanel>
+  </ScrollView>
 </Page>

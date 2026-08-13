@@ -21,6 +21,7 @@ public sealed partial class MainWindow : Window
     private long lastSequence;
     private bool paused;
     private bool polling;
+    private ElementTheme currentTheme;
     private string workspacePath = "尚未选择工作区";
     private string sessionPath = "尚未创建会话";
     private WorkbenchPage? workbenchPage;
@@ -31,6 +32,8 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        currentTheme = ThemePreference.Load();
+        RootGrid.RequestedTheme = currentTheme;
         Title = "SerialWorkbench";
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "SerialWorkbench.ico"));
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1360, 860));
@@ -205,6 +208,7 @@ public sealed partial class MainWindow : Window
                 5000,
                 loopbackPage is not null ? loopbackPage.PatternIndex switch
                 {
+                    0 => LoopbackPattern.Incrementing,
                     1 => LoopbackPattern.Fixed,
                     2 => LoopbackPattern.Random,
                     _ => LoopbackPattern.Incrementing,
@@ -337,6 +341,10 @@ public sealed partial class MainWindow : Window
             settingsPage ??= new SettingsPage();
             settingsPage.ChooseWorkspaceRequested -= SettingsPage_ChooseWorkspaceRequested;
             settingsPage.ChooseWorkspaceRequested += SettingsPage_ChooseWorkspaceRequested;
+            settingsPage.ThemeChangeRequested -= SettingsPage_ThemeChangeRequested;
+            settingsPage.ThemeChangeRequested += SettingsPage_ThemeChangeRequested;
+            settingsPage.SetThemeSelection(currentTheme);
+            settingsPage.SetWorkspacePath(workspacePath);
             ContentFrame.Content = settingsPage;
         }
         else if (tag == "Sessions")
@@ -378,6 +386,12 @@ public sealed partial class MainWindow : Window
         SendButton_Click(this, new RoutedEventArgs());
     }
     private async void SettingsPage_ChooseWorkspaceRequested(object? sender, EventArgs e) => await ChooseWorkspaceAsync();
+    private void SettingsPage_ThemeChangeRequested(object? sender, ElementTheme theme)
+    {
+        currentTheme = theme;
+        RootGrid.RequestedTheme = theme;
+        ThemePreference.Save(theme);
+    }
     private void LoopbackPage_RunRequested(object? sender, EventArgs e)
     {
         if (loopbackPage is null)

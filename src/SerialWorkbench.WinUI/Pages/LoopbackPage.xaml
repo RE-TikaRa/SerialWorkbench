@@ -1,4 +1,31 @@
-<Page x:Class="SerialWorkbench.WinUI.Pages.LoopbackPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:SerialWorkbench.WinUI.Controls">
-  <ScrollView Padding="40,32" VerticalScrollBarVisibility="Auto"><StackPanel MaxWidth="960" Spacing="20"><controls:PageHeader Title="回环检测" Description="验证串口发送与接收链路是否正常。"/><Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="20"><StackPanel Spacing="14"><TextBlock Text="测试参数" FontSize="17" FontWeight="SemiBold"/><Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><NumberBox x:Name="Length" x:FieldModifier="public" Header="长度" Value="64"/><NumberBox x:Name="Iterations" x:FieldModifier="public" Grid.Column="1" Header="次数" Value="1"/><ComboBox x:Name="Pattern" x:FieldModifier="public" Grid.Column="2" Header="模式" SelectedIndex="0"><x:String>Incrementing</x:String><x:String>Zero</x:String><x:String>Random</x:String></ComboBox></Grid><Button x:Name="RunButton" x:FieldModifier="public" Content="运行检测" Click="RunButton_Click" Style="{StaticResource PrimaryButtonStyle}" HorizontalAlignment="Left"/></StackPanel></Border><InfoBar x:Name="Result" x:FieldModifier="public" IsOpen="False" IsClosable="True"/></StackPanel></ScrollView>
+<Page x:Class="SerialWorkbench.WinUI.Pages.LoopbackPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:SerialWorkbench.WinUI.Controls">
+  <ScrollView Padding="36,24,36,36" VerticalScrollBarVisibility="Auto">
+    <StackPanel MaxWidth="1064" Spacing="20">
+      <controls:PageHeader Title="回环检测" Description="验证串口发送与接收链路是否正常。" />
+      <Border Style="{StaticResource SurfaceCardStyle}">
+        <StackPanel Spacing="14">
+          <TextBlock Text="测试参数" Style="{StaticResource SectionHeaderStyle}" />
+          <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <NumberBox x:Name="Length" x:FieldModifier="public" Header="长度" Value="64" />
+            <NumberBox x:Name="Iterations" x:FieldModifier="public" Grid.Column="1" Header="次数" Value="1" />
+            <ComboBox x:Name="Pattern" x:FieldModifier="public" Grid.Column="2" Header="模式" SelectedIndex="0" HorizontalAlignment="Stretch">
+              <x:String>递增</x:String>
+              <x:String>固定</x:String>
+              <x:String>随机</x:String>
+            </ComboBox>
+          </Grid>
+          <Button x:Name="RunButton" x:FieldModifier="public" Content="运行检测" Click="RunButton_Click" Style="{StaticResource PrimaryButtonStyle}" HorizontalAlignment="Left" />
+        </StackPanel>
+      </Border>
+      <InfoBar x:Name="Result" x:FieldModifier="public" IsOpen="False" IsClosable="True" />
+    </StackPanel>
+  </ScrollView>
 </Page>
-
