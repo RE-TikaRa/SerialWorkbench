@@ -30,18 +30,6 @@ SerialWorkbench.ProtocolHost.exe ─ 独立协议扩展宿主
 
 WinUI 与 CLI 不打开串口，也不写入会话数据库。同一应用目录只运行一个 Host；最后一个客户端异常断开后，Host 保留 30 秒重连时间。
 
-## 界面规则
-
-通用界面只使用 WinUI 3 和 Windows App SDK 原生组件：
-
-- `NavigationView` 负责功能导航。
-- `TabView` 负责工作视图切换。
-- `ListView` 与共享 `DataTemplate` 显示收发数据。
-- `CommandBar`、`AppBarButton`、`ComboBox`、`NumberBox`、`ToggleSwitch`、`InfoBar`、`InfoBadge` 和 `ScrollView` 提供操作与状态。
-- 同类按钮、标题和数据行复用应用级样式与模板。
-
-项目不使用 Canvas、Win2D、Direct2D、自绘通用控件或第三方通用控件库。`ScottPlot.WinUI` 只允许用于时间序列、XY、直方图和 FFT 等工程图表画布。
-
 ## 数据目录
 
 未打开工作区时：

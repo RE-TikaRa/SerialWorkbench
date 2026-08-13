@@ -13,8 +13,13 @@ public sealed partial class WorkbenchPage : Page
     private readonly WaveformParser waveformParser = new();
     private readonly List<List<double>> channelData = [];
     private readonly List<IPlottable> channelPlots = [];
+    private bool viewSelectionInitialized;
 
-    public WorkbenchPage() => InitializeComponent();
+    public WorkbenchPage()
+    {
+        InitializeComponent();
+        ViewSelector.SelectedItem = MonitorSelectorItem;
+    }
 
     private readonly ObservableCollection<string> sendHistory = [];
 
@@ -174,6 +179,20 @@ public sealed partial class WorkbenchPage : Page
         {
             PlotSampleType.IsEnabled = binary;
         }
+    }
+
+    private void ViewSelector_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
+    {
+        var monitor = sender.SelectedItem == MonitorSelectorItem;
+        MonitorView.Visibility = monitor ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+        PlotView.Visibility = monitor ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+
+        if (viewSelectionInitialized)
+        {
+            (monitor ? MonitorViewTransition : PlotViewTransition).Begin();
+        }
+
+        viewSelectionInitialized = true;
     }
 
     private void PlotClearButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)

@@ -5,6 +5,14 @@
     xmlns:controls="using:SerialWorkbench.WinUI.Controls"
     xmlns:sp="using:ScottPlot.WinUI"
     NavigationCacheMode="Required">
+  <Page.Resources>
+    <Storyboard x:Name="MonitorViewTransition">
+      <FadeInThemeAnimation TargetName="MonitorView" />
+    </Storyboard>
+    <Storyboard x:Name="PlotViewTransition">
+      <FadeInThemeAnimation TargetName="PlotView" />
+    </Storyboard>
+  </Page.Resources>
   <Grid Padding="36,24,36,36" RowSpacing="18">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -97,70 +105,68 @@
     </Border>
 
     <Border Grid.Row="2" MinHeight="260" Style="{StaticResource SurfaceCardStyle}" Padding="0">
-      <TabView IsAddTabButtonVisible="False" CanReorderTabs="False" CanDragTabs="False">
-        <TabViewItem Header="报文" IsClosable="False">
-          <TabViewItem.IconSource>
-            <SymbolIconSource Symbol="View" />
-          </TabViewItem.IconSource>
-          <Grid>
-            <Grid.RowDefinitions>
-              <RowDefinition Height="54" />
-              <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-            <Grid Padding="20,0">
-              <TextBlock x:Name="CountersText" Text="RX 0 · TX 0" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
-              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-                <ToggleButton x:Name="TimestampToggle" x:FieldModifier="public" Content="时间戳" IsChecked="True" MinHeight="32" CornerRadius="4" />
-                <Button x:Name="PauseButton" x:FieldModifier="public" Content="暂停" Click="PauseButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
-                <Button Content="清空" Click="ClearButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
-              </StackPanel>
-            </Grid>
-            <Grid Grid.Row="1">
-              <ListView x:Name="TrafficListView" x:FieldModifier="public" ItemTemplate="{StaticResource TrafficRowTemplate}" ItemContainerStyle="{StaticResource TrafficListViewItemStyle}" />
-              <StackPanel x:Name="MonitorEmptyState" x:FieldModifier="public" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-                <TextBlock Text="等待串口数据" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                <TextBlock Text="连接设备后，收发报文会显示在这里。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-              </StackPanel>
-            </Grid>
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <SelectorBar x:Name="ViewSelector" SelectionChanged="ViewSelector_SelectionChanged">
+          <SelectorBarItem x:Name="MonitorSelectorItem" Text="报文" Icon="View" />
+          <SelectorBarItem Text="波形" Icon="MapDrive" />
+        </SelectorBar>
+        <Grid x:Name="MonitorView" Grid.Row="1">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="54" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <Grid Padding="20,0">
+            <TextBlock x:Name="CountersText" Text="RX 0 · TX 0" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+              <ToggleButton x:Name="TimestampToggle" x:FieldModifier="public" Content="时间戳" IsChecked="True" MinHeight="32" CornerRadius="4" />
+              <Button x:Name="PauseButton" x:FieldModifier="public" Content="暂停" Click="PauseButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
+              <Button Content="清空" Click="ClearButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
+            </StackPanel>
           </Grid>
-        </TabViewItem>
-        <TabViewItem Header="波形" IsClosable="False">
-          <TabViewItem.IconSource>
-            <SymbolIconSource Symbol="MapDrive" />
-          </TabViewItem.IconSource>
-          <Grid>
-            <Grid.RowDefinitions>
-              <RowDefinition Height="Auto" />
-              <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-            <Grid Padding="20,10" ColumnSpacing="12">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="160" />
-                <ColumnDefinition Width="150" />
-                <ColumnDefinition Width="150" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <ComboBox x:Name="PlotMode" x:FieldModifier="public" Header="解析模式" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="PlotMode_SelectionChanged">
-                <x:String>CSV 文本行</x:String>
-                <x:String>二进制帧</x:String>
-              </ComboBox>
-              <NumberBox x:Name="PlotFrameLength" x:FieldModifier="public" Grid.Column="1" Header="帧长(字节)" Value="8" Minimum="1" Maximum="4096" SpinButtonPlacementMode="Compact" IsEnabled="False" />
-              <ComboBox x:Name="PlotSampleType" x:FieldModifier="public" Grid.Column="2" Header="数据类型" SelectedIndex="0" HorizontalAlignment="Stretch" IsEnabled="False">
-                <x:String>Int16 LE</x:String>
-                <x:String>Int16 BE</x:String>
-                <x:String>UInt16 LE</x:String>
-                <x:String>Float32 LE</x:String>
-              </ComboBox>
-              <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
-                <ToggleButton x:Name="PlotRunning" x:FieldModifier="public" Content="绘制中" IsChecked="True" MinWidth="84" MinHeight="36" CornerRadius="4" FontWeight="SemiBold" />
-                <Button Content="清空" Click="PlotClearButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
-              </StackPanel>
-            </Grid>
-            <sp:WinUIPlot x:Name="WavePlot" x:FieldModifier="public" Grid.Row="1" />
+          <Grid Grid.Row="1">
+            <ListView x:Name="TrafficListView" x:FieldModifier="public" ItemTemplate="{StaticResource TrafficRowTemplate}" ItemContainerStyle="{StaticResource TrafficListViewItemStyle}" />
+            <StackPanel x:Name="MonitorEmptyState" x:FieldModifier="public" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+              <TextBlock Text="等待串口数据" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+              <TextBlock Text="连接设备后，收发报文会显示在这里。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
           </Grid>
-        </TabViewItem>
-      </TabView>
+        </Grid>
+        <Grid x:Name="PlotView" Grid.Row="1" Visibility="Collapsed">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <Grid Padding="20,10" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="160" />
+              <ColumnDefinition Width="150" />
+              <ColumnDefinition Width="150" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ComboBox x:Name="PlotMode" x:FieldModifier="public" Header="解析模式" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="PlotMode_SelectionChanged">
+              <x:String>CSV 文本行</x:String>
+              <x:String>二进制帧</x:String>
+            </ComboBox>
+            <NumberBox x:Name="PlotFrameLength" x:FieldModifier="public" Grid.Column="1" Header="帧长(字节)" Value="8" Minimum="1" Maximum="4096" SpinButtonPlacementMode="Compact" IsEnabled="False" />
+            <ComboBox x:Name="PlotSampleType" x:FieldModifier="public" Grid.Column="2" Header="数据类型" SelectedIndex="0" HorizontalAlignment="Stretch" IsEnabled="False">
+              <x:String>Int16 LE</x:String>
+              <x:String>Int16 BE</x:String>
+              <x:String>UInt16 LE</x:String>
+              <x:String>Float32 LE</x:String>
+            </ComboBox>
+            <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+              <ToggleButton x:Name="PlotRunning" x:FieldModifier="public" Content="绘制中" IsChecked="True" MinWidth="84" MinHeight="36" CornerRadius="4" FontWeight="SemiBold" />
+              <Button Content="清空" Click="PlotClearButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
+            </StackPanel>
+          </Grid>
+          <sp:WinUIPlot x:Name="WavePlot" x:FieldModifier="public" Grid.Row="1" />
+        </Grid>
+      </Grid>
     </Border>
 
     <Border Grid.Row="3" Style="{StaticResource SurfaceCardStyle}">
