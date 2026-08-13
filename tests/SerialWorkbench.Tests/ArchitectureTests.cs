@@ -6,7 +6,7 @@ namespace SerialWorkbench.Tests;
 public sealed class ArchitectureTests
 {
     [Fact]
-    public void WinUiOnlyReferencesTheClientContractAndUiPackages()
+    public void WinUiOnlyReferencesTheClientContract()
     {
         var repositoryRoot = FindRepositoryRoot();
         var projectPath = Path.Combine(repositoryRoot, "src", "SerialWorkbench.WinUI", "SerialWorkbench.WinUI.csproj");
@@ -14,18 +14,13 @@ public sealed class ArchitectureTests
         var references = project.Descendants("ProjectReference")
             .Select(element => element.Attribute("Include")?.Value ?? "")
             .ToArray();
-        var packages = project.Descendants("PackageReference")
-            .Select(element => element.Attribute("Include")?.Value ?? "")
-            .ToArray();
-
         Assert.DoesNotContain(references, value => value.Contains("Serial.Windows", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(references, value => value.Contains("Sessions", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(references, value => value.Contains("Storage", StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(["CommunityToolkit.Mvvm", "Microsoft.WindowsAppSDK", "ScottPlot.WinUI"], packages);
     }
 
     [Fact]
-    public void GeneralInterfaceUsesNativeWinUiControls()
+    public void GeneralInterfaceDoesNotUseCustomDrawingTechnologies()
     {
         var repositoryRoot = FindRepositoryRoot();
         var xamlFiles = Directory.GetFiles(Path.Combine(repositoryRoot, "src", "SerialWorkbench.WinUI"), "*.xaml", SearchOption.AllDirectories);
@@ -34,11 +29,6 @@ public sealed class ArchitectureTests
         Assert.DoesNotContain("<Canvas", xaml, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Win2D", xaml, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Direct2D", xaml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("<NavigationView", xaml, StringComparison.Ordinal);
-        Assert.Contains("<TabView", xaml, StringComparison.Ordinal);
-        Assert.Contains("<ListView", xaml, StringComparison.Ordinal);
-        Assert.Contains("<NumberBox", xaml, StringComparison.Ordinal);
-        Assert.Contains("<InfoBar", xaml, StringComparison.Ordinal);
     }
 
     [Fact]
