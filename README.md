@@ -217,9 +217,9 @@ docs/adr/                                   架构决定
 ## 开发环境
 
 - Windows 11 x64。
-- .NET SDK `10.0.302`。
+- .NET SDK `10.0.400`。
 - Windows SDK `10.0.26100.0`。
-- Windows App SDK `2.3.1`。
+- Windows App SDK `2.4.0`。
 
 依赖版本集中在 `Directory.Packages.props`。项目开启 nullable、.NET analyzers、代码风格检查和 warnings-as-errors。
 
