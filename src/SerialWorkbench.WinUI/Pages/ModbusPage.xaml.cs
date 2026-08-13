@@ -1,3 +1,4 @@
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using SerialWorkbench.Modbus;
 using SerialWorkbench.Protocols;
@@ -6,6 +7,9 @@ namespace SerialWorkbench.WinUI.Pages;
 
 public sealed partial class ModbusPage : Page
 {
+    private const double CompactLayoutWidth = 480;
+    private const double WideLayoutWidth = 720;
+
     public ModbusPage()
     {
         InitializeComponent();
@@ -45,6 +49,17 @@ public sealed partial class ModbusPage : Page
     }
 
     private void SlaveAddress_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => UpdatePreview();
+
+    private void ModbusPage_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var state = e.NewSize.Width switch
+        {
+            < CompactLayoutWidth => "Compact",
+            < WideLayoutWidth => "Narrow",
+            _ => "Wide",
+        };
+        VisualStateManager.GoToState(this, state, false);
+    }
 
     private byte[] BuildFrame()
     {

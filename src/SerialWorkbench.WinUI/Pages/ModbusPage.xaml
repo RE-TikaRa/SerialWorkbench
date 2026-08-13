@@ -2,10 +2,40 @@
     x:Class="SerialWorkbench.WinUI.Pages.ModbusPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    NavigationCacheMode="Required">
+    NavigationCacheMode="Required"
+    SizeChanged="ModbusPage_SizeChanged">
   <ScrollView x:Name="PageScroller" Padding="{StaticResource ContentPagePadding}" VerticalScrollBarVisibility="Auto">
     <StackPanel MaxWidth="1064" Spacing="{StaticResource ContentPageSpacing}">
       <VisualStateManager.VisualStateGroups>
+        <VisualStateGroup x:Name="WindowStates">
+          <VisualState x:Name="Compact">
+            <VisualState.Setters>
+              <Setter Target="SlaveAddress.(Grid.ColumnSpan)" Value="4" />
+              <Setter Target="FunctionCode.(Grid.Row)" Value="1" />
+              <Setter Target="FunctionCode.(Grid.Column)" Value="0" />
+              <Setter Target="FunctionCode.(Grid.ColumnSpan)" Value="4" />
+              <Setter Target="StartAddress.(Grid.Row)" Value="2" />
+              <Setter Target="StartAddress.(Grid.ColumnSpan)" Value="4" />
+              <Setter Target="Quantity.(Grid.Row)" Value="3" />
+              <Setter Target="Quantity.(Grid.Column)" Value="0" />
+              <Setter Target="Quantity.(Grid.ColumnSpan)" Value="4" />
+            </VisualState.Setters>
+          </VisualState>
+          <VisualState x:Name="Narrow" />
+          <VisualState x:Name="Wide">
+            <VisualState.Setters>
+              <Setter Target="SlaveAddress.(Grid.ColumnSpan)" Value="1" />
+              <Setter Target="FunctionCode.(Grid.Column)" Value="1" />
+              <Setter Target="FunctionCode.(Grid.ColumnSpan)" Value="1" />
+              <Setter Target="StartAddress.(Grid.Row)" Value="0" />
+              <Setter Target="StartAddress.(Grid.Column)" Value="2" />
+              <Setter Target="StartAddress.(Grid.ColumnSpan)" Value="1" />
+              <Setter Target="Quantity.(Grid.Row)" Value="0" />
+              <Setter Target="Quantity.(Grid.Column)" Value="3" />
+              <Setter Target="Quantity.(Grid.ColumnSpan)" Value="1" />
+            </VisualState.Setters>
+          </VisualState>
+        </VisualStateGroup>
         <VisualStateGroup x:Name="PageMarginStates">
           <VisualState x:Name="CompactPageMargins">
             <VisualState.StateTriggers>
@@ -30,21 +60,26 @@
         <StackPanel Spacing="{StaticResource CardContentSpacing}">
           <TextBlock Text="请求" Style="{StaticResource BodyStrongTextBlockStyle}" />
           <Grid ColumnSpacing="12" RowSpacing="14">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="130" />
-              <ColumnDefinition Width="220" />
-              <ColumnDefinition Width="160" />
-              <ColumnDefinition Width="160" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <NumberBox x:Name="SlaveAddress" x:FieldModifier="public" Header="从站地址" Value="1" Minimum="0" Maximum="247" SpinButtonPlacementMode="Compact" ValueChanged="SlaveAddress_ValueChanged" />
-            <ComboBox x:Name="FunctionCode" x:FieldModifier="public" Grid.Column="1" Header="功能码" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="FunctionCode_SelectionChanged">
+            <NumberBox x:Name="SlaveAddress" x:FieldModifier="public" Grid.ColumnSpan="2" Header="从站地址" Value="1" Minimum="0" Maximum="247" SpinButtonPlacementMode="Compact" ValueChanged="SlaveAddress_ValueChanged" />
+            <ComboBox x:Name="FunctionCode" x:FieldModifier="public" Grid.Column="2" Grid.ColumnSpan="2" Header="功能码" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="FunctionCode_SelectionChanged">
               <x:String>03 读保持寄存器</x:String>
               <x:String>04 读输入寄存器</x:String>
               <x:String>06 写单个寄存器</x:String>
             </ComboBox>
-            <NumberBox x:Name="StartAddress" x:FieldModifier="public" Grid.Column="2" Header="起始地址" Value="0" Minimum="0" Maximum="65535" SpinButtonPlacementMode="Compact" ValueChanged="SlaveAddress_ValueChanged" />
-            <NumberBox x:Name="Quantity" x:FieldModifier="public" Grid.Column="3" Header="数量" Value="1" Minimum="1" Maximum="125" SpinButtonPlacementMode="Compact" ValueChanged="SlaveAddress_ValueChanged" />
+            <NumberBox x:Name="StartAddress" x:FieldModifier="public" Grid.Row="1" Grid.ColumnSpan="2" Header="起始地址" Value="0" Minimum="0" Maximum="65535" SpinButtonPlacementMode="Compact" ValueChanged="SlaveAddress_ValueChanged" />
+            <NumberBox x:Name="Quantity" x:FieldModifier="public" Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Header="数量" Value="1" Minimum="1" Maximum="125" SpinButtonPlacementMode="Compact" ValueChanged="SlaveAddress_ValueChanged" />
           </Grid>
           <TextBox x:Name="RequestPreview" x:FieldModifier="public" Header="请求帧预览" IsReadOnly="True" FontFamily="{StaticResource MonospaceFontFamily}" />
           <Button x:Name="SendButton" x:FieldModifier="public" Content="发送请求" Click="SendButton_Click" Style="{StaticResource PrimaryButtonStyle}" HorizontalAlignment="Left" />
@@ -60,8 +95,8 @@
               <DataTemplate>
                 <Grid Padding="8,4" ColumnSpacing="16">
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="120" />
-                    <ColumnDefinition Width="120" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="{Binding Index}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />

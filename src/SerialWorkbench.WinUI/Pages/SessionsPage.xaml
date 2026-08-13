@@ -27,25 +27,25 @@
         <TextBlock Text="浏览和管理已保存的串口工作记录。" Style="{StaticResource PageDescriptionStyle}" />
       </StackPanel>
 
-      <toolkit:SettingsCard Header="当前工作区" Description="选择工作区后，新的会话会保存到该位置。">
+      <toolkit:SettingsCard Header="当前工作区" Description="选择工作区后，新的会话会保存到该位置。" HorizontalContentAlignment="Stretch">
         <toolkit:SettingsCard.HeaderIcon>
           <FontIcon Glyph="&#xE8B7;" />
         </toolkit:SettingsCard.HeaderIcon>
+        <TextBlock x:Name="WorkspacePath" x:FieldModifier="public"
+            Text="尚未选择工作区"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            TextWrapping="Wrap" />
       </toolkit:SettingsCard>
-      <TextBlock x:Name="WorkspacePath" x:FieldModifier="public"
-          Text="尚未选择工作区"
-          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-          TextTrimming="CharacterEllipsis" />
 
-      <toolkit:SettingsCard Header="活动会话" Description="连接设备后自动创建并持续记录收发数据。">
+      <toolkit:SettingsCard Header="活动会话" Description="连接设备后自动创建并持续记录收发数据。" HorizontalContentAlignment="Stretch">
         <toolkit:SettingsCard.HeaderIcon>
           <FontIcon Glyph="&#xE823;" />
         </toolkit:SettingsCard.HeaderIcon>
+        <TextBlock x:Name="SessionPath" x:FieldModifier="public"
+            Text="尚未创建会话"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            TextWrapping="Wrap" />
       </toolkit:SettingsCard>
-      <TextBlock x:Name="SessionPath" x:FieldModifier="public"
-          Text="尚未创建会话"
-          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-          TextTrimming="CharacterEllipsis" />
     </StackPanel>
   </ScrollView>
 </Page>

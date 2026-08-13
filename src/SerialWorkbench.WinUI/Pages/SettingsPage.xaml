@@ -27,22 +27,29 @@
         <TextBlock Text="配置工作区、外观和应用行为。" Style="{StaticResource PageDescriptionStyle}" />
       </StackPanel>
 
-      <toolkit:SettingsCard Header="工作区" Description="管理会话文件和工作区路径。">
+      <toolkit:SettingsCard Header="工作区" Description="管理会话文件和工作区路径。" HorizontalContentAlignment="Stretch">
         <toolkit:SettingsCard.HeaderIcon>
           <FontIcon Glyph="&#xE8B7;" />
         </toolkit:SettingsCard.HeaderIcon>
-        <Button x:Name="ChooseWorkspaceButton" x:FieldModifier="public" Content="选择" Click="ChooseWorkspaceButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
+        <Grid ColumnSpacing="12">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <TextBlock x:Name="WorkspacePath" x:FieldModifier="public"
+              Text="尚未选择工作区"
+              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+              TextWrapping="Wrap"
+              VerticalAlignment="Center" />
+          <Button x:Name="ChooseWorkspaceButton" x:FieldModifier="public" Grid.Column="1" Content="选择" Click="ChooseWorkspaceButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
+        </Grid>
       </toolkit:SettingsCard>
-      <TextBlock x:Name="WorkspacePath" x:FieldModifier="public"
-          Text="尚未选择工作区"
-          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-          TextTrimming="CharacterEllipsis" />
 
-      <toolkit:SettingsCard Header="外观" Description="选择应用主题，或跟随 Windows 设置。">
+      <toolkit:SettingsCard Header="外观" Description="选择应用主题，或跟随 Windows 设置。" HorizontalContentAlignment="Stretch">
         <toolkit:SettingsCard.HeaderIcon>
           <FontIcon Glyph="&#xE790;" />
         </toolkit:SettingsCard.HeaderIcon>
-        <ComboBox x:Name="ThemeSelector" x:FieldModifier="public" Width="150" SelectionChanged="ThemeSelector_SelectionChanged">
+        <ComboBox x:Name="ThemeSelector" x:FieldModifier="public" HorizontalAlignment="Stretch" SelectionChanged="ThemeSelector_SelectionChanged">
           <x:String>跟随系统</x:String>
           <x:String>浅色</x:String>
           <x:String>深色</x:String>
