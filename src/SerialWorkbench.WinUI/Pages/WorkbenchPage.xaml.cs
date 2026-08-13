@@ -9,6 +9,8 @@ namespace SerialWorkbench.WinUI.Pages;
 
 public sealed partial class WorkbenchPage : Page
 {
+    private const double CompactLayoutWidth = 560;
+    private const double WideLayoutWidth = 900;
     private const int MaxWavePoints = 2000;
     private readonly WaveformParser waveformParser = new();
     private readonly List<List<double>> channelData = [];
@@ -165,6 +167,17 @@ public sealed partial class WorkbenchPage : Page
 
         WavePlot.Plot.Axes.AutoScale();
         WavePlot.Refresh();
+    }
+
+    private void WorkbenchPage_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var state = e.NewSize.Width switch
+        {
+            < CompactLayoutWidth => "Compact",
+            < WideLayoutWidth => "Narrow",
+            _ => "Wide",
+        };
+        VisualStateManager.GoToState(this, state, false);
     }
 
     private void PlotMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
