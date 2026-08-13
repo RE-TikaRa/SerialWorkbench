@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text;
+using Microsoft.UI.System;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using ScottPlot;
 using SerialWorkbench.Domain;
@@ -15,12 +17,15 @@ public sealed partial class WorkbenchPage : Page
     private readonly WaveformParser waveformParser = new();
     private readonly List<List<double>> channelData = [];
     private readonly List<IPlottable> channelPlots = [];
+    private ThemeSettings? themeSettings;
     private bool viewSelectionInitialized;
 
     public WorkbenchPage()
     {
         InitializeComponent();
         ViewSelector.SelectedItem = MonitorSelectorItem;
+        Loaded += WorkbenchPage_Loaded;
+        ActualThemeChanged += WorkbenchPage_ActualThemeChanged;
     }
 
     private readonly ObservableCollection<string> sendHistory = [];
@@ -169,6 +174,21 @@ public sealed partial class WorkbenchPage : Page
         WavePlot.Refresh();
     }
 
+    private void WorkbenchPage_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (themeSettings is null)
+        {
+            themeSettings = ThemeSettings.CreateForWindowId(XamlRoot.ContentIslandEnvironment.AppWindowId);
+            themeSettings.Changed += ThemeSettings_Changed;
+        }
+
+        ApplyPlotTheme();
+    }
+
+    private void WorkbenchPage_ActualThemeChanged(FrameworkElement sender, object args) => ApplyPlotTheme();
+
+    private void ThemeSettings_Changed(ThemeSettings sender, object args) => ApplyPlotTheme();
+
     private void WorkbenchPage_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         var state = e.NewSize.Width switch
@@ -178,6 +198,41 @@ public sealed partial class WorkbenchPage : Page
             _ => "Wide",
         };
         VisualStateManager.GoToState(this, state, false);
+    }
+
+    private void ApplyPlotTheme()
+    {
+        PlotStyle style = themeSettings?.HighContrast == true
+            ? CreateHighContrastPlotStyle()
+            : ActualTheme == ElementTheme.Dark
+                ? new ScottPlot.PlotStyles.Dark()
+                : new ScottPlot.PlotStyles.Light();
+        style.Apply(WavePlot.Plot);
+        RedrawWaveform();
+    }
+
+    private static PlotStyle CreateHighContrastPlotStyle()
+    {
+        var background = GetSystemColor("SystemColorWindowColor");
+        var foreground = GetSystemColor("SystemColorWindowTextColor");
+        var highlight = GetSystemColor("SystemColorHighlightColor");
+        return new PlotStyle
+        {
+            Palette = new ScottPlot.Palettes.Custom([foreground, highlight], "Windows high contrast"),
+            FigureBackgroundColor = background,
+            DataBackgroundColor = background,
+            AxisColor = foreground,
+            GridMajorLineColor = foreground.WithOpacity(.25),
+            LegendBackgroundColor = background,
+            LegendFontColor = foreground,
+            LegendOutlineColor = foreground,
+        };
+    }
+
+    private static ScottPlot.Color GetSystemColor(string key)
+    {
+        var color = (Windows.UI.Color)Application.Current.Resources[key];
+        return new ScottPlot.Color(color.R, color.G, color.B, color.A);
     }
 
     private void PlotMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
