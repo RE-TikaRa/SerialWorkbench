@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>SerialWorkbench</AssemblyName>
+    <RootNamespace>SerialWorkbench.WinUI</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Platforms>x64</Platforms>
+    <PublishSingleFile>false</PublishSingleFile>
+    <ApplicationIcon>Assets\SerialWorkbench.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="Assets\SerialWorkbench.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="ScottPlot.WinUI" />
+    <ProjectReference Include="../SerialWorkbench.Domain/SerialWorkbench.Domain.csproj" />
+    <ProjectReference Include="../SerialWorkbench.Ipc/SerialWorkbench.Ipc.csproj" />
+    <ProjectReference Include="../SerialWorkbench.Protocols/SerialWorkbench.Protocols.csproj" />
+  </ItemGroup>
+  <Target Name="IncludeApplicationResourcesInPublish" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <_ApplicationXbf Include="$(TargetDir)**\*.xbf" />
+      <ResolvedFileToPublish Remove="$(TargetDir)$(AssemblyName).pri" Condition="Exists('$(TargetDir)$(AssemblyName).pri')" />
+      <ResolvedFileToPublish Include="$(TargetDir)$(AssemblyName).pri" RelativePath="$(AssemblyName).pri" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(TargetDir)$(AssemblyName).pri')" />
+      <ResolvedFileToPublish Remove="@(_ApplicationXbf)" />
+      <ResolvedFileToPublish Include="@(_ApplicationXbf)" RelativePath="%(_ApplicationXbf.RecursiveDir)%(_ApplicationXbf.Filename)%(_ApplicationXbf.Extension)" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+</Project>

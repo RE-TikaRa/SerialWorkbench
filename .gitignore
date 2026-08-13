@@ -1,0 +1,13 @@
+bin/
+obj/
+publish/
+artifacts/
+.vs/
+*.user
+*.suo
+TestResults/
+.omc/
+data/
+*.swbsession
+*.db-shm
+*.db-wal

@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://serialworkbench.local/schemas/protocol-template.schema.json",
+  "title": "SerialWorkbench protocol template",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "framing", "fields"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "framing": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "length"],
+          "properties": {
+            "kind": {
+              "const": "fixedLength"
+            },
+            "length": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "delimiter"],
+          "properties": {
+            "kind": {
+              "const": "delimiter"
+            },
+            "delimiter": {
+              "type": "string",
+              "pattern": "^(?:[0-9A-Fa-f]{2})+$"
+            },
+            "includeDelimiter": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "headerLength", "lengthOffset", "lengthSize", "littleEndian"],
+          "properties": {
+            "kind": {
+              "const": "lengthField"
+            },
+            "headerLength": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "lengthOffset": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "lengthSize": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4
+            },
+            "littleEndian": {
+              "type": "boolean"
+            },
+            "lengthAdjustment": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        }
+      ]
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "offset", "type"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "type": {
+            "enum": ["uint8", "int8", "uint16", "int16", "uint32", "int32", "float32", "float64", "ascii", "bytes"]
+          },
+          "length": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "littleEndian": {
+            "type": "boolean",
+            "default": false
+          },
+          "scale": {
+            "type": "number",
+            "default": 1
+          },
+          "offsetValue": {
+            "type": "number",
+            "default": 0
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "checksum": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "offset"],
+      "properties": {
+        "algorithm": {
+          "enum": ["xor", "sum8", "crc16Modbus", "crc16XModem", "crc32"]
+        },
+        "offset": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

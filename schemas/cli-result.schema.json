@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://serialworkbench.local/schemas/cli-result.schema.json",
+  "title": "SerialWorkbench CLI result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "command", "time", "result"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "command": {
+      "type": "string",
+      "minLength": 1
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "result": true
+  }
+}

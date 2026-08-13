@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://serialworkbench.local/schemas/send-queue.schema.json",
+  "title": "SerialWorkbench send queue",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "items"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "connectionRole", "content", "format", "repeat", "intervalMilliseconds", "enabled"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "connectionRole": {
+            "type": "string",
+            "minLength": 1
+          },
+          "content": {
+            "type": "string"
+          },
+          "format": {
+            "enum": ["text", "hex"]
+          },
+          "encodingName": {
+            "type": "string",
+            "default": "utf-8"
+          },
+          "lineEnding": {
+            "enum": ["", "\r", "\n", "\r\n"]
+          },
+          "repeat": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "intervalMilliseconds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageVersion Include="MessagePack" Version="3.1.8" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK" Version="2.3.1" />
+    <PackageVersion Include="ScottPlot.WinUI" Version="5.1.59" />
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
+    <PackageVersion Include="StreamJsonRpc" Version="2.25.29" />
+    <PackageVersion Include="System.IO.Ports" Version="10.0.10" />
+    <PackageVersion Include="System.Management" Version="10.0.10" />
+    <PackageVersion Include="xunit.v3.mtp-v2" Version="3.2.2" />
+  </ItemGroup>
+</Project>

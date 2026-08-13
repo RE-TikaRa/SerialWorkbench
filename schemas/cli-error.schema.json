@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://serialworkbench.local/schemas/cli-error.schema.json",
+  "title": "SerialWorkbench CLI error",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "code", "message", "time"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^SWB-[A-Z0-9-]+$"
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

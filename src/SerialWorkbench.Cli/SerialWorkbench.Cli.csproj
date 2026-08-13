@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>serial-workbench</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../SerialWorkbench.Ipc/SerialWorkbench.Ipc.csproj" />
+    <ProjectReference Include="../SerialWorkbench.Protocols/SerialWorkbench.Protocols.csproj" />
+  </ItemGroup>
+</Project>

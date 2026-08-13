@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://serialworkbench.local/schemas/connection-profile.schema.json",
+  "title": "SerialWorkbench connection profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "role", "serial"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "role": {
+      "type": "string",
+      "minLength": 1
+    },
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "instanceId": {
+          "type": "string"
+        },
+        "vid": {
+          "type": "string",
+          "pattern": "^[0-9A-Fa-f]{4}$"
+        },
+        "pid": {
+          "type": "string",
+          "pattern": "^[0-9A-Fa-f]{4}$"
+        },
+        "serialNumber": {
+          "type": "string"
+        }
+      }
+    },
+    "serial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baudRate", "dataBits", "parity", "stopBits", "handshake", "dtrEnable", "rtsEnable", "encodingName"],
+      "properties": {
+        "baudRate": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "dataBits": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 8
+        },
+        "parity": {
+          "enum": ["none", "odd", "even", "mark", "space"]
+        },
+        "stopBits": {
+          "enum": ["one", "onePointFive", "two"]
+        },
+        "handshake": {
+          "enum": ["none", "xOnXOff", "requestToSend", "requestToSendXOnXOff"]
+        },
+        "dtrEnable": {
+          "type": "boolean"
+        },
+        "rtsEnable": {
+          "type": "boolean"
+        },
+        "encodingName": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

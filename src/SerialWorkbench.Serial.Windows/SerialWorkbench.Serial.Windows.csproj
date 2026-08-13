@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="System.IO.Ports" />
+    <PackageReference Include="System.Management" />
+    <ProjectReference Include="../SerialWorkbench.Application/SerialWorkbench.Application.csproj" />
+    <ProjectReference Include="../SerialWorkbench.Domain/SerialWorkbench.Domain.csproj" />
+  </ItemGroup>
+</Project>
