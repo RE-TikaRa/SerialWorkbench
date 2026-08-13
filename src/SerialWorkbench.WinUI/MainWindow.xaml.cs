@@ -16,11 +16,13 @@ namespace SerialWorkbench.WinUI;
 public sealed partial class MainWindow : Window
 {
     private readonly DispatcherTimer eventTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
+    private readonly DispatcherTimer portRefreshTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private HostRpcClient? client;
     private Guid? connectionId;
     private long lastSequence;
     private bool paused;
     private bool polling;
+    private bool portRefreshing;
     private ElementTheme currentTheme;
     private string workspacePath = "尚未选择工作区";
     private string sessionPath = "尚未创建会话";
@@ -46,6 +48,7 @@ public sealed partial class MainWindow : Window
         Navigation.SelectedItem = Navigation.MenuItems[0];
         ContentFrame.Content = workbenchPage;
         eventTimer.Tick += EventTimer_Tick;
+        portRefreshTimer.Tick += PortRefreshTimer_Tick;
         Closed += MainWindow_Closed;
         Activated += MainWindow_Activated;
     }
@@ -73,17 +76,7 @@ public sealed partial class MainWindow : Window
 
             ConnectionStatusText.Text = $"Host {handshake.HostVersion}";
             SetStatusIndicator("SystemFillColorSuccessBrush");
-            var ports = await client.ListPortsAsync(CancellationToken.None);
-            if (workbenchPage is not null)
-            {
-                workbenchPage.PortComboBox.ItemsSource = ports;
-            }
-            var preferredPort = ports.FirstOrDefault(item => item.PortName.Equals("COM17", StringComparison.OrdinalIgnoreCase))
-                ?? (ports.Count > 0 ? ports[0] : null);
-            if (workbenchPage is not null)
-            {
-                workbenchPage.PortComboBox.SelectedItem = preferredPort;
-            }
+            await RefreshPortsAsync(true);
             SetSerialConfigurationEnabled(true);
             eventTimer.Start();
             await RefreshStatusAsync();
@@ -385,6 +378,78 @@ public sealed partial class MainWindow : Window
         workbenchPage.ClearRequested += WorkbenchPage_ClearRequested;
         workbenchPage.SendRequested -= WorkbenchPage_SendRequested;
         workbenchPage.SendRequested += WorkbenchPage_SendRequested;
+        workbenchPage.RefreshPortsRequested -= WorkbenchPage_RefreshPortsRequested;
+        workbenchPage.RefreshPortsRequested += WorkbenchPage_RefreshPortsRequested;
+    }
+
+    private async void WorkbenchPage_RefreshPortsRequested(object? sender, EventArgs e) => await RefreshPortsAsync(false);
+
+    private async void PortRefreshTimer_Tick(object? sender, object e)
+    {
+        if (client is null || portRefreshing)
+        {
+            return;
+        }
+
+        await RefreshPortsAsync(false);
+    }
+
+    private async Task RefreshPortsAsync(bool selectPreferred)
+    {
+        if (client is null || workbenchPage is null || portRefreshing)
+        {
+            return;
+        }
+
+        portRefreshing = true;
+        try
+        {
+            var ports = await client.ListPortsAsync(CancellationToken.None);
+            var combo = workbenchPage.PortComboBox;
+            var currentName = (combo.SelectedItem as SerialPortDescriptor)?.PortName;
+            if (SamePortSet(combo.ItemsSource as IReadOnlyList<SerialPortDescriptor>, ports))
+            {
+                return;
+            }
+
+            combo.ItemsSource = ports;
+            var target = currentName is not null
+                ? ports.FirstOrDefault(item => item.PortName.Equals(currentName, StringComparison.OrdinalIgnoreCase))
+                : null;
+            if (target is null && (selectPreferred || currentName is null))
+            {
+                target = ports.FirstOrDefault(item => item.PortName.Equals("COM17", StringComparison.OrdinalIgnoreCase))
+                    ?? (ports.Count > 0 ? ports[0] : null);
+            }
+
+            combo.SelectedItem = target;
+        }
+        catch (Exception ex)
+        {
+            ShowHostError(ex.Message);
+        }
+        finally
+        {
+            portRefreshing = false;
+        }
+    }
+
+    private static bool SamePortSet(IReadOnlyList<SerialPortDescriptor>? current, IReadOnlyList<SerialPortDescriptor> updated)
+    {
+        if (current is null || current.Count != updated.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < current.Count; index++)
+        {
+            if (!current[index].PortName.Equals(updated[index].PortName, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void WorkbenchPage_ConnectRequested(object? sender, EventArgs e) => ConnectButton_Click(this, new RoutedEventArgs());
@@ -509,6 +574,7 @@ public sealed partial class MainWindow : Window
     private async void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         eventTimer.Stop();
+        portRefreshTimer.Stop();
         if (client is null)
         {
             return;
@@ -539,9 +605,24 @@ public sealed partial class MainWindow : Window
         if (workbenchPage is not null)
         {
             workbenchPage.PortComboBox.IsEnabled = enabled;
+            workbenchPage.RefreshPortsButton.IsEnabled = enabled;
             workbenchPage.BaudRateNumberBox.IsEnabled = enabled;
             workbenchPage.MonitorFormat.IsEnabled = enabled;
             workbenchPage.AdvancedExpander.IsEnabled = enabled;
+        }
+
+        if (client is null)
+        {
+            return;
+        }
+
+        if (enabled)
+        {
+            portRefreshTimer.Start();
+        }
+        else
+        {
+            portRefreshTimer.Stop();
         }
     }
 

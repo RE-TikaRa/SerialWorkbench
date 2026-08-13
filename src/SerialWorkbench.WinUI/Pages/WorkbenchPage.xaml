@@ -20,18 +20,22 @@
         <Grid ColumnSpacing="12">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="240" />
+            <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="180" />
             <ColumnDefinition Width="150" />
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
           </Grid.ColumnDefinitions>
           <ComboBox x:Name="PortComboBox" x:FieldModifier="public" Header="端口" DisplayMemberPath="DisplayName" PlaceholderText="选择串口" HorizontalAlignment="Stretch" />
-          <NumberBox x:Name="BaudRateNumberBox" x:FieldModifier="public" Grid.Column="1" Header="波特率" Value="115200" Minimum="50" Maximum="12000000" SpinButtonPlacementMode="Hidden" />
-          <ComboBox x:Name="MonitorFormat" x:FieldModifier="public" Grid.Column="2" Header="显示" SelectedIndex="0">
+          <Button x:Name="RefreshPortsButton" x:FieldModifier="public" Grid.Column="1" Click="RefreshPortsButton_Click" Style="{StaticResource ToolbarButtonStyle}" VerticalAlignment="Bottom" MinWidth="40" ToolTipService.ToolTip="刷新端口">
+            <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE72C;" FontSize="16" />
+          </Button>
+          <NumberBox x:Name="BaudRateNumberBox" x:FieldModifier="public" Grid.Column="2" Header="波特率" Value="115200" Minimum="50" Maximum="12000000" SpinButtonPlacementMode="Hidden" />
+          <ComboBox x:Name="MonitorFormat" x:FieldModifier="public" Grid.Column="3" Header="显示" SelectedIndex="0">
             <x:String>HEX</x:String>
             <x:String>文本</x:String>
           </ComboBox>
-          <Button x:Name="ConnectButton" x:FieldModifier="public" Grid.Column="3" Content="连接" Click="ConnectButton_Click" Style="{StaticResource PrimaryButtonStyle}" VerticalAlignment="Bottom" />
+          <Button x:Name="ConnectButton" x:FieldModifier="public" Grid.Column="4" Content="连接" Click="ConnectButton_Click" Style="{StaticResource PrimaryButtonStyle}" VerticalAlignment="Bottom" />
         </Grid>
         <Expander x:Name="AdvancedExpander" x:FieldModifier="public" Header="高级参数" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
           <Grid ColumnSpacing="12" RowSpacing="14">

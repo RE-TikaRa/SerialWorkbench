@@ -18,6 +18,7 @@ public sealed partial class WorkbenchPage : Page
     public event EventHandler? PauseRequested;
     public event EventHandler? ClearRequested;
     public event EventHandler? SendRequested;
+    public event EventHandler? RefreshPortsRequested;
 
     public void BindRows(ObservableCollection<TrafficRow> rows) => TrafficListView.ItemsSource = rows;
 
@@ -33,6 +34,7 @@ public sealed partial class WorkbenchPage : Page
     public bool IsPaused => PauseButton.Content?.ToString() == "继续";
 
     private void ConnectButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ConnectRequested?.Invoke(this, EventArgs.Empty);
+    private void RefreshPortsButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => RefreshPortsRequested?.Invoke(this, EventArgs.Empty);
     private void PauseButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => PauseRequested?.Invoke(this, EventArgs.Empty);
     private void ClearButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ClearRequested?.Invoke(this, EventArgs.Empty);
     private void SendButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => SendRequested?.Invoke(this, EventArgs.Empty);
