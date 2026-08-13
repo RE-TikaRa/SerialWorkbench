@@ -16,13 +16,21 @@ public sealed partial class WorkbenchPage : Page
 
     public WorkbenchPage() => InitializeComponent();
 
+    private readonly ObservableCollection<string> sendHistory = [];
+
     public event EventHandler? ConnectRequested;
     public event EventHandler? PauseRequested;
     public event EventHandler? ClearRequested;
     public event EventHandler? SendRequested;
     public event EventHandler? RefreshPortsRequested;
+    public event EventHandler? LoopSendStarted;
+    public event EventHandler? LoopSendStopped;
 
-    public void BindRows(ObservableCollection<TrafficRow> rows) => TrafficListView.ItemsSource = rows;
+    public void BindRows(ObservableCollection<TrafficRow> rows)
+    {
+        TrafficListView.ItemsSource = rows;
+        SendHistory.ItemsSource = sendHistory;
+    }
 
     public SerialPortDescriptor? SelectedPort => PortComboBox.SelectedItem as SerialPortDescriptor;
     public double BaudRate =>
@@ -45,17 +53,46 @@ public sealed partial class WorkbenchPage : Page
         _ => Encoding.UTF8,
     };
     public bool IsPaused => PauseButton.Content?.ToString() == "继续";
+    public bool ShowTimestamp => TimestampToggle.IsChecked == true;
 
     private void ConnectButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ConnectRequested?.Invoke(this, EventArgs.Empty);
     private void RefreshPortsButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => RefreshPortsRequested?.Invoke(this, EventArgs.Empty);
     private void PauseButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => PauseRequested?.Invoke(this, EventArgs.Empty);
     private void ClearButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ClearRequested?.Invoke(this, EventArgs.Empty);
     private void SendButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => SendRequested?.Invoke(this, EventArgs.Empty);
+    private void LoopSendToggle_Checked(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => LoopSendStarted?.Invoke(this, EventArgs.Empty);
+    private void LoopSendToggle_Unchecked(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => LoopSendStopped?.Invoke(this, EventArgs.Empty);
+
+    private void SendHistory_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (SendHistory.SelectedItem is string entry)
+        {
+            SendEditor.Text = entry;
+        }
+    }
+
+    public void AddSendHistory(string entry)
+    {
+        if (string.IsNullOrEmpty(entry))
+        {
+            return;
+        }
+
+        sendHistory.Remove(entry);
+        sendHistory.Insert(0, entry);
+        while (sendHistory.Count > 20)
+        {
+            sendHistory.RemoveAt(sendHistory.Count - 1);
+        }
+    }
 
     public string SendText => SendEditor.Text;
     public int SendFormatIndex => SendFormat.SelectedIndex;
     public int SendLineEndingIndex => SendLineEnding.SelectedIndex;
     public int SendChecksumIndex => SendChecksum.SelectedIndex;
+    public int LoopIntervalMs => (int)LoopIntervalNumberBox.Value;
+    public bool IsLoopSending => LoopSendToggle.IsChecked == true;
+    public void StopLoopSend() => LoopSendToggle.IsChecked = false;
     public void SetConnectionBusy(bool busy) => ConnectButton.IsEnabled = !busy;
     public void SetSending(bool sending) => SendButton.IsEnabled = !sending;
     public void ShowSendResult(string message, InfoBarSeverity severity)

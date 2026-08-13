@@ -17,6 +17,8 @@ public sealed partial class MainWindow : Window
 {
     private readonly DispatcherTimer eventTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly DispatcherTimer portRefreshTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    private readonly DispatcherTimer loopSendTimer = new();
+    private bool loopSending;
     private HostRpcClient? client;
     private Guid? connectionId;
     private long lastSequence;
@@ -49,6 +51,7 @@ public sealed partial class MainWindow : Window
         ContentFrame.Content = workbenchPage;
         eventTimer.Tick += EventTimer_Tick;
         portRefreshTimer.Tick += PortRefreshTimer_Tick;
+        loopSendTimer.Tick += LoopSendTimer_Tick;
         Closed += MainWindow_Closed;
         Activated += MainWindow_Activated;
     }
@@ -106,6 +109,7 @@ public sealed partial class MainWindow : Window
             {
                 await client.CloseConnectionAsync(current, CancellationToken.None);
                 connectionId = null;
+                workbenchPage?.StopLoopSend();
                 if (workbenchPage is not null)
                 {
                     workbenchPage.ConnectButton.Content = "连接";
@@ -152,10 +156,18 @@ public sealed partial class MainWindow : Window
 
     private async void SendButton_Click(object sender, RoutedEventArgs e)
     {
+        if (await SendCurrentAsync() && workbenchPage is not null)
+        {
+            workbenchPage.AddSendHistory(workbenchPage.SendText);
+        }
+    }
+
+    private async Task<bool> SendCurrentAsync()
+    {
         if (client is null || connectionId is not { } current)
         {
             workbenchPage?.ShowSendResult("请先连接串口。", InfoBarSeverity.Warning);
-            return;
+            return false;
         }
 
         var sendText = workbenchPage?.SendText ?? string.Empty;
@@ -170,12 +182,13 @@ public sealed partial class MainWindow : Window
                 : encoding.GetBytes(sendText + GetLineEnding(lineEndingIndex));
             data = AppendChecksum(data, workbenchPage?.SendChecksumIndex ?? 0);
             await client.SendAsync(new SendRequest(current, data, "winui.send"), CancellationToken.None);
-            var severity = InfoBarSeverity.Success;
-            workbenchPage?.ShowSendResult($"已发送 {data.Length:N0} 字节。", severity);
+            workbenchPage?.ShowSendResult($"已发送 {data.Length:N0} 字节。", InfoBarSeverity.Success);
+            return true;
         }
         catch (Exception ex)
         {
             workbenchPage?.ShowSendResult(ex.Message, InfoBarSeverity.Error);
+            return false;
         }
         finally
         {
@@ -241,7 +254,7 @@ public sealed partial class MainWindow : Window
             foreach (var item in events)
             {
                 lastSequence = Math.Max(lastSequence, item.Sequence);
-                TrafficRows.Add(TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, workbenchPage?.SelectedEncoding ?? Encoding.UTF8));
+                TrafficRows.Add(TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, workbenchPage?.SelectedEncoding ?? Encoding.UTF8, workbenchPage?.ShowTimestamp ?? true));
                 if (item.Direction == SerialDirection.Receive)
                 {
                     workbenchPage?.AppendWaveform(item.Data);
@@ -381,6 +394,10 @@ public sealed partial class MainWindow : Window
         workbenchPage.SendRequested += WorkbenchPage_SendRequested;
         workbenchPage.RefreshPortsRequested -= WorkbenchPage_RefreshPortsRequested;
         workbenchPage.RefreshPortsRequested += WorkbenchPage_RefreshPortsRequested;
+        workbenchPage.LoopSendStarted -= WorkbenchPage_LoopSendStarted;
+        workbenchPage.LoopSendStarted += WorkbenchPage_LoopSendStarted;
+        workbenchPage.LoopSendStopped -= WorkbenchPage_LoopSendStopped;
+        workbenchPage.LoopSendStopped += WorkbenchPage_LoopSendStopped;
     }
 
     private async void WorkbenchPage_RefreshPortsRequested(object? sender, EventArgs e) => await RefreshPortsAsync(false);
@@ -464,6 +481,51 @@ public sealed partial class MainWindow : Window
         }
 
         SendButton_Click(this, new RoutedEventArgs());
+    }
+
+    private void WorkbenchPage_LoopSendStarted(object? sender, EventArgs e)
+    {
+        if (workbenchPage is null)
+        {
+            return;
+        }
+
+        if (client is null || connectionId is null)
+        {
+            workbenchPage.ShowSendResult("请先连接串口。", InfoBarSeverity.Warning);
+            workbenchPage.StopLoopSend();
+            return;
+        }
+
+        workbenchPage.AddSendHistory(workbenchPage.SendText);
+        loopSendTimer.Interval = TimeSpan.FromMilliseconds(workbenchPage.LoopIntervalMs);
+        loopSendTimer.Start();
+    }
+
+    private void WorkbenchPage_LoopSendStopped(object? sender, EventArgs e) => loopSendTimer.Stop();
+
+    private async void LoopSendTimer_Tick(object? sender, object e)
+    {
+        if (loopSending)
+        {
+            return;
+        }
+
+        if (client is null || connectionId is null)
+        {
+            workbenchPage?.StopLoopSend();
+            return;
+        }
+
+        loopSending = true;
+        try
+        {
+            await SendCurrentAsync();
+        }
+        finally
+        {
+            loopSending = false;
+        }
     }
     private async void SettingsPage_ChooseWorkspaceRequested(object? sender, EventArgs e) => await ChooseWorkspaceAsync();
     private void SettingsPage_ThemeChangeRequested(object? sender, ElementTheme theme)
@@ -576,6 +638,7 @@ public sealed partial class MainWindow : Window
     {
         eventTimer.Stop();
         portRefreshTimer.Stop();
+        loopSendTimer.Stop();
         if (client is null)
         {
             return;
@@ -688,7 +751,8 @@ public sealed class TrafficRow(
     string display,
     string hex,
     Visibility receiveVisibility,
-    Visibility transmitVisibility)
+    Visibility transmitVisibility,
+    Visibility timeVisibility)
 {
     public string Time { get; } = time;
 
@@ -700,7 +764,9 @@ public sealed class TrafficRow(
 
     public Visibility TransmitVisibility { get; } = transmitVisibility;
 
-    public static TrafficRow From(SerialTrafficEvent item, bool text, Encoding encoding)
+    public Visibility TimeVisibility { get; } = timeVisibility;
+
+    public static TrafficRow From(SerialTrafficEvent item, bool text, Encoding encoding, bool showTime)
     {
         var hex = Convert.ToHexString(item.Data);
         var display = text ? encoding.GetString(item.Data) : Protocols.HexCodec.Format(item.Data);
@@ -710,6 +776,7 @@ public sealed class TrafficRow(
             display,
             hex,
             receive ? Visibility.Visible : Visibility.Collapsed,
-            receive ? Visibility.Collapsed : Visibility.Visible);
+            receive ? Visibility.Collapsed : Visibility.Visible,
+            showTime ? Visibility.Visible : Visibility.Collapsed);
     }
 }

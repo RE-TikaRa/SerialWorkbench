@@ -107,6 +107,7 @@
             </Grid.RowDefinitions>
             <Grid Padding="20,0">
               <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <ToggleButton x:Name="TimestampToggle" x:FieldModifier="public" Content="时间戳" IsChecked="True" MinHeight="32" CornerRadius="4" />
                 <Button x:Name="PauseButton" x:FieldModifier="public" Content="暂停" Click="PauseButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
                 <Button Content="清空" Click="ClearButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
               </StackPanel>
@@ -161,13 +162,22 @@
 
     <Border Grid.Row="3" Style="{StaticResource SurfaceCardStyle}">
       <StackPanel Spacing="14">
-        <TextBlock Text="发送" Style="{StaticResource SectionHeaderStyle}" />
+        <Grid ColumnSpacing="12">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="260" />
+          </Grid.ColumnDefinitions>
+          <TextBlock Text="发送" Style="{StaticResource SectionHeaderStyle}" VerticalAlignment="Center" />
+          <ComboBox x:Name="SendHistory" x:FieldModifier="public" Grid.Column="1" PlaceholderText="发送历史" HorizontalAlignment="Stretch" SelectionChanged="SendHistory_SelectionChanged" />
+        </Grid>
         <TextBox x:Name="SendEditor" x:FieldModifier="public" AcceptsReturn="False" PlaceholderText="输入文本或 HEX" FontFamily="{StaticResource MonospaceFontFamily}" />
         <Grid ColumnSpacing="12">
           <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="150" />
+            <ColumnDefinition Width="150" />
             <ColumnDefinition Width="170" />
-            <ColumnDefinition Width="170" />
-            <ColumnDefinition Width="180" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
@@ -189,7 +199,9 @@
             <x:String>CRC16-XModem</x:String>
             <x:String>CRC32</x:String>
           </ComboBox>
-          <Button x:Name="SendButton" x:FieldModifier="public" Grid.Column="4" Content="发送" Click="SendButton_Click" Style="{StaticResource PrimaryButtonStyle}" VerticalAlignment="Bottom" />
+          <ToggleButton x:Name="LoopSendToggle" x:FieldModifier="public" Grid.Column="3" Content="循环发送" MinHeight="32" CornerRadius="4" VerticalAlignment="Bottom" Checked="LoopSendToggle_Checked" Unchecked="LoopSendToggle_Unchecked" />
+          <NumberBox x:Name="LoopIntervalNumberBox" x:FieldModifier="public" Grid.Column="4" Header="间隔(ms)" Value="1000" Minimum="10" Maximum="600000" SpinButtonPlacementMode="Compact" Width="150" />
+          <Button x:Name="SendButton" x:FieldModifier="public" Grid.Column="6" Content="发送" Click="SendButton_Click" Style="{StaticResource PrimaryButtonStyle}" VerticalAlignment="Bottom" />
         </Grid>
         <InfoBar x:Name="SendStatus" x:FieldModifier="public" IsOpen="False" IsClosable="True" />
       </StackPanel>

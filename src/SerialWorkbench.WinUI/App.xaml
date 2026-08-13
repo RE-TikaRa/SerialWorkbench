@@ -99,7 +99,7 @@
       <DataTemplate x:Key="TrafficRowTemplate">
         <Grid Padding="10,5" ColumnSpacing="10">
           <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="104" />
+            <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="48" />
             <ColumnDefinition Width="*" />
           </Grid.ColumnDefinitions>
@@ -107,7 +107,8 @@
               VerticalAlignment="Center"
               FontFamily="{StaticResource MonospaceFontFamily}"
               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-              Text="{Binding Time}" />
+              Text="{Binding Time}"
+              Visibility="{Binding TimeVisibility}" />
           <Border
               Grid.Column="1"
               Padding="7,2"
