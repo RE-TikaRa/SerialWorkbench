@@ -1,7 +1,8 @@
 <Page x:Class="SerialWorkbench.WinUI.Pages.SessionsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:SerialWorkbench.WinUI.Controls">
+    xmlns:controls="using:SerialWorkbench.WinUI.Controls"
+    NavigationCacheMode="Required">
   <ScrollView Padding="36,24,36,36" VerticalScrollBarVisibility="Auto">
     <StackPanel MaxWidth="1064" Spacing="20">
       <controls:PageHeader Title="会话" Description="浏览和管理已保存的串口工作记录。" />

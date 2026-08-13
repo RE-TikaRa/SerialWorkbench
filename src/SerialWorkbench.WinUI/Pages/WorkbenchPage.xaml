@@ -3,7 +3,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:SerialWorkbench.WinUI.Controls"
-    xmlns:sp="using:ScottPlot.WinUI">
+    xmlns:sp="using:ScottPlot.WinUI"
+    NavigationCacheMode="Required">
   <Grid Padding="36,24,36,36" RowSpacing="18">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />

@@ -5,6 +5,7 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Ipc;
@@ -45,9 +46,8 @@ public sealed partial class MainWindow : Window
         SetTitleBar(AppTitleBar);
         TrafficRows = [];
         UpdateTrafficPresentation();
-        PrepareWorkbenchPage();
+        ContentFrame.Navigate(typeof(WorkbenchPage), null, new SuppressNavigationTransitionInfo());
         Navigation.SelectedItem = Navigation.MenuItems[0];
-        ContentFrame.Content = workbenchPage;
         eventTimer.Tick += EventTimer_Tick;
         portRefreshTimer.Tick += PortRefreshTimer_Tick;
         loopSendTimer.Tick += LoopSendTimer_Tick;
@@ -340,66 +340,58 @@ public sealed partial class MainWindow : Window
             "Receive" => typeof(WorkbenchPage),
             _ => typeof(WorkbenchPage),
         };
-        if (tag is "Workbench" or "Receive")
+        if (ContentFrame.CurrentSourcePageType != pageType)
         {
-            PrepareWorkbenchPage();
-            ContentFrame.Content = workbenchPage;
-        }
-        else if (tag == "Loopback")
-        {
-            loopbackPage ??= new LoopbackPage();
-            loopbackPage.RunRequested -= LoopbackPage_RunRequested;
-            loopbackPage.RunRequested += LoopbackPage_RunRequested;
-            ContentFrame.Content = loopbackPage;
-        }
-        else if (tag == "Modbus")
-        {
-            modbusPage ??= new ModbusPage();
-            modbusPage.SendRequested -= ModbusPage_SendRequested;
-            modbusPage.SendRequested += ModbusPage_SendRequested;
-            ContentFrame.Content = modbusPage;
-        }
-        else if (tag == "Settings")
-        {
-            settingsPage ??= new SettingsPage();
-            settingsPage.ChooseWorkspaceRequested -= SettingsPage_ChooseWorkspaceRequested;
-            settingsPage.ChooseWorkspaceRequested += SettingsPage_ChooseWorkspaceRequested;
-            settingsPage.ThemeChangeRequested -= SettingsPage_ThemeChangeRequested;
-            settingsPage.ThemeChangeRequested += SettingsPage_ThemeChangeRequested;
-            settingsPage.SetThemeSelection(currentTheme);
-            settingsPage.SetWorkspacePath(workspacePath);
-            ContentFrame.Content = settingsPage;
-        }
-        else if (tag == "Sessions")
-        {
-            sessionsPage ??= new SessionsPage();
-            sessionsPage.SetPaths(workspacePath, sessionPath);
-            ContentFrame.Content = sessionsPage;
-        }
-        else if (ContentFrame.CurrentSourcePageType != pageType)
-        {
-            ContentFrame.Navigate(pageType);
+            ContentFrame.Navigate(pageType, null, args.RecommendedNavigationTransitionInfo);
         }
     }
 
-    private void PrepareWorkbenchPage()
+    private void ContentFrame_Navigated(object sender, NavigationEventArgs e)
     {
-        workbenchPage ??= new WorkbenchPage();
-        workbenchPage.BindRows(TrafficRows);
-        workbenchPage.ConnectRequested -= WorkbenchPage_ConnectRequested;
-        workbenchPage.ConnectRequested += WorkbenchPage_ConnectRequested;
-        workbenchPage.PauseRequested -= WorkbenchPage_PauseRequested;
-        workbenchPage.PauseRequested += WorkbenchPage_PauseRequested;
-        workbenchPage.ClearRequested -= WorkbenchPage_ClearRequested;
-        workbenchPage.ClearRequested += WorkbenchPage_ClearRequested;
-        workbenchPage.SendRequested -= WorkbenchPage_SendRequested;
-        workbenchPage.SendRequested += WorkbenchPage_SendRequested;
-        workbenchPage.RefreshPortsRequested -= WorkbenchPage_RefreshPortsRequested;
-        workbenchPage.RefreshPortsRequested += WorkbenchPage_RefreshPortsRequested;
-        workbenchPage.LoopSendStarted -= WorkbenchPage_LoopSendStarted;
-        workbenchPage.LoopSendStarted += WorkbenchPage_LoopSendStarted;
-        workbenchPage.LoopSendStopped -= WorkbenchPage_LoopSendStopped;
-        workbenchPage.LoopSendStopped += WorkbenchPage_LoopSendStopped;
+        switch (e.Content)
+        {
+            case WorkbenchPage page:
+                workbenchPage = page;
+                page.BindRows(TrafficRows);
+                page.ConnectRequested -= WorkbenchPage_ConnectRequested;
+                page.ConnectRequested += WorkbenchPage_ConnectRequested;
+                page.PauseRequested -= WorkbenchPage_PauseRequested;
+                page.PauseRequested += WorkbenchPage_PauseRequested;
+                page.ClearRequested -= WorkbenchPage_ClearRequested;
+                page.ClearRequested += WorkbenchPage_ClearRequested;
+                page.SendRequested -= WorkbenchPage_SendRequested;
+                page.SendRequested += WorkbenchPage_SendRequested;
+                page.RefreshPortsRequested -= WorkbenchPage_RefreshPortsRequested;
+                page.RefreshPortsRequested += WorkbenchPage_RefreshPortsRequested;
+                page.LoopSendStarted -= WorkbenchPage_LoopSendStarted;
+                page.LoopSendStarted += WorkbenchPage_LoopSendStarted;
+                page.LoopSendStopped -= WorkbenchPage_LoopSendStopped;
+                page.LoopSendStopped += WorkbenchPage_LoopSendStopped;
+                break;
+            case LoopbackPage page:
+                loopbackPage = page;
+                page.RunRequested -= LoopbackPage_RunRequested;
+                page.RunRequested += LoopbackPage_RunRequested;
+                break;
+            case ModbusPage page:
+                modbusPage = page;
+                page.SendRequested -= ModbusPage_SendRequested;
+                page.SendRequested += ModbusPage_SendRequested;
+                break;
+            case SettingsPage page:
+                settingsPage = page;
+                page.ChooseWorkspaceRequested -= SettingsPage_ChooseWorkspaceRequested;
+                page.ChooseWorkspaceRequested += SettingsPage_ChooseWorkspaceRequested;
+                page.ThemeChangeRequested -= SettingsPage_ThemeChangeRequested;
+                page.ThemeChangeRequested += SettingsPage_ThemeChangeRequested;
+                page.SetThemeSelection(currentTheme);
+                page.SetWorkspacePath(workspacePath);
+                break;
+            case SessionsPage page:
+                sessionsPage = page;
+                page.SetPaths(workspacePath, sessionPath);
+                break;
+        }
     }
 
     private async void WorkbenchPage_RefreshPortsRequested(object? sender, EventArgs e) => await RefreshPortsAsync(false);

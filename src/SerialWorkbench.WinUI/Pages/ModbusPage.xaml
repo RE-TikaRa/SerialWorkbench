@@ -2,7 +2,8 @@
     x:Class="SerialWorkbench.WinUI.Pages.ModbusPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:SerialWorkbench.WinUI.Controls">
+    xmlns:controls="using:SerialWorkbench.WinUI.Controls"
+    NavigationCacheMode="Required">
   <ScrollView Padding="36,24,36,36" VerticalScrollBarVisibility="Auto">
     <StackPanel MaxWidth="1064" Spacing="20">
       <controls:PageHeader Title="Modbus RTU" Description="构造读写请求帧发送到当前串口，并解析寄存器响应。" />

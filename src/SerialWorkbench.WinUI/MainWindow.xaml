@@ -39,7 +39,7 @@
           <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <InfoBar x:Name="ErrorInfoBar" Margin="36,18,36,0" IsOpen="False" IsClosable="True" />
-        <Frame x:Name="ContentFrame" Grid.Row="1" NavigationFailed="ContentFrame_NavigationFailed" />
+        <Frame x:Name="ContentFrame" Grid.Row="1" IsNavigationStackEnabled="False" Navigated="ContentFrame_Navigated" NavigationFailed="ContentFrame_NavigationFailed" />
       </Grid>
     </NavigationView>
   </Grid>
