@@ -30,7 +30,7 @@
           <Button x:Name="RefreshPortsButton" x:FieldModifier="public" Grid.Column="1" Click="RefreshPortsButton_Click" Style="{StaticResource ToolbarButtonStyle}" VerticalAlignment="Bottom" MinWidth="40" ToolTipService.ToolTip="刷新端口">
             <FontIcon Glyph="&#xE72C;" FontSize="16" />
           </Button>
-          <ComboBox x:Name="BaudRateComboBox" x:FieldModifier="public" Grid.Column="2" Header="波特率" IsEditable="True" Text="115200" HorizontalAlignment="Stretch">
+          <ComboBox x:Name="BaudRateComboBox" x:FieldModifier="public" Grid.Column="2" Header="波特率" IsEditable="True" SelectedIndex="7" HorizontalAlignment="Stretch">
             <x:String>1200</x:String>
             <x:String>2400</x:String>
             <x:String>4800</x:String>
