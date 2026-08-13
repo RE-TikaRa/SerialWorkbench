@@ -68,6 +68,7 @@ public sealed partial class MainWindow : Window
             }
 
             ConnectionStatusText.Text = $"Host {handshake.HostVersion}";
+            SetStatusIndicator("SystemFillColorSuccessBrush");
             var ports = await client.ListPortsAsync(CancellationToken.None);
             if (workbenchPage is not null)
             {
@@ -506,47 +507,47 @@ public sealed partial class MainWindow : Window
     private void ShowHostError(string message)
     {
         ConnectionStatusText.Text = "Host 错误";
+        SetStatusIndicator("SystemFillColorCriticalBrush");
         HostInfoBar.Title = "SerialWorkbench Host";
         HostInfoBar.Message = message;
         HostInfoBar.Severity = InfoBarSeverity.Error;
         HostInfoBar.IsOpen = true;
     }
 
+    private void SetStatusIndicator(string brushKey)
+    {
+        StatusIndicator.Fill = (Brush)Application.Current.Resources[brushKey];
+    }
+
 }
 
 public sealed class TrafficRow(
     string time,
-    string direction,
     string display,
     string hex,
-    Brush directionForeground,
-    Brush directionBackground)
+    Visibility receiveVisibility,
+    Visibility transmitVisibility)
 {
     public string Time { get; } = time;
-
-    public string Direction { get; } = direction;
 
     public string Display { get; } = display;
 
     public string Hex { get; } = hex;
 
-    public Brush DirectionForeground { get; } = directionForeground;
+    public Visibility ReceiveVisibility { get; } = receiveVisibility;
 
-    public Brush DirectionBackground { get; } = directionBackground;
+    public Visibility TransmitVisibility { get; } = transmitVisibility;
 
     public static TrafficRow From(SerialTrafficEvent item, bool text)
     {
         var hex = Convert.ToHexString(item.Data);
         var display = text ? Encoding.UTF8.GetString(item.Data) : Protocols.HexCodec.Format(item.Data);
         var receive = item.Direction == SerialDirection.Receive;
-        var foreground = (Brush)Application.Current.Resources[receive ? "TrafficReceiveBrush" : "TrafficTransmitBrush"];
-        var background = (Brush)Application.Current.Resources[receive ? "TrafficReceiveBackgroundBrush" : "TrafficTransmitBackgroundBrush"];
         return new TrafficRow(
             item.Utc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
-            receive ? "RX" : "TX",
             display,
             hex,
-            foreground,
-            background);
+            receive ? Visibility.Visible : Visibility.Collapsed,
+            receive ? Visibility.Collapsed : Visibility.Visible);
     }
 }
