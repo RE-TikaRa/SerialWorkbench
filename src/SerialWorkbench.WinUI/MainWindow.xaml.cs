@@ -5,7 +5,6 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Ipc;
@@ -67,7 +66,8 @@ public sealed partial class MainWindow : Window
     private async Task ConnectHostAsync()
     {
         SetConnectionBusy(true);
-        HostInfoBar.IsOpen = false;
+        ErrorInfoBar.IsOpen = false;
+        workbenchPage?.SetConnectionStatus("正在连接服务…");
         try
         {
             client = await HostEndpoint.ConnectAsync(AppContext.BaseDirectory, true, CancellationToken.None);
@@ -77,8 +77,7 @@ public sealed partial class MainWindow : Window
                 throw new InvalidOperationException(handshake.Error);
             }
 
-            ConnectionStatusText.Text = $"Host {handshake.HostVersion}";
-            SetStatusIndicator("SystemFillColorSuccessBrush");
+            workbenchPage?.SetConnectionStatus("未连接串口");
             await RefreshPortsAsync(true);
             SetSerialConfigurationEnabled(true);
             eventTimer.Start();
@@ -86,7 +85,8 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowHostError(ex.Message);
+            workbenchPage?.SetConnectionStatus("服务连接失败");
+            ShowError(ex.Message);
         }
         finally
         {
@@ -114,7 +114,8 @@ public sealed partial class MainWindow : Window
                 {
                     workbenchPage.ConnectButton.Content = "连接";
                 }
-                ConnectionStatusText.Text = "已断开";
+                workbenchPage?.SetConnectionStatus("未连接串口");
+                workbenchPage?.SetTrafficCounts(0, 0);
                 SetSerialConfigurationEnabled(true);
                 return;
             }
@@ -140,13 +141,13 @@ public sealed partial class MainWindow : Window
             {
                 workbenchPage.ConnectButton.Content = "断开";
             }
-            ConnectionStatusText.Text = $"{port.PortName} · {options.BaudRate:N0} baud";
+            workbenchPage?.SetConnectionStatus($"{port.PortName} · {options.BaudRate:N0} baud");
             SetSerialConfigurationEnabled(false);
             await RefreshStatusAsync();
         }
         catch (Exception ex)
         {
-            ShowHostError(ex.Message);
+            ShowError(ex.Message);
         }
         finally
         {
@@ -275,7 +276,8 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowHostError(ex.Message);
+            workbenchPage?.SetConnectionStatus("服务连接中断");
+            ShowError(ex.Message);
             eventTimer.Stop();
         }
         finally
@@ -293,7 +295,7 @@ public sealed partial class MainWindow : Window
 
         var status = await client.GetStatusAsync(CancellationToken.None);
         var connection = status.Connections.FirstOrDefault(item => item.Id == connectionId);
-        CountersText.Text = connection is null ? "RX 0 · TX 0" : $"RX {connection.ReceivedBytes:N0} · TX {connection.TransmittedBytes:N0}";
+        workbenchPage?.SetTrafficCounts(connection?.ReceivedBytes ?? 0, connection?.TransmittedBytes ?? 0);
         sessionPath = status.ActiveSession?.Path ?? "尚未创建会话";
         workspacePath = status.WorkspaceRoot is null ? $"全局数据：{status.DataRoot}" : $"工作区：{status.WorkspaceRoot}";
         sessionsPage?.SetPaths(workspacePath, sessionPath);
@@ -444,7 +446,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowHostError(ex.Message);
+            ShowError(ex.Message);
         }
         finally
         {
@@ -576,7 +578,7 @@ public sealed partial class MainWindow : Window
 
     private void ContentFrame_NavigationFailed(object sender, NavigationFailedEventArgs e)
     {
-        ShowHostError(e.Exception.Message);
+        ShowError(e.Exception.Message);
         e.Handled = true;
     }
 
@@ -630,7 +632,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowHostError(ex.Message);
+            ShowError(ex.Message);
         }
     }
 
@@ -729,19 +731,12 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ShowHostError(string message)
+    private void ShowError(string message)
     {
-        ConnectionStatusText.Text = "Host 错误";
-        SetStatusIndicator("SystemFillColorCriticalBrush");
-        HostInfoBar.Title = "SerialWorkbench Host";
-        HostInfoBar.Message = message;
-        HostInfoBar.Severity = InfoBarSeverity.Error;
-        HostInfoBar.IsOpen = true;
-    }
-
-    private void SetStatusIndicator(string brushKey)
-    {
-        StatusIndicator.Fill = (Brush)Application.Current.Resources[brushKey];
+        ErrorInfoBar.Title = "操作失败";
+        ErrorInfoBar.Message = message;
+        ErrorInfoBar.Severity = InfoBarSeverity.Error;
+        ErrorInfoBar.IsOpen = true;
     }
 
 }

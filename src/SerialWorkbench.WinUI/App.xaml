@@ -77,11 +77,6 @@
       </Style>
       <Thickness x:Key="ContentPageMargin">0</Thickness>
       <Thickness x:Key="ContentPagePadding">0</Thickness>
-      <Style TargetType="NavigationViewItem">
-        <Setter Property="MinHeight" Value="40" />
-        <Setter Property="Margin" Value="4,2" />
-        <Setter Property="CornerRadius" Value="6" />
-      </Style>
       <Style TargetType="ComboBox">
         <Setter Property="MinHeight" Value="36" />
       </Style>

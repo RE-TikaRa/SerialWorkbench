@@ -94,6 +94,8 @@ public sealed partial class WorkbenchPage : Page
     public bool IsLoopSending => LoopSendToggle.IsChecked == true;
     public void StopLoopSend() => LoopSendToggle.IsChecked = false;
     public void SetConnectionBusy(bool busy) => ConnectButton.IsEnabled = !busy;
+    public void SetConnectionStatus(string status) => ConnectionStatusText.Text = status;
+    public void SetTrafficCounts(long received, long transmitted) => CountersText.Text = $"RX {received:N0} · TX {transmitted:N0}";
     public void SetSending(bool sending) => SendButton.IsEnabled = !sending;
     public void ShowSendResult(string message, InfoBarSeverity severity)
     {

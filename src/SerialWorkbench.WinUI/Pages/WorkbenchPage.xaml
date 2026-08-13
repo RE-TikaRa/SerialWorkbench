@@ -49,6 +49,7 @@
           </ComboBox>
           <Button x:Name="ConnectButton" x:FieldModifier="public" Grid.Column="4" Content="连接" Click="ConnectButton_Click" Style="{StaticResource PrimaryButtonStyle}" VerticalAlignment="Bottom" />
         </Grid>
+        <TextBlock x:Name="ConnectionStatusText" Text="正在连接服务…" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         <Expander x:Name="AdvancedExpander" x:FieldModifier="public" Header="高级参数" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
           <Grid ColumnSpacing="12" RowSpacing="14">
             <Grid.ColumnDefinitions>
@@ -106,6 +107,7 @@
               <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <Grid Padding="20,0">
+              <TextBlock x:Name="CountersText" Text="RX 0 · TX 0" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
               <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
                 <ToggleButton x:Name="TimestampToggle" x:FieldModifier="public" Content="时间戳" IsChecked="True" MinHeight="32" CornerRadius="4" />
                 <Button x:Name="PauseButton" x:FieldModifier="public" Content="暂停" Click="PauseButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
