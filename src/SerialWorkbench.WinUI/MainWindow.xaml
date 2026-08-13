@@ -34,6 +34,7 @@
       </NavigationView.PaneHeader>
       <NavigationView.MenuItems>
         <NavigationViewItem Content="接收" Icon="View" Tag="Receive" />
+        <NavigationViewItem Content="Modbus RTU" Icon="AllApps" Tag="Modbus" />
         <NavigationViewItem Content="回环检测" Icon="Refresh" Tag="Loopback" />
         <NavigationViewItem Content="会话记录" Icon="Clock" Tag="Sessions" />
       </NavigationView.MenuItems>

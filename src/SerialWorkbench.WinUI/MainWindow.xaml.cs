@@ -28,6 +28,7 @@ public sealed partial class MainWindow : Window
     private LoopbackPage? loopbackPage;
     private SettingsPage? settingsPage;
     private SessionsPage? sessionsPage;
+    private ModbusPage? modbusPage;
 
     public MainWindow()
     {
@@ -320,6 +321,7 @@ public sealed partial class MainWindow : Window
         var pageType = tag switch
         {
             "Loopback" => typeof(LoopbackPage),
+            "Modbus" => typeof(ModbusPage),
             "Sessions" => typeof(SessionsPage),
             "Settings" => typeof(SettingsPage),
             "Receive" => typeof(WorkbenchPage),
@@ -336,6 +338,13 @@ public sealed partial class MainWindow : Window
             loopbackPage.RunRequested -= LoopbackPage_RunRequested;
             loopbackPage.RunRequested += LoopbackPage_RunRequested;
             ContentFrame.Content = loopbackPage;
+        }
+        else if (tag == "Modbus")
+        {
+            modbusPage ??= new ModbusPage();
+            modbusPage.SendRequested -= ModbusPage_SendRequested;
+            modbusPage.SendRequested += ModbusPage_SendRequested;
+            ContentFrame.Content = modbusPage;
         }
         else if (tag == "Settings")
         {
@@ -401,6 +410,35 @@ public sealed partial class MainWindow : Window
         }
 
         LoopbackButton_Click(this, new RoutedEventArgs());
+    }
+
+    private async void ModbusPage_SendRequested(object? sender, EventArgs e)
+    {
+        if (modbusPage?.RequestFrame is not { } frame)
+        {
+            return;
+        }
+
+        if (client is null || connectionId is not { } current)
+        {
+            modbusPage.ShowResult("请先连接串口。", InfoBarSeverity.Warning);
+            return;
+        }
+
+        modbusPage.SetSending(true);
+        try
+        {
+            await client.SendAsync(new SendRequest(current, frame, "winui.modbus"), CancellationToken.None);
+            modbusPage.ShowResult($"已发送 {frame.Length:N0} 字节，响应见接收页报文流。", InfoBarSeverity.Success);
+        }
+        catch (Exception ex)
+        {
+            modbusPage.ShowResult(ex.Message, InfoBarSeverity.Error);
+        }
+        finally
+        {
+            modbusPage.SetSending(false);
+        }
     }
 
 

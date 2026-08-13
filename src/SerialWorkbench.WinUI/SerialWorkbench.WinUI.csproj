@@ -20,6 +20,7 @@
     <PackageReference Include="ScottPlot.WinUI" />
     <ProjectReference Include="../SerialWorkbench.Domain/SerialWorkbench.Domain.csproj" />
     <ProjectReference Include="../SerialWorkbench.Ipc/SerialWorkbench.Ipc.csproj" />
+    <ProjectReference Include="../SerialWorkbench.Modbus/SerialWorkbench.Modbus.csproj" />
     <ProjectReference Include="../SerialWorkbench.Protocols/SerialWorkbench.Protocols.csproj" />
   </ItemGroup>
   <Target Name="IncludeApplicationResourcesInPublish" AfterTargets="ComputeFilesToPublish">
