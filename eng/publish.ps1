@@ -54,7 +54,6 @@ try {
         "SerialWorkbench.pri",
         "App.xbf",
         "MainWindow.xbf",
-        "Controls\PageHeader.xbf",
         "Microsoft.ui.xaml.dll",
         "Microsoft.WindowsAppRuntime.dll",
         "Microsoft.WindowsAppRuntime.pri",

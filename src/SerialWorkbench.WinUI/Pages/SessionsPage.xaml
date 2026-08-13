@@ -3,9 +3,29 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:SerialWorkbench.WinUI.Controls"
     NavigationCacheMode="Required">
-  <ScrollView Padding="36,24,36,36" VerticalScrollBarVisibility="Auto">
-    <StackPanel MaxWidth="1064" Spacing="20">
-      <controls:PageHeader Title="会话" Description="浏览和管理已保存的串口工作记录。" />
+  <ScrollView x:Name="PageScroller" Padding="{StaticResource ContentPagePadding}" VerticalScrollBarVisibility="Auto">
+    <StackPanel MaxWidth="1064" Spacing="{StaticResource ContentPageSpacing}">
+      <VisualStateManager.VisualStateGroups>
+        <VisualStateGroup x:Name="PageMarginStates">
+          <VisualState x:Name="CompactPageMargins">
+            <VisualState.StateTriggers>
+              <AdaptiveTrigger MinWindowWidth="0" />
+            </VisualState.StateTriggers>
+            <VisualState.Setters>
+              <Setter Target="PageScroller.Padding" Value="{StaticResource CompactContentPagePadding}" />
+            </VisualState.Setters>
+          </VisualState>
+          <VisualState x:Name="StandardPageMargins">
+            <VisualState.StateTriggers>
+              <AdaptiveTrigger MinWindowWidth="641" />
+            </VisualState.StateTriggers>
+          </VisualState>
+        </VisualStateGroup>
+      </VisualStateManager.VisualStateGroups>
+      <StackPanel Spacing="6">
+        <TextBlock Text="会话" Style="{StaticResource TitleTextBlockStyle}" />
+        <TextBlock Text="浏览和管理已保存的串口工作记录。" Style="{StaticResource PageDescriptionStyle}" />
+      </StackPanel>
 
       <controls:SettingsRow Title="当前工作区" Description="选择工作区后，新的会话会保存到该位置。" Glyph="&#xE8B7;" />
       <TextBlock x:Name="WorkspacePath" x:FieldModifier="public"
