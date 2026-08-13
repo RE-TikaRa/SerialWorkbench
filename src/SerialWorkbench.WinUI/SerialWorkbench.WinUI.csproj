@@ -15,7 +15,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="Assets\SerialWorkbench.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.WindowsAppSDK" />
     <PackageReference Include="ScottPlot.WinUI" />
     <ProjectReference Include="../SerialWorkbench.Domain/SerialWorkbench.Domain.csproj" />
