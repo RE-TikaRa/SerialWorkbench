@@ -1,11 +1,17 @@
 using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml.Controls;
+using ScottPlot;
 using SerialWorkbench.Domain;
 
 namespace SerialWorkbench.WinUI.Pages;
 
 public sealed partial class WorkbenchPage : Page
 {
+    private const int MaxWavePoints = 2000;
+    private readonly WaveformParser waveformParser = new();
+    private readonly List<List<double>> channelData = [];
+    private readonly List<IPlottable> channelPlots = [];
+
     public WorkbenchPage() => InitializeComponent();
 
     public event EventHandler? ConnectRequested;
@@ -43,5 +49,85 @@ public sealed partial class WorkbenchPage : Page
         SendStatus.Message = message;
         SendStatus.Severity = severity;
         SendStatus.IsOpen = true;
+    }
+
+    public void AppendWaveform(byte[] data)
+    {
+        if (PlotRunning.IsChecked != true)
+        {
+            return;
+        }
+
+        waveformParser.Mode = PlotMode.SelectedIndex == 1 ? WaveformMode.BinaryFrame : WaveformMode.CsvText;
+        waveformParser.FrameLength = (int)PlotFrameLength.Value;
+        waveformParser.SampleType = (WaveformSampleType)PlotSampleType.SelectedIndex;
+
+        var samples = waveformParser.Feed(data);
+        if (samples.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var sample in samples)
+        {
+            for (var channel = 0; channel < sample.Length; channel++)
+            {
+                EnsureChannel(channel);
+                var series = channelData[channel];
+                series.Add(sample[channel]);
+                if (series.Count > MaxWavePoints)
+                {
+                    series.RemoveRange(0, series.Count - MaxWavePoints);
+                }
+            }
+        }
+
+        RedrawWaveform();
+    }
+
+    private void EnsureChannel(int channel)
+    {
+        while (channelData.Count <= channel)
+        {
+            channelData.Add([]);
+        }
+    }
+
+    private void RedrawWaveform()
+    {
+        WavePlot.Plot.Clear();
+        channelPlots.Clear();
+        for (var channel = 0; channel < channelData.Count; channel++)
+        {
+            var scatter = WavePlot.Plot.Add.Signal(channelData[channel].ToArray());
+            scatter.LegendText = $"CH{channel}";
+            channelPlots.Add(scatter);
+        }
+
+        WavePlot.Plot.Axes.AutoScale();
+        WavePlot.Refresh();
+    }
+
+    private void PlotMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var binary = PlotMode.SelectedIndex == 1;
+        if (PlotFrameLength is not null)
+        {
+            PlotFrameLength.IsEnabled = binary;
+        }
+
+        if (PlotSampleType is not null)
+        {
+            PlotSampleType.IsEnabled = binary;
+        }
+    }
+
+    private void PlotClearButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        channelData.Clear();
+        channelPlots.Clear();
+        waveformParser.Reset();
+        WavePlot.Plot.Clear();
+        WavePlot.Refresh();
     }
 }

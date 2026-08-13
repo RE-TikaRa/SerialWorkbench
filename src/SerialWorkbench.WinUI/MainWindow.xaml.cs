@@ -248,6 +248,10 @@ public sealed partial class MainWindow : Window
             {
                 lastSequence = Math.Max(lastSequence, item.Sequence);
                 TrafficRows.Add(TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1));
+                if (item.Direction == SerialDirection.Receive)
+                {
+                    workbenchPage?.AppendWaveform(item.Data);
+                }
             }
 
             while (TrafficRows.Count > 20_000)

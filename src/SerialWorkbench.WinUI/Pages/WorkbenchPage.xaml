@@ -2,7 +2,8 @@
     x:Class="SerialWorkbench.WinUI.Pages.WorkbenchPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:SerialWorkbench.WinUI.Controls">
+    xmlns:controls="using:SerialWorkbench.WinUI.Controls"
+    xmlns:sp="using:ScottPlot.WinUI">
   <Grid Padding="36,24,36,36" RowSpacing="18">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -99,10 +100,37 @@
           <TabViewItem.IconSource>
             <SymbolIconSource Symbol="MapDrive" />
           </TabViewItem.IconSource>
-          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-            <TextBlock Text="波形视图" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
-            <TextBlock Text="解析多通道数值后在此实时绘制曲线。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-          </StackPanel>
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid Padding="20,10" ColumnSpacing="12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="160" />
+                <ColumnDefinition Width="150" />
+                <ColumnDefinition Width="150" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <ComboBox x:Name="PlotMode" x:FieldModifier="public" Header="解析模式" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="PlotMode_SelectionChanged">
+                <x:String>CSV 文本行</x:String>
+                <x:String>二进制帧</x:String>
+              </ComboBox>
+              <NumberBox x:Name="PlotFrameLength" x:FieldModifier="public" Grid.Column="1" Header="帧长(字节)" Value="8" Minimum="1" Maximum="4096" SpinButtonPlacementMode="Compact" IsEnabled="False" />
+              <ComboBox x:Name="PlotSampleType" x:FieldModifier="public" Grid.Column="2" Header="数据类型" SelectedIndex="0" HorizontalAlignment="Stretch" IsEnabled="False">
+                <x:String>Int16 LE</x:String>
+                <x:String>Int16 BE</x:String>
+                <x:String>UInt16 LE</x:String>
+                <x:String>Float32 LE</x:String>
+              </ComboBox>
+              <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+                <ToggleButton x:Name="PlotRunning" x:FieldModifier="public" Content="绘制中" IsChecked="True" Style="{StaticResource ToolbarButtonStyle}" />
+                <Button Content="清空" Click="PlotClearButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
+              </StackPanel>
+            </Grid>
+            <sp:WinUIPlot x:Name="WavePlot" x:FieldModifier="public" Grid.Row="1" />
+          </Grid>
         </TabViewItem>
       </TabView>
     </Border>
