@@ -164,9 +164,10 @@ public sealed partial class MainWindow : Window
         workbenchPage?.SetSending(true);
         try
         {
+            var encoding = workbenchPage?.SelectedEncoding ?? Encoding.UTF8;
             var data = sendFormatIndex == 1
                 ? Protocols.HexCodec.Parse(sendText)
-                : Encoding.UTF8.GetBytes(sendText + GetLineEnding(lineEndingIndex));
+                : encoding.GetBytes(sendText + GetLineEnding(lineEndingIndex));
             data = AppendChecksum(data, workbenchPage?.SendChecksumIndex ?? 0);
             await client.SendAsync(new SendRequest(current, data, "winui.send"), CancellationToken.None);
             var severity = InfoBarSeverity.Success;
@@ -240,7 +241,7 @@ public sealed partial class MainWindow : Window
             foreach (var item in events)
             {
                 lastSequence = Math.Max(lastSequence, item.Sequence);
-                TrafficRows.Add(TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1));
+                TrafficRows.Add(TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, workbenchPage?.SelectedEncoding ?? Encoding.UTF8));
                 if (item.Direction == SerialDirection.Receive)
                 {
                     workbenchPage?.AppendWaveform(item.Data);
@@ -606,7 +607,7 @@ public sealed partial class MainWindow : Window
         {
             workbenchPage.PortComboBox.IsEnabled = enabled;
             workbenchPage.RefreshPortsButton.IsEnabled = enabled;
-            workbenchPage.BaudRateNumberBox.IsEnabled = enabled;
+            workbenchPage.BaudRateComboBox.IsEnabled = enabled;
             workbenchPage.MonitorFormat.IsEnabled = enabled;
             workbenchPage.AdvancedExpander.IsEnabled = enabled;
         }
@@ -699,10 +700,10 @@ public sealed class TrafficRow(
 
     public Visibility TransmitVisibility { get; } = transmitVisibility;
 
-    public static TrafficRow From(SerialTrafficEvent item, bool text)
+    public static TrafficRow From(SerialTrafficEvent item, bool text, Encoding encoding)
     {
         var hex = Convert.ToHexString(item.Data);
-        var display = text ? Encoding.UTF8.GetString(item.Data) : Protocols.HexCodec.Format(item.Data);
+        var display = text ? encoding.GetString(item.Data) : Protocols.HexCodec.Format(item.Data);
         var receive = item.Direction == SerialDirection.Receive;
         return new TrafficRow(
             item.Utc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),

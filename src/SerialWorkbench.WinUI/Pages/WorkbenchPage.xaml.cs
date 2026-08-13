@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Text;
 using Microsoft.UI.Xaml.Controls;
 using ScottPlot;
 using SerialWorkbench.Domain;
@@ -23,7 +25,10 @@ public sealed partial class WorkbenchPage : Page
     public void BindRows(ObservableCollection<TrafficRow> rows) => TrafficListView.ItemsSource = rows;
 
     public SerialPortDescriptor? SelectedPort => PortComboBox.SelectedItem as SerialPortDescriptor;
-    public double BaudRate => BaudRateNumberBox.Value;
+    public double BaudRate =>
+        int.TryParse(BaudRateComboBox.Text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var rate) && rate > 0
+            ? rate
+            : 115200;
     public int DataBits => (int)DataBitsNumberBox.Value;
     public SerialParity Parity => (SerialParity)ParityComboBox.SelectedIndex;
     public SerialStopBits StopBits => (SerialStopBits)StopBitsComboBox.SelectedIndex;
@@ -31,6 +36,14 @@ public sealed partial class WorkbenchPage : Page
     public bool DtrEnable => DtrCheckBox.IsChecked == true;
     public bool RtsEnable => RtsCheckBox.IsChecked == true;
     public int MonitorFormatIndex => MonitorFormat.SelectedIndex;
+    public Encoding SelectedEncoding => EncodingComboBox.SelectedIndex switch
+    {
+        1 => Encoding.ASCII,
+        2 => Encoding.GetEncoding("GB2312"),
+        3 => Encoding.GetEncoding("GBK"),
+        4 => Encoding.Unicode,
+        _ => Encoding.UTF8,
+    };
     public bool IsPaused => PauseButton.Content?.ToString() == "继续";
 
     private void ConnectButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ConnectRequested?.Invoke(this, EventArgs.Empty);

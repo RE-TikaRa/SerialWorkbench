@@ -30,7 +30,19 @@
           <Button x:Name="RefreshPortsButton" x:FieldModifier="public" Grid.Column="1" Click="RefreshPortsButton_Click" Style="{StaticResource ToolbarButtonStyle}" VerticalAlignment="Bottom" MinWidth="40" ToolTipService.ToolTip="刷新端口">
             <FontIcon Glyph="&#xE72C;" FontSize="16" />
           </Button>
-          <NumberBox x:Name="BaudRateNumberBox" x:FieldModifier="public" Grid.Column="2" Header="波特率" Value="115200" Minimum="50" Maximum="12000000" SpinButtonPlacementMode="Hidden" />
+          <ComboBox x:Name="BaudRateComboBox" x:FieldModifier="public" Grid.Column="2" Header="波特率" IsEditable="True" Text="115200" HorizontalAlignment="Stretch">
+            <x:String>1200</x:String>
+            <x:String>2400</x:String>
+            <x:String>4800</x:String>
+            <x:String>9600</x:String>
+            <x:String>19200</x:String>
+            <x:String>38400</x:String>
+            <x:String>57600</x:String>
+            <x:String>115200</x:String>
+            <x:String>230400</x:String>
+            <x:String>460800</x:String>
+            <x:String>921600</x:String>
+          </ComboBox>
           <ComboBox x:Name="MonitorFormat" x:FieldModifier="public" Grid.Column="3" Header="显示" SelectedIndex="0">
             <x:String>HEX</x:String>
             <x:String>文本</x:String>
@@ -40,10 +52,11 @@
         <Expander x:Name="AdvancedExpander" x:FieldModifier="public" Header="高级参数" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
           <Grid ColumnSpacing="12" RowSpacing="14">
             <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="130" />
-              <ColumnDefinition Width="130" />
+              <ColumnDefinition Width="120" />
+              <ColumnDefinition Width="120" />
+              <ColumnDefinition Width="120" />
               <ColumnDefinition Width="150" />
-              <ColumnDefinition Width="180" />
+              <ColumnDefinition Width="140" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <NumberBox x:Name="DataBitsNumberBox" x:FieldModifier="public" Header="数据位" Value="8" Minimum="5" Maximum="8" SpinButtonPlacementMode="Compact" />
@@ -65,7 +78,14 @@
               <x:String>RTS</x:String>
               <x:String>RTS + XON/XOFF</x:String>
             </ComboBox>
-            <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="20" VerticalAlignment="Bottom">
+            <ComboBox x:Name="EncodingComboBox" x:FieldModifier="public" Grid.Column="4" Header="编码" SelectedIndex="0" HorizontalAlignment="Stretch">
+              <x:String>UTF-8</x:String>
+              <x:String>ASCII</x:String>
+              <x:String>GB2312</x:String>
+              <x:String>GBK</x:String>
+              <x:String>UTF-16 LE</x:String>
+            </ComboBox>
+            <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="20" VerticalAlignment="Bottom">
               <CheckBox x:Name="DtrCheckBox" x:FieldModifier="public" Content="DTR" />
               <CheckBox x:Name="RtsCheckBox" x:FieldModifier="public" Content="RTS" />
             </StackPanel>
