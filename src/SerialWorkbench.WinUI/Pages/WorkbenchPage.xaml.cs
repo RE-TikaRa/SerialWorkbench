@@ -17,6 +17,12 @@ public sealed partial class WorkbenchPage : Page
 
     public SerialPortDescriptor? SelectedPort => PortComboBox.SelectedItem as SerialPortDescriptor;
     public double BaudRate => BaudRateNumberBox.Value;
+    public int DataBits => (int)DataBitsNumberBox.Value;
+    public SerialParity Parity => (SerialParity)ParityComboBox.SelectedIndex;
+    public SerialStopBits StopBits => (SerialStopBits)StopBitsComboBox.SelectedIndex;
+    public SerialHandshake Handshake => (SerialHandshake)HandshakeComboBox.SelectedIndex;
+    public bool DtrEnable => DtrCheckBox.IsChecked == true;
+    public bool RtsEnable => RtsCheckBox.IsChecked == true;
     public int MonitorFormatIndex => MonitorFormat.SelectedIndex;
     public bool IsPaused => PauseButton.Content?.ToString() == "继续";
 

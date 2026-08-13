@@ -32,6 +32,40 @@
           </ComboBox>
           <Button x:Name="ConnectButton" x:FieldModifier="public" Grid.Column="3" Content="连接" Click="ConnectButton_Click" Style="{StaticResource PrimaryButtonStyle}" VerticalAlignment="Bottom" />
         </Grid>
+        <Expander x:Name="AdvancedExpander" x:FieldModifier="public" Header="高级参数" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+          <Grid ColumnSpacing="12" RowSpacing="14">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="130" />
+              <ColumnDefinition Width="130" />
+              <ColumnDefinition Width="150" />
+              <ColumnDefinition Width="180" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <NumberBox x:Name="DataBitsNumberBox" x:FieldModifier="public" Header="数据位" Value="8" Minimum="5" Maximum="8" SpinButtonPlacementMode="Compact" />
+            <ComboBox x:Name="ParityComboBox" x:FieldModifier="public" Grid.Column="1" Header="校验" SelectedIndex="0" HorizontalAlignment="Stretch">
+              <x:String>无</x:String>
+              <x:String>奇校验</x:String>
+              <x:String>偶校验</x:String>
+              <x:String>标记</x:String>
+              <x:String>空格</x:String>
+            </ComboBox>
+            <ComboBox x:Name="StopBitsComboBox" x:FieldModifier="public" Grid.Column="2" Header="停止位" SelectedIndex="0" HorizontalAlignment="Stretch">
+              <x:String>1</x:String>
+              <x:String>1.5</x:String>
+              <x:String>2</x:String>
+            </ComboBox>
+            <ComboBox x:Name="HandshakeComboBox" x:FieldModifier="public" Grid.Column="3" Header="流控" SelectedIndex="0" HorizontalAlignment="Stretch">
+              <x:String>无</x:String>
+              <x:String>XON/XOFF</x:String>
+              <x:String>RTS</x:String>
+              <x:String>RTS + XON/XOFF</x:String>
+            </ComboBox>
+            <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="20" VerticalAlignment="Bottom">
+              <CheckBox x:Name="DtrCheckBox" x:FieldModifier="public" Content="DTR" />
+              <CheckBox x:Name="RtsCheckBox" x:FieldModifier="public" Content="RTS" />
+            </StackPanel>
+          </Grid>
+        </Expander>
       </StackPanel>
     </Border>
 

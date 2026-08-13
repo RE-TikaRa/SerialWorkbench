@@ -130,12 +130,12 @@ public sealed partial class MainWindow : Window
             var options = new SerialConnectionOptions(
                 port.PortName,
                 checked((int)(workbenchPage?.BaudRate ?? 115200)),
-                8,
-                SerialParity.None,
-                SerialStopBits.One,
-                SerialHandshake.None,
-                false,
-                false);
+                workbenchPage?.DataBits ?? 8,
+                workbenchPage?.Parity ?? SerialParity.None,
+                workbenchPage?.StopBits ?? SerialStopBits.One,
+                workbenchPage?.Handshake ?? SerialHandshake.None,
+                workbenchPage?.DtrEnable ?? false,
+                workbenchPage?.RtsEnable ?? false);
             var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(options), CancellationToken.None);
             connectionId = connection.Id;
             if (workbenchPage is not null)
@@ -498,6 +498,7 @@ public sealed partial class MainWindow : Window
             workbenchPage.PortComboBox.IsEnabled = enabled;
             workbenchPage.BaudRateNumberBox.IsEnabled = enabled;
             workbenchPage.MonitorFormat.IsEnabled = enabled;
+            workbenchPage.AdvancedExpander.IsEnabled = enabled;
         }
     }
 
