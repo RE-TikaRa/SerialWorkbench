@@ -8,21 +8,23 @@
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <controls:PageHeader Grid.Row="0" MaxWidth="1064" HorizontalAlignment="Left" Title="接收" Description="连接串口并查看实时收到的数据。" />
+    <controls:PageHeader Grid.Row="0" Title="接收" Description="连接串口并查看实时收到的数据。" />
 
-    <Border Grid.Row="1" MaxWidth="1064" HorizontalAlignment="Left" Style="{StaticResource SurfaceCardStyle}">
+    <Border Grid.Row="1" Style="{StaticResource SurfaceCardStyle}">
       <StackPanel Spacing="14">
         <TextBlock Text="串口连接" Style="{StaticResource SectionHeaderStyle}" />
         <Grid ColumnSpacing="12">
           <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="240" />
             <ColumnDefinition Width="180" />
             <ColumnDefinition Width="150" />
             <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
           </Grid.ColumnDefinitions>
-          <ComboBox x:Name="PortComboBox" x:FieldModifier="public" Header="端口" DisplayMemberPath="DisplayName" PlaceholderText="选择串口" />
+          <ComboBox x:Name="PortComboBox" x:FieldModifier="public" Header="端口" DisplayMemberPath="DisplayName" PlaceholderText="选择串口" HorizontalAlignment="Stretch" />
           <NumberBox x:Name="BaudRateNumberBox" x:FieldModifier="public" Grid.Column="1" Header="波特率" Value="115200" Minimum="50" Maximum="12000000" SpinButtonPlacementMode="Hidden" />
           <ComboBox x:Name="MonitorFormat" x:FieldModifier="public" Grid.Column="2" Header="显示" SelectedIndex="0">
             <x:String>HEX</x:String>
@@ -33,9 +35,9 @@
       </StackPanel>
     </Border>
 
-    <Border Grid.Row="2" MaxWidth="1064" MinHeight="320" HorizontalAlignment="Left" Style="{StaticResource SurfaceCardStyle}" Padding="0">
+    <Border Grid.Row="2" MinHeight="260" Style="{StaticResource SurfaceCardStyle}" Padding="0">
       <TabView IsAddTabButtonVisible="False" CanReorderTabs="False" CanDragTabs="False">
-        <TabViewItem Header="监视" IsClosable="False">
+        <TabViewItem Header="报文" IsClosable="False">
           <TabViewItem.IconSource>
             <SymbolIconSource Symbol="View" />
           </TabViewItem.IconSource>
@@ -59,37 +61,43 @@
             </Grid>
           </Grid>
         </TabViewItem>
-        <TabViewItem Header="发送" IsClosable="False">
+        <TabViewItem Header="波形" IsClosable="False">
           <TabViewItem.IconSource>
-            <SymbolIconSource Symbol="Send" />
+            <SymbolIconSource Symbol="MapDrive" />
           </TabViewItem.IconSource>
-          <Grid Padding="20" RowSpacing="8">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="170" />
-              <ColumnDefinition Width="170" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-              <RowDefinition Height="Auto" />
-              <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-            <TextBox x:Name="SendEditor" x:FieldModifier="public" Grid.Row="0" Grid.ColumnSpan="4" AcceptsReturn="False" Header="发送数据" PlaceholderText="输入文本或 HEX" FontFamily="{StaticResource MonospaceFontFamily}" />
-            <ComboBox x:Name="SendFormat" x:FieldModifier="public" Grid.Row="1" Grid.Column="1" Header="格式" SelectedIndex="0">
-              <x:String>文本</x:String>
-              <x:String>HEX</x:String>
-            </ComboBox>
-            <ComboBox x:Name="SendLineEnding" x:FieldModifier="public" Grid.Row="1" Grid.Column="2" Header="行尾" SelectedIndex="0">
-              <x:String>无</x:String>
-              <x:String>CR</x:String>
-              <x:String>LF</x:String>
-              <x:String>CRLF</x:String>
-            </ComboBox>
-            <Button x:Name="SendButton" x:FieldModifier="public" Grid.Row="1" Grid.Column="3" Content="发送" Click="SendButton_Click" Style="{StaticResource PrimaryButtonStyle}" VerticalAlignment="Bottom" />
-            <InfoBar x:Name="SendStatus" x:FieldModifier="public" Grid.Row="1" Grid.Column="0" IsOpen="False" IsClosable="True" />
-          </Grid>
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+            <TextBlock Text="波形视图" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+            <TextBlock Text="解析多通道数值后在此实时绘制曲线。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          </StackPanel>
         </TabViewItem>
       </TabView>
+    </Border>
+
+    <Border Grid.Row="3" Style="{StaticResource SurfaceCardStyle}">
+      <StackPanel Spacing="14">
+        <TextBlock Text="发送" Style="{StaticResource SectionHeaderStyle}" />
+        <TextBox x:Name="SendEditor" x:FieldModifier="public" AcceptsReturn="False" PlaceholderText="输入文本或 HEX" FontFamily="{StaticResource MonospaceFontFamily}" />
+        <Grid ColumnSpacing="12">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="170" />
+            <ColumnDefinition Width="170" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <ComboBox x:Name="SendFormat" x:FieldModifier="public" Header="格式" SelectedIndex="0" HorizontalAlignment="Stretch">
+            <x:String>文本</x:String>
+            <x:String>HEX</x:String>
+          </ComboBox>
+          <ComboBox x:Name="SendLineEnding" x:FieldModifier="public" Grid.Column="1" Header="行尾" SelectedIndex="0" HorizontalAlignment="Stretch">
+            <x:String>无</x:String>
+            <x:String>CR</x:String>
+            <x:String>LF</x:String>
+            <x:String>CRLF</x:String>
+          </ComboBox>
+          <Button x:Name="SendButton" x:FieldModifier="public" Grid.Column="3" Content="发送" Click="SendButton_Click" Style="{StaticResource PrimaryButtonStyle}" VerticalAlignment="Bottom" />
+        </Grid>
+        <InfoBar x:Name="SendStatus" x:FieldModifier="public" IsOpen="False" IsClosable="True" />
+      </StackPanel>
     </Border>
   </Grid>
 </Page>
