@@ -16,7 +16,6 @@ $componentRoot = Reset-RepositoryBuildDirectory (Join-Path $RepositoryRoot "arti
 $outputRoot = Reset-RepositoryBuildDirectory $OutputDirectory
 $components = @(
     @{ Name = "host"; Project = "src\SerialWorkbench.Host\SerialWorkbench.Host.csproj" },
-    @{ Name = "protocol-host"; Project = "src\SerialWorkbench.ProtocolHost\SerialWorkbench.ProtocolHost.csproj" },
     @{ Name = "cli"; Project = "src\SerialWorkbench.Cli\SerialWorkbench.Cli.csproj" },
     @{ Name = "winui"; Project = "src\SerialWorkbench.WinUI\SerialWorkbench.WinUI.csproj" }
 )
@@ -49,7 +48,6 @@ try {
     $requiredFiles = @(
         "SerialWorkbench.exe",
         "SerialWorkbench.Host.exe",
-        "SerialWorkbench.ProtocolHost.exe",
         "serial-workbench.exe",
         "SerialWorkbench.pri",
         "App.xbf",

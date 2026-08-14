@@ -23,7 +23,7 @@ Application / Protocols / Sessions
   ↑
 Serial.Windows / Storage / IPC / Host
   ↑
-WinUI / CLI / ProtocolHost
+WinUI / CLI
 ```
 
 `SerialWorkbench.Domain` 定义串口、会话和数据通道模型。`Application` 管理写入租约和事件日志；`Sessions` 管理 SQLite 会话；`Serial.Windows` 访问 Windows 串口；`Host` 组合运行时服务；`IPC` 提供客户端与 Host 的本机 RPC 契约。
@@ -34,7 +34,7 @@ RPC 契约位于 `src/SerialWorkbench.Ipc/RpcContracts.cs`。握手使用主版�
 
 ## 数据
 
-应用根目录为 `SerialWorkbench.exe` 所在目录。全局设置、资料库、会话、扩展登记、日志和缓存位于 `data/`。工作区保存会话、报告和工作区资产。
+应用根目录为 `SerialWorkbench.exe` 所在目录。界面设置、日志和全局会话位于 `data/`。工作区保存会话。
 
 每个会话对应一个 `.swbsession` SQLite 文件。事件记录 UTC、单调时钟、递增序号、连接标识、方向、来源和原始字节。会话结束时执行 WAL checkpoint，单个文件可独立迁移和读取。
 

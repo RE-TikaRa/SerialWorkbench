@@ -8,10 +8,7 @@
     <Project Path="src/SerialWorkbench.Modbus/SerialWorkbench.Modbus.csproj" />
     <Project Path="src/SerialWorkbench.Sessions/SerialWorkbench.Sessions.csproj" />
     <Project Path="src/SerialWorkbench.Storage/SerialWorkbench.Storage.csproj" />
-    <Project Path="src/SerialWorkbench.Extensions.Abstractions/SerialWorkbench.Extensions.Abstractions.csproj" />
-    <Project Path="src/SerialWorkbench.Monitoring.Abstractions/SerialWorkbench.Monitoring.Abstractions.csproj" />
     <Project Path="src/SerialWorkbench.Host/SerialWorkbench.Host.csproj" />
-    <Project Path="src/SerialWorkbench.ProtocolHost/SerialWorkbench.ProtocolHost.csproj" />
     <Project Path="src/SerialWorkbench.Cli/SerialWorkbench.Cli.csproj" />
     <Project Path="src/SerialWorkbench.WinUI/SerialWorkbench.WinUI.csproj" />
   </Folder>

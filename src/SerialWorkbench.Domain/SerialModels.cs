@@ -114,11 +114,3 @@ public sealed record SessionDescriptor(
     DateTimeOffset? EndedUtc,
     long EventCount,
     long RawByteCount);
-
-public sealed record DataChannelPoint(
-    string ChannelId,
-    string Name,
-    string? Unit,
-    DateTimeOffset Utc,
-    double Value,
-    string Quality = "good");
