@@ -23,6 +23,11 @@
     <ProjectReference Include="../SerialWorkbench.Modbus/SerialWorkbench.Modbus.csproj" />
     <ProjectReference Include="../SerialWorkbench.Protocols/SerialWorkbench.Protocols.csproj" />
   </ItemGroup>
+  <Target Name="AddWindowsAppSDKVersionMetadata" BeforeTargets="GetAssemblyAttributes">
+    <ItemGroup>
+      <AssemblyMetadata Include="WindowsAppSDKVersion" Value="%(PackageVersion.Version)" Condition="'%(PackageVersion.Identity)' == 'Microsoft.WindowsAppSDK'" />
+    </ItemGroup>
+  </Target>
   <Target Name="IncludeApplicationResourcesInPublish" AfterTargets="ComputeFilesToPublish">
     <ItemGroup>
       <_ApplicationXbf Include="$(TargetDir)**\*.xbf" />

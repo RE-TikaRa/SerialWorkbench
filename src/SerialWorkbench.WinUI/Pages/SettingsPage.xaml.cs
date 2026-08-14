@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -7,7 +9,17 @@ public sealed partial class SettingsPage : Page
 {
     private bool suppressThemeChange;
 
-    public SettingsPage() => InitializeComponent();
+    public SettingsPage()
+    {
+        InitializeComponent();
+        var assembly = typeof(SettingsPage).Assembly;
+        AppVersion.Text = assembly.GetName().Version?.ToString() ?? "未知";
+        DotnetVersion.Text = RuntimeInformation.FrameworkDescription;
+        WindowsAppRuntimeVersion.Text = assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Single(attribute => attribute.Key == "WindowsAppSDKVersion").Value;
+        SystemVersion.Text = $"{RuntimeInformation.OSDescription} · {RuntimeInformation.OSArchitecture}";
+        ApplicationPath.Text = AppContext.BaseDirectory;
+    }
 
     public event EventHandler? ChooseWorkspaceRequested;
     public event EventHandler? ClearWorkspaceRequested;

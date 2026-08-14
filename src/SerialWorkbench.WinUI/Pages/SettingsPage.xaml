@@ -59,10 +59,36 @@
         </ComboBox>
       </toolkit:SettingsCard>
 
-      <toolkit:SettingsCard Header="关于 SerialWorkbench" Description="查看版本和运行环境信息。">
+      <toolkit:SettingsCard Header="关于 SerialWorkbench" Description="查看版本和运行环境信息。" HorizontalContentAlignment="Stretch">
         <toolkit:SettingsCard.HeaderIcon>
           <FontIcon Glyph="&#xE946;" />
         </toolkit:SettingsCard.HeaderIcon>
+        <Grid ColumnSpacing="16" RowSpacing="8">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <TextBlock Text="应用版本" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock x:Name="AppVersion" Grid.Column="1" />
+          <TextBlock Grid.Row="1" Text=".NET" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock x:Name="DotnetVersion" Grid.Row="1" Grid.Column="1" />
+          <TextBlock Grid.Row="2" Text="Windows App Runtime" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock x:Name="WindowsAppRuntimeVersion" Grid.Row="2" Grid.Column="1" />
+          <TextBlock Grid.Row="3" Text="系统" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock x:Name="SystemVersion" Grid.Row="3" Grid.Column="1" TextWrapping="Wrap" />
+          <TextBlock Grid.Row="4" Text="运行目录" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock x:Name="ApplicationPath" Grid.Row="4" Grid.Column="1" TextWrapping="Wrap" />
+          <TextBlock Grid.Row="5" Text="许可证" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBlock Grid.Row="5" Grid.Column="1" Text="Apache License 2.0 · LICENSE" />
+        </Grid>
       </toolkit:SettingsCard>
     </StackPanel>
   </ScrollView>
