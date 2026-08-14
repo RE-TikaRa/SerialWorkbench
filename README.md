@@ -61,6 +61,7 @@ CLI 退出码：
 
 - [产品设计](docs/design.md)
 - [系统架构](docs/architecture.md)
+- [代码规范](docs/code-style.md)
 - [JSON Schema](schemas/)
 
 ## 许可证

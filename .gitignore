@@ -11,3 +11,4 @@ data/
 *.swbsession
 *.db-shm
 *.db-wal
+.serena/
