@@ -28,7 +28,7 @@ public sealed partial class MainWindow : Window
     private ElementTheme currentTheme;
     private bool workspaceSelected;
     private string workspacePath = "尚未选择工作区";
-    private string sessionPath = "尚未创建会话";
+    private Guid? activeSessionId;
     private WorkbenchPage? workbenchPage;
     private LoopbackPage? loopbackPage;
     private SettingsPage? settingsPage;
@@ -297,10 +297,10 @@ public sealed partial class MainWindow : Window
         var status = await client.GetStatusAsync(CancellationToken.None);
         var connection = status.Connections.FirstOrDefault(item => item.Id == connectionId);
         workbenchPage?.SetTrafficCounts(connection?.ReceivedBytes ?? 0, connection?.TransmittedBytes ?? 0);
-        sessionPath = status.ActiveSession?.Path ?? "尚未创建会话";
+        activeSessionId = status.ActiveSession?.Id;
         workspaceSelected = status.WorkspaceRoot is not null;
         workspacePath = status.WorkspaceRoot is null ? $"全局数据：{status.DataRoot}" : $"工作区：{status.WorkspaceRoot}";
-        sessionsPage?.SetPaths(workspacePath, sessionPath);
+        sessionsPage?.SetWorkspace(workspacePath);
     }
 
     private void PauseButton_Click(object sender, RoutedEventArgs e)
@@ -347,7 +347,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ContentFrame_Navigated(object sender, NavigationEventArgs e)
+    private async void ContentFrame_Navigated(object sender, NavigationEventArgs e)
     {
         switch (e.Content)
         {
@@ -395,7 +395,16 @@ public sealed partial class MainWindow : Window
                 break;
             case SessionsPage page:
                 sessionsPage = page;
-                page.SetPaths(workspacePath, sessionPath);
+                page.RefreshRequested -= SessionsPage_RefreshRequested;
+                page.RefreshRequested += SessionsPage_RefreshRequested;
+                page.SessionSelected -= SessionsPage_SessionSelected;
+                page.SessionSelected += SessionsPage_SessionSelected;
+                page.RevealRequested -= SessionsPage_RevealRequested;
+                page.RevealRequested += SessionsPage_RevealRequested;
+                page.DeleteRequested -= SessionsPage_DeleteRequested;
+                page.DeleteRequested += SessionsPage_DeleteRequested;
+                page.SetWorkspace(workspacePath);
+                await RefreshSessionsAsync(page);
                 break;
         }
     }
@@ -524,6 +533,90 @@ public sealed partial class MainWindow : Window
     }
     private async void SettingsPage_ChooseWorkspaceRequested(object? sender, EventArgs e) => await ChooseWorkspaceAsync();
     private async void SettingsPage_ClearWorkspaceRequested(object? sender, EventArgs e) => await ChangeWorkspaceAsync(null);
+
+    private async void SessionsPage_RefreshRequested(object? sender, EventArgs e) => await RefreshSessionsAsync();
+
+    private async void SessionsPage_SessionSelected(object? sender, Guid sessionId) => await ReadSessionEventsAsync(sessionId);
+
+    private void SessionsPage_RevealRequested(object? sender, string path)
+    {
+        try
+        {
+            var argument = $"/select,\"{path}\"";
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", argument) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private async void SessionsPage_DeleteRequested(object? sender, Guid sessionId)
+    {
+        if (client is null || sessionsPage is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await client.DeleteSessionAsync(sessionId, CancellationToken.None);
+            await RefreshSessionsAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private async Task RefreshSessionsAsync(SessionsPage? page = null)
+    {
+        page ??= sessionsPage;
+        if (client is null || page is null)
+        {
+            return;
+        }
+
+        page.SetBusy(true);
+        try
+        {
+            var sessions = await client.ListSessionsAsync(CancellationToken.None);
+            var selectedId = page.SetSessions(sessions, activeSessionId);
+            if (selectedId is { } id)
+            {
+                await ReadSessionEventsAsync(id, page);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            page.SetBusy(false);
+        }
+    }
+
+    private async Task ReadSessionEventsAsync(Guid sessionId, SessionsPage? page = null)
+    {
+        page ??= sessionsPage;
+        if (client is null || page is null)
+        {
+            return;
+        }
+
+        page.SetEventsLoading(sessionId);
+        try
+        {
+            var events = await client.ReadSessionEventsAsync(new SessionEventQuery(sessionId), CancellationToken.None);
+            page.SetEvents(sessionId, events);
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
     private void SettingsPage_ThemeChangeRequested(object? sender, ElementTheme theme)
     {
         currentTheme = theme;
@@ -614,8 +707,9 @@ public sealed partial class MainWindow : Window
             workspaceSelected = status.WorkspaceRoot is not null;
             workspacePath = status.WorkspaceRoot is null ? $"全局数据：{status.DataRoot}" : $"工作区：{status.WorkspaceRoot}";
             settingsPage?.SetWorkspace(workspacePath, workspaceSelected);
-            sessionPath = "尚未创建会话";
-            sessionsPage?.SetPaths(workspacePath, sessionPath);
+            activeSessionId = status.ActiveSession?.Id;
+            sessionsPage?.SetWorkspace(workspacePath);
+            await RefreshSessionsAsync();
         }
         catch (Exception ex)
         {

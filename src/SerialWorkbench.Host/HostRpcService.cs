@@ -71,6 +71,18 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
         return Task.FromResult(events);
     }
 
+    public Task<IReadOnlyList<SessionDescriptor>> ListSessionsAsync(CancellationToken cancellationToken) =>
+        runtime.Sessions.ListAsync(cancellationToken);
+
+    public Task<IReadOnlyList<SerialTrafficEvent>> ReadSessionEventsAsync(SessionEventQuery query, CancellationToken cancellationToken) =>
+        runtime.Sessions.ReadEventsAsync(query.SessionId, query.MaximumCount, cancellationToken);
+
+    public async Task<RpcResult> DeleteSessionAsync(Guid sessionId, CancellationToken cancellationToken)
+    {
+        await runtime.Sessions.DeleteAsync(sessionId, cancellationToken).ConfigureAwait(false);
+        return new RpcResult(true);
+    }
+
     public Task<LoopbackResult> RunLoopbackAsync(LoopbackRequest request, CancellationToken cancellationToken) =>
         runtime.Connections.RunLoopbackAsync(request, cancellationToken);
 

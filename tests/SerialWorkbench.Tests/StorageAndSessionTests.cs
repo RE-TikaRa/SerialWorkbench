@@ -40,23 +40,35 @@ public sealed class StorageAndSessionTests
         Assert.Equal(2, store.ActiveSession?.EventCount);
         Assert.Equal(5, store.ActiveSession?.RawByteCount);
         var sessionPath = Assert.IsType<string>(store.ActiveSession?.Path);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => store.DeleteAsync(store.ActiveSession!.Id, cancellationToken));
         await store.CompleteAsync(cancellationToken);
 
-        await using var connection = new SqliteConnection($"Data Source={sessionPath};Mode=ReadOnly;Pooling=False");
-        await connection.OpenAsync(cancellationToken);
-        await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT sequence, direction, data FROM events ORDER BY sequence;";
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        {
+            await using var connection = new SqliteConnection($"Data Source={sessionPath};Mode=ReadOnly;Pooling=False");
+            await connection.OpenAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT sequence, direction, data FROM events ORDER BY sequence;";
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
-        Assert.True(await reader.ReadAsync(cancellationToken));
-        Assert.Equal(1L, reader.GetInt64(0));
-        Assert.Equal("Transmit", reader.GetString(1));
-        Assert.Equal([0x10, 0x20], (byte[])reader[2]);
-        Assert.True(await reader.ReadAsync(cancellationToken));
-        Assert.Equal(2L, reader.GetInt64(0));
-        Assert.Equal("Receive", reader.GetString(1));
-        Assert.Equal([0x30, 0x40, 0x50], (byte[])reader[2]);
-        Assert.False(await reader.ReadAsync(cancellationToken));
+            Assert.True(await reader.ReadAsync(cancellationToken));
+            Assert.Equal(1L, reader.GetInt64(0));
+            Assert.Equal("Transmit", reader.GetString(1));
+            Assert.Equal([0x10, 0x20], (byte[])reader[2]);
+            Assert.True(await reader.ReadAsync(cancellationToken));
+            Assert.Equal(2L, reader.GetInt64(0));
+            Assert.Equal("Receive", reader.GetString(1));
+            Assert.Equal([0x30, 0x40, 0x50], (byte[])reader[2]);
+            Assert.False(await reader.ReadAsync(cancellationToken));
+        }
+
+        var sessions = await store.ListAsync(cancellationToken);
+        var session = Assert.Single(sessions);
+        Assert.Equal(2, session.EventCount);
+        Assert.Equal(5, session.RawByteCount);
+        var events = await store.ReadEventsAsync(session.Id, 1000, cancellationToken);
+        Assert.Equal([1, 2], events.Select(item => item.Sequence));
+        await store.DeleteAsync(session.Id, cancellationToken);
+        Assert.Empty(await store.ListAsync(cancellationToken));
     }
 
     [Fact]

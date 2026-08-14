@@ -5,7 +5,7 @@ namespace SerialWorkbench.Ipc;
 public static class RpcProtocol
 {
     public const int MajorVersion = 1;
-    public const int MinorVersion = 0;
+    public const int MinorVersion = 1;
 }
 
 public sealed record HandshakeRequest(int MajorVersion, int MinorVersion, string ClientName, string Culture);
@@ -27,6 +27,8 @@ public sealed record SendRequest(Guid ConnectionId, byte[] Data, string Source =
 
 public sealed record EventQuery(long AfterSequence = 0, int MaximumCount = 1000, Guid? ConnectionId = null);
 
+public sealed record SessionEventQuery(Guid SessionId, int MaximumCount = 1000);
+
 public sealed record SetWorkspaceRequest(string? Path);
 
 public sealed record RpcResult(bool Success, string? Error = null);
@@ -46,6 +48,12 @@ public interface IHostRpc
     Task<RpcResult> SendAsync(SendRequest request, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<SerialTrafficEvent>> ReadEventsAsync(EventQuery query, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<SessionDescriptor>> ListSessionsAsync(CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<SerialTrafficEvent>> ReadSessionEventsAsync(SessionEventQuery query, CancellationToken cancellationToken);
+
+    Task<RpcResult> DeleteSessionAsync(Guid sessionId, CancellationToken cancellationToken);
 
     Task<LoopbackResult> RunLoopbackAsync(LoopbackRequest request, CancellationToken cancellationToken);
 

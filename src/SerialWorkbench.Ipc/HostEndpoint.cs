@@ -106,6 +106,15 @@ public sealed class HostRpcClient : IHostRpc, IAsyncDisposable
     public Task<IReadOnlyList<SerialTrafficEvent>> ReadEventsAsync(EventQuery query, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<IReadOnlyList<SerialTrafficEvent>>(nameof(ReadEventsAsync), [query], cancellationToken);
 
+    public Task<IReadOnlyList<SessionDescriptor>> ListSessionsAsync(CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<IReadOnlyList<SessionDescriptor>>(nameof(ListSessionsAsync), [], cancellationToken);
+
+    public Task<IReadOnlyList<SerialTrafficEvent>> ReadSessionEventsAsync(SessionEventQuery query, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<IReadOnlyList<SerialTrafficEvent>>(nameof(ReadSessionEventsAsync), [query], cancellationToken);
+
+    public Task<RpcResult> DeleteSessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<RpcResult>(nameof(DeleteSessionAsync), [sessionId], cancellationToken);
+
     public Task<LoopbackResult> RunLoopbackAsync(LoopbackRequest request, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<LoopbackResult>(nameof(RunLoopbackAsync), [request], cancellationToken);
 

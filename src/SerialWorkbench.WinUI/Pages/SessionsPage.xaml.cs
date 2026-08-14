@@ -1,12 +1,195 @@
+using System.Collections.ObjectModel;
+using System.Globalization;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using SerialWorkbench.Domain;
+
 namespace SerialWorkbench.WinUI.Pages;
 
 public sealed partial class SessionsPage : Page
 {
+    private bool suppressSelection;
+
     public SessionsPage() => InitializeComponent();
-    public void SetPaths(string workspacePath, string sessionPath)
+
+    public ObservableCollection<SessionRow> Sessions { get; } = [];
+
+    public ObservableCollection<SessionEventRow> Events { get; } = [];
+
+    public event EventHandler? RefreshRequested;
+
+    public event EventHandler<Guid>? SessionSelected;
+
+    public event EventHandler<string>? RevealRequested;
+
+    public event EventHandler<Guid>? DeleteRequested;
+
+    public void SetWorkspace(string path) => WorkspacePath.Text = path;
+
+    public Guid? SetSessions(IReadOnlyList<SessionDescriptor> sessions, Guid? activeSessionId)
     {
-        WorkspacePath.Text = workspacePath;
-        SessionPath.Text = sessionPath;
+        var selectedId = (SessionList.SelectedItem as SessionRow)?.Id;
+        suppressSelection = true;
+        Sessions.Clear();
+        foreach (var session in sessions)
+        {
+            Sessions.Add(SessionRow.From(session, session.Id == activeSessionId));
+        }
+
+        var selected = Sessions.FirstOrDefault(item => item.Id == selectedId) ?? Sessions.FirstOrDefault();
+        SessionList.SelectedItem = selected;
+        suppressSelection = false;
+        SessionsEmptyState.Visibility = Sessions.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        UpdateSelection(selected);
+        return selected?.Id;
     }
+
+    public void SetEvents(Guid sessionId, IReadOnlyList<SerialTrafficEvent> events)
+    {
+        if ((SessionList.SelectedItem as SessionRow)?.Id != sessionId)
+        {
+            return;
+        }
+
+        Events.Clear();
+        foreach (var item in events)
+        {
+            Events.Add(SessionEventRow.From(item));
+        }
+
+        var session = (SessionRow)SessionList.SelectedItem;
+        EventTitle.Text = session.EventCount > events.Count
+            ? $"{session.Title} · 最近 {events.Count:N0} / {session.EventCount:N0} 条"
+            : $"{session.Title} · {events.Count:N0} 条";
+        EventsEmptyState.Text = events.Count == 0 ? "该会话没有报文" : "";
+        EventsEmptyState.Visibility = events.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public void SetBusy(bool busy)
+    {
+        LoadingRing.IsActive = busy;
+        RefreshSessionsButton.IsEnabled = !busy;
+    }
+
+    public void SetEventsLoading(Guid sessionId)
+    {
+        if ((SessionList.SelectedItem as SessionRow)?.Id != sessionId)
+        {
+            return;
+        }
+
+        Events.Clear();
+        EventTitle.Text = "正在读取会话…";
+        EventsEmptyState.Visibility = Visibility.Collapsed;
+    }
+
+    private void SessionsPage_SizeChanged(object sender, SizeChangedEventArgs e) =>
+        VisualStateManager.GoToState(this, e.NewSize.Width >= 760 ? "WideSessions" : "CompactSessions", false);
+
+    private void RefreshSessionsButton_Click(object sender, RoutedEventArgs e) => RefreshRequested?.Invoke(this, EventArgs.Empty);
+
+    private void RevealSessionButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (SessionList.SelectedItem is SessionRow session)
+        {
+            RevealRequested?.Invoke(this, session.Path);
+        }
+    }
+
+    private async void DeleteSessionButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (SessionList.SelectedItem is not SessionRow { IsActive: false } session)
+        {
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "删除会话",
+            Content = $"将永久删除 {Path.GetFileName(session.Path)}。",
+            PrimaryButtonText = "删除",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            DeleteRequested?.Invoke(this, session.Id);
+        }
+    }
+
+    private void SessionList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (suppressSelection)
+        {
+            return;
+        }
+
+        var session = SessionList.SelectedItem as SessionRow;
+        UpdateSelection(session);
+        if (session is not null)
+        {
+            SessionSelected?.Invoke(this, session.Id);
+        }
+    }
+
+    private void UpdateSelection(SessionRow? session)
+    {
+        RevealSessionButton.IsEnabled = session is not null;
+        DeleteSessionButton.IsEnabled = session is { IsActive: false };
+        Events.Clear();
+        EventTitle.Text = session is null ? "选择会话以查看报文" : session.Title;
+        EventsEmptyState.Text = session is null ? "选择会话以查看报文" : "正在读取会话…";
+        EventsEmptyState.Visibility = Visibility.Visible;
+    }
+}
+
+public sealed class SessionRow
+{
+    public Guid Id { get; private init; }
+    public string Path { get; private init; } = "";
+    public string Title { get; private init; } = "";
+    public string Status { get; private init; } = "";
+    public string Summary { get; private init; } = "";
+    public long EventCount { get; private init; }
+    public bool IsActive { get; private init; }
+
+    public static SessionRow From(SessionDescriptor session, bool active)
+    {
+        var status = active ? "记录中" : session.EndedUtc is null ? "未正常结束" : "已完成";
+        return new SessionRow
+        {
+            Id = session.Id,
+            Path = session.Path,
+            Title = session.StartedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture),
+            Status = status,
+            Summary = $"{session.EventCount:N0} 条 · {FormatBytes(session.RawByteCount)}",
+            EventCount = session.EventCount,
+            IsActive = active,
+        };
+    }
+
+    private static string FormatBytes(long value) => value switch
+    {
+        >= 1024 * 1024 => $"{value / 1024d / 1024d:N1} MiB",
+        >= 1024 => $"{value / 1024d:N1} KiB",
+        _ => $"{value:N0} B",
+    };
+}
+
+public sealed class SessionEventRow
+{
+    public string Time { get; private init; } = "";
+    public string Direction { get; private init; } = "";
+    public string Source { get; private init; } = "";
+    public string Display { get; private init; } = "";
+
+    public static SessionEventRow From(SerialTrafficEvent item) =>
+        new()
+        {
+            Time = item.Utc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+            Direction = item.Direction == SerialDirection.Receive ? "RX" : "TX",
+            Source = item.Source,
+            Display = Protocols.HexCodec.Format(item.Data),
+        };
 }

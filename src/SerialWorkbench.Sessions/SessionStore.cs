@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Data.Sqlite;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Storage;
@@ -15,6 +16,88 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
     public SessionDescriptor? ActiveSession => descriptor is null
         ? null
         : descriptor with { EventCount = eventCount, RawByteCount = rawByteCount };
+
+    public async Task<IReadOnlyList<SessionDescriptor>> ListAsync(CancellationToken cancellationToken)
+    {
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await ReadDescriptorsAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    public async Task<IReadOnlyList<SerialTrafficEvent>> ReadEventsAsync(Guid sessionId, int maximumCount, CancellationToken cancellationToken)
+    {
+        if (maximumCount is < 1 or > 10_000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumCount));
+        }
+
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var session = (await ReadDescriptorsAsync(cancellationToken).ConfigureAwait(false)).SingleOrDefault(item => item.Id == sessionId)
+                ?? throw new KeyNotFoundException($"Session {sessionId:D} does not exist.");
+            await using var sessionConnection = CreateReadOnlyConnection(session.Path);
+            await sessionConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            await using var command = sessionConnection.CreateCommand();
+            command.CommandText = """
+                SELECT sequence, utc, monotonic_ticks, connection_id, direction, data, source, message
+                FROM (
+                    SELECT sequence, utc, monotonic_ticks, connection_id, direction, data, source, message
+                    FROM events
+                    ORDER BY sequence DESC
+                    LIMIT $maximumCount
+                )
+                ORDER BY sequence;
+                """;
+            command.Parameters.AddWithValue("$maximumCount", maximumCount);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            var events = new List<SerialTrafficEvent>();
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                events.Add(new SerialTrafficEvent(
+                    reader.GetInt64(0),
+                    DateTimeOffset.Parse(reader.GetString(1), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+                    reader.GetInt64(2),
+                    Guid.Parse(reader.GetString(3)),
+                    Enum.Parse<SerialDirection>(reader.GetString(4)),
+                    (byte[])reader[5],
+                    reader.GetString(6),
+                    reader.IsDBNull(7) ? null : reader.GetString(7)));
+            }
+
+            return events;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    public async Task DeleteAsync(Guid sessionId, CancellationToken cancellationToken)
+    {
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (connection is not null && descriptor?.Id == sessionId)
+            {
+                throw new InvalidOperationException("The active session cannot be deleted.");
+            }
+
+            var session = (await ReadDescriptorsAsync(cancellationToken).ConfigureAwait(false)).SingleOrDefault(item => item.Id == sessionId)
+                ?? throw new KeyNotFoundException($"Session {sessionId:D} does not exist.");
+            File.Delete(session.Path);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
 
     public async ValueTask AppendAsync(SerialTrafficEvent item, CancellationToken cancellationToken)
     {
@@ -151,4 +234,52 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
 
         descriptor = new SessionDescriptor(id, sessionPath, startedUtc, null, 0, 0);
     }
+
+    private async Task<IReadOnlyList<SessionDescriptor>> ReadDescriptorsAsync(CancellationToken cancellationToken)
+    {
+        if (!Directory.Exists(paths.SessionsRoot))
+        {
+            return [];
+        }
+
+        var sessions = new List<SessionDescriptor>();
+        foreach (var path in Directory.EnumerateFiles(paths.SessionsRoot, "*.swbsession"))
+        {
+            await using var sessionConnection = CreateReadOnlyConnection(path);
+            await sessionConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            await using var command = sessionConnection.CreateCommand();
+            command.CommandText = "SELECT id, started_utc, ended_utc, event_count, raw_byte_count FROM session LIMIT 1;";
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                throw new InvalidDataException($"Session metadata is missing from {path}.");
+            }
+
+            var id = Guid.Parse(reader.GetString(0));
+            var session = new SessionDescriptor(
+                id,
+                path,
+                DateTimeOffset.Parse(reader.GetString(1), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+                reader.IsDBNull(2) ? null : DateTimeOffset.Parse(reader.GetString(2), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+                reader.GetInt64(3),
+                reader.GetInt64(4));
+            if (connection is not null && descriptor?.Id == id)
+            {
+                session = ActiveSession!;
+            }
+
+            sessions.Add(session);
+        }
+
+        return sessions.OrderByDescending(item => item.StartedUtc).ToArray();
+    }
+
+    private static SqliteConnection CreateReadOnlyConnection(string path) =>
+        new(new SqliteConnectionStringBuilder
+        {
+            DataSource = path,
+            Mode = SqliteOpenMode.ReadOnly,
+            Cache = SqliteCacheMode.Private,
+            Pooling = false,
+        }.ConnectionString);
 }
