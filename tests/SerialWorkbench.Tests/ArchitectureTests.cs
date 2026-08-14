@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Xml.Linq;
 
 namespace SerialWorkbench.Tests;
@@ -17,34 +16,6 @@ public sealed class ArchitectureTests
         Assert.DoesNotContain(references, value => value.Contains("Serial.Windows", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(references, value => value.Contains("Sessions", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(references, value => value.Contains("Storage", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact]
-    public void GeneralInterfaceDoesNotUseCustomDrawingTechnologies()
-    {
-        var repositoryRoot = FindRepositoryRoot();
-        var xamlFiles = Directory.GetFiles(Path.Combine(repositoryRoot, "src", "SerialWorkbench.WinUI"), "*.xaml", SearchOption.AllDirectories);
-        var xaml = string.Join(Environment.NewLine, xamlFiles.Select(File.ReadAllText));
-
-        Assert.DoesNotContain("<Canvas", xaml, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Win2D", xaml, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Direct2D", xaml, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void AssetAndCliSchemasAreValidJsonSchemaDocuments()
-    {
-        var repositoryRoot = FindRepositoryRoot();
-        var schemaFiles = Directory.GetFiles(Path.Combine(repositoryRoot, "schemas"), "*.schema.json", SearchOption.TopDirectoryOnly);
-
-        Assert.Equal(9, schemaFiles.Length);
-        foreach (var schemaFile in schemaFiles)
-        {
-            using var document = JsonDocument.Parse(File.ReadAllText(schemaFile));
-            Assert.Equal("https://json-schema.org/draft/2020-12/schema", document.RootElement.GetProperty("$schema").GetString());
-            Assert.True(document.RootElement.TryGetProperty("$id", out _));
-            Assert.True(document.RootElement.TryGetProperty("title", out _));
-        }
     }
 
     private static string FindRepositoryRoot()

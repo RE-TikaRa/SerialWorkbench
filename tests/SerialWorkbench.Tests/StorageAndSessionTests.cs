@@ -9,7 +9,7 @@ namespace SerialWorkbench.Tests;
 public sealed class StorageAndSessionTests
 {
     [Fact]
-    public void WorkspaceMovesSessionsAndReportsWithoutMovingGlobalData()
+    public void WorkspaceMovesSessionsWithoutMovingGlobalData()
     {
         var applicationRoot = CreateArtifactDirectory("paths-app");
         var workspaceRoot = CreateArtifactDirectory("paths-workspace");
@@ -17,10 +17,9 @@ public sealed class StorageAndSessionTests
 
         paths.EnsureWritable();
 
-        Assert.Equal(Path.Combine(applicationRoot, "data", "settings"), paths.SettingsRoot);
+        Assert.Equal(Path.Combine(applicationRoot, "data"), paths.DataRoot);
         Assert.Equal(Path.Combine(workspaceRoot, "sessions"), paths.SessionsRoot);
-        Assert.Equal(Path.Combine(workspaceRoot, "reports"), paths.ReportsRoot);
-        Assert.True(Directory.Exists(paths.LibraryRoot));
+        Assert.True(Directory.Exists(paths.DataRoot));
         Assert.True(Directory.Exists(paths.SessionsRoot));
     }
 

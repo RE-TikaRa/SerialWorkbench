@@ -16,7 +16,7 @@
 
 应用根目录保存界面设置、日志和全局会话。工作区保存会话。工作区切换通过 Host 完成，客户端根据返回的路径和状态更新界面。
 
-协议模板、连接资料、工作区清单和 CLI 输出使用带 `schemaVersion` 的 JSON 文档，契约位于 `schemas/`。
+CLI 结构化输出使用带 `schemaVersion` 的 JSON 文档，契约位于 `schemas/`。
 
 ## 协议
 
