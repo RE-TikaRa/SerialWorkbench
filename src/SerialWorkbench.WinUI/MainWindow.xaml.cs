@@ -26,6 +26,7 @@ public sealed partial class MainWindow : Window
     private bool polling;
     private bool portRefreshing;
     private ElementTheme currentTheme;
+    private bool workspaceSelected;
     private string workspacePath = "尚未选择工作区";
     private string sessionPath = "尚未创建会话";
     private WorkbenchPage? workbenchPage;
@@ -297,6 +298,7 @@ public sealed partial class MainWindow : Window
         var connection = status.Connections.FirstOrDefault(item => item.Id == connectionId);
         workbenchPage?.SetTrafficCounts(connection?.ReceivedBytes ?? 0, connection?.TransmittedBytes ?? 0);
         sessionPath = status.ActiveSession?.Path ?? "尚未创建会话";
+        workspaceSelected = status.WorkspaceRoot is not null;
         workspacePath = status.WorkspaceRoot is null ? $"全局数据：{status.DataRoot}" : $"工作区：{status.WorkspaceRoot}";
         sessionsPage?.SetPaths(workspacePath, sessionPath);
     }
@@ -384,10 +386,12 @@ public sealed partial class MainWindow : Window
                 settingsPage = page;
                 page.ChooseWorkspaceRequested -= SettingsPage_ChooseWorkspaceRequested;
                 page.ChooseWorkspaceRequested += SettingsPage_ChooseWorkspaceRequested;
+                page.ClearWorkspaceRequested -= SettingsPage_ClearWorkspaceRequested;
+                page.ClearWorkspaceRequested += SettingsPage_ClearWorkspaceRequested;
                 page.ThemeChangeRequested -= SettingsPage_ThemeChangeRequested;
                 page.ThemeChangeRequested += SettingsPage_ThemeChangeRequested;
                 page.SetThemeSelection(currentTheme);
-                page.SetWorkspacePath(workspacePath);
+                page.SetWorkspace(workspacePath, workspaceSelected);
                 break;
             case SessionsPage page:
                 sessionsPage = page;
@@ -519,6 +523,7 @@ public sealed partial class MainWindow : Window
         }
     }
     private async void SettingsPage_ChooseWorkspaceRequested(object? sender, EventArgs e) => await ChooseWorkspaceAsync();
+    private async void SettingsPage_ClearWorkspaceRequested(object? sender, EventArgs e) => await ChangeWorkspaceAsync(null);
     private void SettingsPage_ThemeChangeRequested(object? sender, ElementTheme theme)
     {
         currentTheme = theme;
@@ -576,9 +581,6 @@ public sealed partial class MainWindow : Window
         Navigation.IsPaneOpen = !Navigation.IsPaneOpen;
     }
 
-    private async void ChooseWorkspaceButton_Click(object sender, RoutedEventArgs e)
-        => await ChooseWorkspaceAsync();
-
     private async Task ChooseWorkspaceAsync()
     {
         if (client is null)
@@ -599,11 +601,6 @@ public sealed partial class MainWindow : Window
         await ChangeWorkspaceAsync(folder.Path);
     }
 
-    private async void ClearWorkspaceButton_Click(object sender, RoutedEventArgs e)
-    {
-        await ChangeWorkspaceAsync(null);
-    }
-
     private async Task ChangeWorkspaceAsync(string? path)
     {
         if (client is null)
@@ -614,8 +611,9 @@ public sealed partial class MainWindow : Window
         try
         {
             var status = await client.SetWorkspaceAsync(new SetWorkspaceRequest(path), CancellationToken.None);
+            workspaceSelected = status.WorkspaceRoot is not null;
             workspacePath = status.WorkspaceRoot is null ? $"全局数据：{status.DataRoot}" : $"工作区：{status.WorkspaceRoot}";
-            settingsPage?.SetWorkspacePath(workspacePath);
+            settingsPage?.SetWorkspace(workspacePath, workspaceSelected);
             sessionPath = "尚未创建会话";
             sessionsPage?.SetPaths(workspacePath, sessionPath);
         }

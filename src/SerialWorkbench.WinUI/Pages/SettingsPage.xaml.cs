@@ -10,12 +10,18 @@ public sealed partial class SettingsPage : Page
     public SettingsPage() => InitializeComponent();
 
     public event EventHandler? ChooseWorkspaceRequested;
+    public event EventHandler? ClearWorkspaceRequested;
 
     public event EventHandler<ElementTheme>? ThemeChangeRequested;
 
     private void ChooseWorkspaceButton_Click(object sender, RoutedEventArgs e) => ChooseWorkspaceRequested?.Invoke(this, EventArgs.Empty);
+    private void ClearWorkspaceButton_Click(object sender, RoutedEventArgs e) => ClearWorkspaceRequested?.Invoke(this, EventArgs.Empty);
 
-    public void SetWorkspacePath(string value) => WorkspacePath.Text = value;
+    public void SetWorkspace(string path, bool selected)
+    {
+        WorkspacePath.Text = path;
+        ClearWorkspaceButton.IsEnabled = selected;
+    }
 
     public void SetThemeSelection(ElementTheme theme)
     {
