@@ -241,7 +241,7 @@
           </Expander>
         </StackPanel>
       </Border>
-      <Border Grid.Row="1" MinHeight="260" Style="{StaticResource SurfaceCardStyle}" Padding="0">
+      <Border Grid.Row="1" Style="{StaticResource SurfaceCardStyle}" Padding="0">
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -285,7 +285,7 @@
                 </Button>
               </Grid>
             </Grid>
-            <Grid Grid.Row="1">
+            <Grid Grid.Row="1" MinHeight="320">
               <ListView x:Name="TrafficListView" x:FieldModifier="public" ItemTemplate="{StaticResource TrafficRowTemplate}" ItemContainerStyle="{StaticResource TrafficListViewItemStyle}" />
               <StackPanel x:Name="MonitorEmptyState" x:FieldModifier="public" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
                 <TextBlock Text="等待串口数据" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
@@ -327,7 +327,7 @@
                 <Button Content="清空" Click="PlotClearButton_Click" />
               </StackPanel>
             </Grid>
-            <sp:WinUIPlot x:Name="WavePlot" x:FieldModifier="public" Grid.Row="1" />
+            <sp:WinUIPlot x:Name="WavePlot" x:FieldModifier="public" Grid.Row="1" MinHeight="320" />
           </Grid>
         </Grid>
       </Border>
