@@ -338,7 +338,7 @@ public sealed partial class MainWindow : Window
             "Modbus" => typeof(ModbusPage),
             "Sessions" => typeof(SessionsPage),
             "Settings" => typeof(SettingsPage),
-            "Receive" => typeof(WorkbenchPage),
+            "Workbench" => typeof(WorkbenchPage),
             _ => typeof(WorkbenchPage),
         };
         if (ContentFrame.CurrentSourcePageType != pageType)

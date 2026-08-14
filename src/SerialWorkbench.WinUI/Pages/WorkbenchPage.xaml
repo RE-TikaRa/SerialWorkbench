@@ -157,8 +157,8 @@
         </VisualStateGroup>
       </VisualStateManager.VisualStateGroups>
       <StackPanel Grid.Row="0" Spacing="6">
-        <TextBlock Text="接收" Style="{StaticResource TitleTextBlockStyle}" />
-        <TextBlock Text="连接串口并查看实时收到的数据。" Style="{StaticResource PageDescriptionStyle}" />
+        <TextBlock Text="工作台" Style="{StaticResource TitleTextBlockStyle}" />
+        <TextBlock Text="连接串口、收发报文并查看实时波形。" Style="{StaticResource PageDescriptionStyle}" />
       </StackPanel>
       <Border Grid.Row="1" Style="{StaticResource SurfaceCardStyle}">
         <StackPanel Spacing="{StaticResource CardContentSpacing}">
@@ -260,8 +260,12 @@
             <RowDefinition Height="*" />
           </Grid.RowDefinitions>
           <SelectorBar x:Name="ViewSelector" SelectionChanged="ViewSelector_SelectionChanged">
-            <SelectorBarItem x:Name="MonitorSelectorItem" Text="报文" Icon="View" />
-            <SelectorBarItem Text="波形" Icon="MapDrive" />
+            <SelectorBarItem x:Name="MonitorSelectorItem" Text="报文" Icon="Message" />
+            <SelectorBarItem Text="波形">
+              <SelectorBarItem.Icon>
+                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xEF3D;" />
+              </SelectorBarItem.Icon>
+            </SelectorBarItem>
           </SelectorBar>
           <Grid x:Name="MonitorView" Grid.Row="1">
             <Grid.RowDefinitions>
