@@ -52,6 +52,10 @@
               <Setter Target="ClearTrafficButton.(Grid.Column)" Value="0" />
               <Setter Target="ClearTrafficButton.(Grid.ColumnSpan)" Value="2" />
               <Setter Target="ClearTrafficButton.HorizontalAlignment" Value="Stretch" />
+              <Setter Target="CopyHexButton.(Grid.Row)" Value="1" />
+              <Setter Target="CopyHexButton.(Grid.Column)" Value="2" />
+              <Setter Target="CopyHexButton.(Grid.ColumnSpan)" Value="2" />
+              <Setter Target="CopyHexButton.HorizontalAlignment" Value="Stretch" />
               <Setter Target="PlotMode.(Grid.ColumnSpan)" Value="4" />
               <Setter Target="PlotFrameLength.(Grid.Row)" Value="1" />
               <Setter Target="PlotFrameLength.(Grid.Column)" Value="0" />
@@ -279,10 +283,14 @@
                   <ColumnDefinition Width="Auto" />
                   <ColumnDefinition Width="Auto" />
                   <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <ToggleButton x:Name="TimestampToggle" x:FieldModifier="public" Content="时间戳" IsChecked="True" MinHeight="36" CornerRadius="4" />
                 <Button x:Name="PauseButton" x:FieldModifier="public" Grid.Column="1" Content="暂停" Click="PauseButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
                 <Button x:Name="ClearTrafficButton" Grid.Column="2" Content="清空" Click="ClearButton_Click" Style="{StaticResource ToolbarButtonStyle}" />
+                <Button x:Name="CopyHexButton" x:FieldModifier="public" Grid.Column="3" Click="CopyHexButton_Click" Style="{StaticResource ToolbarButtonStyle}" MinWidth="40" IsEnabled="False" ToolTipService.ToolTip="复制全部 HEX">
+                  <SymbolIcon Symbol="Copy" />
+                </Button>
               </Grid>
             </Grid>
             <Grid Grid.Row="1">

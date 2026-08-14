@@ -33,6 +33,7 @@ public sealed partial class WorkbenchPage : Page
     public event EventHandler? ConnectRequested;
     public event EventHandler? PauseRequested;
     public event EventHandler? ClearRequested;
+    public event EventHandler? CopyHexRequested;
     public event EventHandler? SendRequested;
     public event EventHandler? RefreshPortsRequested;
     public event EventHandler? LoopSendStarted;
@@ -71,6 +72,7 @@ public sealed partial class WorkbenchPage : Page
     private void RefreshPortsButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => RefreshPortsRequested?.Invoke(this, EventArgs.Empty);
     private void PauseButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => PauseRequested?.Invoke(this, EventArgs.Empty);
     private void ClearButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ClearRequested?.Invoke(this, EventArgs.Empty);
+    private void CopyHexButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => CopyHexRequested?.Invoke(this, EventArgs.Empty);
     private void SendButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => SendRequested?.Invoke(this, EventArgs.Empty);
     private void LoopSendToggle_Checked(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => LoopSendStarted?.Invoke(this, EventArgs.Empty);
     private void LoopSendToggle_Unchecked(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => LoopSendStopped?.Invoke(this, EventArgs.Empty);

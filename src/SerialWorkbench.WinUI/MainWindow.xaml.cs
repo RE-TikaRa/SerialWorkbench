@@ -316,12 +316,11 @@ public sealed partial class MainWindow : Window
         UpdateTrafficPresentation();
     }
 
-    private async void CopyHexButton_Click(object sender, RoutedEventArgs e)
+    private void CopyHexButton_Click(object sender, RoutedEventArgs e)
     {
         var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
         package.SetText(string.Join(Environment.NewLine, TrafficRows.Select(static item => item.Hex)));
         Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-        await Task.CompletedTask;
     }
 
     private void Navigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -353,12 +352,15 @@ public sealed partial class MainWindow : Window
             case WorkbenchPage page:
                 workbenchPage = page;
                 page.BindRows(TrafficRows);
+                UpdateTrafficPresentation();
                 page.ConnectRequested -= WorkbenchPage_ConnectRequested;
                 page.ConnectRequested += WorkbenchPage_ConnectRequested;
                 page.PauseRequested -= WorkbenchPage_PauseRequested;
                 page.PauseRequested += WorkbenchPage_PauseRequested;
                 page.ClearRequested -= WorkbenchPage_ClearRequested;
                 page.ClearRequested += WorkbenchPage_ClearRequested;
+                page.CopyHexRequested -= WorkbenchPage_CopyHexRequested;
+                page.CopyHexRequested += WorkbenchPage_CopyHexRequested;
                 page.SendRequested -= WorkbenchPage_SendRequested;
                 page.SendRequested += WorkbenchPage_SendRequested;
                 page.RefreshPortsRequested -= WorkbenchPage_RefreshPortsRequested;
@@ -461,6 +463,7 @@ public sealed partial class MainWindow : Window
     private void WorkbenchPage_ConnectRequested(object? sender, EventArgs e) => ConnectButton_Click(this, new RoutedEventArgs());
     private void WorkbenchPage_PauseRequested(object? sender, EventArgs e) => PauseButton_Click(this, new RoutedEventArgs());
     private void WorkbenchPage_ClearRequested(object? sender, EventArgs e) => ClearButton_Click(this, new RoutedEventArgs());
+    private void WorkbenchPage_CopyHexRequested(object? sender, EventArgs e) => CopyHexButton_Click(this, new RoutedEventArgs());
     private void WorkbenchPage_SendRequested(object? sender, EventArgs e)
     {
         if (workbenchPage is null)
@@ -684,6 +687,7 @@ public sealed partial class MainWindow : Window
         if (workbenchPage is not null)
         {
             workbenchPage.MonitorEmptyState.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
+            workbenchPage.CopyHexButton.IsEnabled = !empty;
         }
     }
 
