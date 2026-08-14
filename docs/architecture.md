@@ -19,14 +19,14 @@ serial-workbench.exe ┘                              ├─ 写入租约
 ```text
 Domain
   ↑
-Application / Protocols / Automation / Terminal / Sessions
+Application / Protocols / Sessions
   ↑
 Serial.Windows / Storage / IPC / Host
   ↑
 WinUI / CLI / ProtocolHost
 ```
 
-`SerialWorkbench.Domain` 定义串口、会话、任务结果和数据通道模型。`Application` 管理写入租约和事件日志；`Sessions` 管理 SQLite 会话；`Serial.Windows` 访问 Windows 串口；`Host` 组合运行时服务；`IPC` 提供客户端与 Host 的本机 RPC 契约。
+`SerialWorkbench.Domain` 定义串口、会话和数据通道模型。`Application` 管理写入租约和事件日志；`Sessions` 管理 SQLite 会话；`Serial.Windows` 访问 Windows 串口；`Host` 组合运行时服务；`IPC` 提供客户端与 Host 的本机 RPC 契约。
 
 ## IPC
 
@@ -38,7 +38,7 @@ RPC 契约位于 `src/SerialWorkbench.Ipc/RpcContracts.cs`。握手使用主版�
 
 每个会话对应一个 `.swbsession` SQLite 文件。事件记录 UTC、单调时钟、递增序号、连接标识、方向、来源和原始字节。会话结束时执行 WAL checkpoint，单个文件可独立迁移和读取。
 
-工作区、连接资料、发送队列、测试序列、协议模板、扩展清单和 CLI 输出使用带 `schemaVersion` 的 JSON 文档，其契约位于 `schemas/`。
+工作区、连接资料、协议模板、扩展清单和 CLI 输出使用带 `schemaVersion` 的 JSON 文档，其契约位于 `schemas/`。
 
 工作区切换由 Host 执行。客户端提交工作区路径，并使用 Host 返回的数据目录和会话状态更新界面。
 

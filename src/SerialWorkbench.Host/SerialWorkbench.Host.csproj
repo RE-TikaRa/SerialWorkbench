@@ -6,14 +6,12 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <ProjectReference Include="../SerialWorkbench.Application/SerialWorkbench.Application.csproj" />
-    <ProjectReference Include="../SerialWorkbench.Automation/SerialWorkbench.Automation.csproj" />
     <ProjectReference Include="../SerialWorkbench.Ipc/SerialWorkbench.Ipc.csproj" />
     <ProjectReference Include="../SerialWorkbench.Modbus/SerialWorkbench.Modbus.csproj" />
     <ProjectReference Include="../SerialWorkbench.Protocols/SerialWorkbench.Protocols.csproj" />
     <ProjectReference Include="../SerialWorkbench.Serial.Windows/SerialWorkbench.Serial.Windows.csproj" />
     <ProjectReference Include="../SerialWorkbench.Sessions/SerialWorkbench.Sessions.csproj" />
     <ProjectReference Include="../SerialWorkbench.Storage/SerialWorkbench.Storage.csproj" />
-    <ProjectReference Include="../SerialWorkbench.Terminal/SerialWorkbench.Terminal.csproj" />
     <ProjectReference Include="../SerialWorkbench.Transfer/SerialWorkbench.Transfer.csproj" />
   </ItemGroup>
 </Project>

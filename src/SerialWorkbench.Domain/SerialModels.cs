@@ -115,15 +115,6 @@ public sealed record SessionDescriptor(
     long EventCount,
     long RawByteCount);
 
-public enum RunResult
-{
-    Passed,
-    ValidationFailed,
-    RuntimeError,
-    TimedOut,
-    Cancelled,
-}
-
 public sealed record DataChannelPoint(
     string ChannelId,
     string Name,
