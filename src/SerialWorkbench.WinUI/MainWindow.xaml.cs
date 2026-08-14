@@ -78,7 +78,7 @@ public sealed partial class MainWindow : Window
             }
 
             workbenchPage?.SetConnectionStatus("未连接串口");
-            await RefreshPortsAsync(true);
+            await RefreshPortsAsync();
             SetSerialConfigurationEnabled(true);
             eventTimer.Start();
             await RefreshStatusAsync();
@@ -394,7 +394,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async void WorkbenchPage_RefreshPortsRequested(object? sender, EventArgs e) => await RefreshPortsAsync(false);
+    private async void WorkbenchPage_RefreshPortsRequested(object? sender, EventArgs e) => await RefreshPortsAsync();
 
     private async void PortRefreshTimer_Tick(object? sender, object e)
     {
@@ -403,10 +403,10 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        await RefreshPortsAsync(false);
+        await RefreshPortsAsync();
     }
 
-    private async Task RefreshPortsAsync(bool selectPreferred)
+    private async Task RefreshPortsAsync()
     {
         if (client is null || workbenchPage is null || portRefreshing)
         {
@@ -428,13 +428,7 @@ public sealed partial class MainWindow : Window
             var target = currentName is not null
                 ? ports.FirstOrDefault(item => item.PortName.Equals(currentName, StringComparison.OrdinalIgnoreCase))
                 : null;
-            if (target is null && (selectPreferred || currentName is null))
-            {
-                target = ports.FirstOrDefault(item => item.PortName.Equals("COM17", StringComparison.OrdinalIgnoreCase))
-                    ?? (ports.Count > 0 ? ports[0] : null);
-            }
-
-            combo.SelectedItem = target;
+            combo.SelectedItem = target ?? (ports.Count > 0 ? ports[0] : null);
         }
         catch (Exception ex)
         {
