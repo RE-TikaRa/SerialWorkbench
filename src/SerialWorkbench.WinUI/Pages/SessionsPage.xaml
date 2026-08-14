@@ -70,10 +70,10 @@
             </Grid.ColumnDefinitions>
             <TextBlock Text="已保存会话" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
             <ProgressRing x:Name="LoadingRing" Grid.Column="1" Width="20" Height="20" IsActive="False" />
-            <Button x:Name="RevealSessionButton" Grid.Column="2" MinWidth="40" IsEnabled="False" Click="RevealSessionButton_Click" Style="{StaticResource ToolbarButtonStyle}" ToolTipService.ToolTip="在文件夹中显示">
+            <Button x:Name="RevealSessionButton" Grid.Column="2" IsEnabled="False" Click="RevealSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="在文件夹中显示">
               <SymbolIcon Symbol="Folder" />
             </Button>
-            <Button x:Name="RefreshSessionsButton" Grid.Column="3" MinWidth="40" Click="RefreshSessionsButton_Click" Style="{StaticResource ToolbarButtonStyle}" ToolTipService.ToolTip="刷新会话">
+            <Button x:Name="RefreshSessionsButton" Grid.Column="3" Click="RefreshSessionsButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="刷新会话">
               <SymbolIcon Symbol="Refresh" />
             </Button>
           </Grid>
@@ -114,7 +114,7 @@
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="EventTitle" Text="选择会话以查看报文" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-            <Button x:Name="DeleteSessionButton" Grid.Column="1" MinWidth="40" IsEnabled="False" Click="DeleteSessionButton_Click" Style="{StaticResource ToolbarButtonStyle}" ToolTipService.ToolTip="删除会话">
+            <Button x:Name="DeleteSessionButton" Grid.Column="1" IsEnabled="False" Click="DeleteSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="删除会话">
               <SymbolIcon Symbol="Delete" />
             </Button>
           </Grid>

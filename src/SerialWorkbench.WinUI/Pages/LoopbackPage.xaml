@@ -73,7 +73,7 @@
               <x:String>随机</x:String>
             </ComboBox>
           </Grid>
-          <Button x:Name="RunButton" x:FieldModifier="public" Content="运行检测" Click="RunButton_Click" Style="{StaticResource PrimaryButtonStyle}" HorizontalAlignment="Left" />
+          <Button x:Name="RunButton" x:FieldModifier="public" Content="运行检测" Click="RunButton_Click" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Left" />
         </StackPanel>
       </Border>
       <InfoBar x:Name="Result" x:FieldModifier="public" IsOpen="False" IsClosable="True" />
