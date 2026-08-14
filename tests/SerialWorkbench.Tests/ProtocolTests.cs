@@ -1,7 +1,6 @@
 using System.Text;
 using SerialWorkbench.Modbus;
 using SerialWorkbench.Protocols;
-using SerialWorkbench.Transfer;
 
 namespace SerialWorkbench.Tests;
 
@@ -35,64 +34,6 @@ public sealed class ProtocolTests
     }
 
     [Fact]
-    public void FixedLengthFramerPreservesPartialInput()
-    {
-        var framer = new FixedLengthFramer(3);
-
-        Assert.Empty(framer.Feed([1]));
-        var first = framer.Feed([2, 3, 4, 5]);
-        var second = framer.Feed([6]);
-
-        Assert.Single(first);
-        Assert.Equal([1, 2, 3], first[0]);
-        Assert.Single(second);
-        Assert.Equal([4, 5, 6], second[0]);
-    }
-
-    [Fact]
-    public void DelimiterFramerAcceptsSeveralBoundedFramesInOneRead()
-    {
-        var framer = new DelimiterFramer([(byte)'\n'], maximumFrameLength: 4);
-
-        var frames = framer.Feed("A\nB\nC\n"u8);
-
-        Assert.Equal(3, frames.Count);
-        Assert.Equal("A\n", Encoding.ASCII.GetString(frames[0]));
-        Assert.Equal("B\n", Encoding.ASCII.GetString(frames[1]));
-        Assert.Equal("C\n", Encoding.ASCII.GetString(frames[2]));
-    }
-
-    [Fact]
-    public void DelimiterFramerRejectsAnOversizedFrame()
-    {
-        var framer = new DelimiterFramer([(byte)'\n'], maximumFrameLength: 4);
-
-        Assert.Throws<InvalidDataException>(() => framer.Feed("ABCDE"u8));
-    }
-
-    [Fact]
-    public void LengthFieldFramerHandlesBackToBackFrames()
-    {
-        var framer = new LengthFieldFramer(2, 1, 1, littleEndian: false);
-
-        var frames = framer.Feed([0xA0, 0x02, 0x10, 0x11, 0xB0, 0x01, 0x22]);
-
-        Assert.Equal(2, frames.Count);
-        Assert.Equal([0xA0, 0x02, 0x10, 0x11], frames[0]);
-        Assert.Equal([0xB0, 0x01, 0x22], frames[1]);
-    }
-
-    [Theory]
-    [InlineData(0, 0, 1)]
-    [InlineData(2, -1, 1)]
-    [InlineData(2, 0, 0)]
-    [InlineData(2, 1, 2)]
-    public void LengthFieldFramerRejectsInvalidLayouts(int headerLength, int lengthOffset, int lengthSize)
-    {
-        Assert.ThrowsAny<ArgumentException>(() => new LengthFieldFramer(headerLength, lengthOffset, lengthSize, littleEndian: false));
-    }
-
-    [Fact]
     public void ModbusReadRequestMatchesKnownVector()
     {
         var request = ModbusRtuCodec.BuildReadRequest(1, 3, 0x006B, 3);
@@ -118,20 +59,6 @@ public sealed class ProtocolTests
         var exception = Assert.Throws<ModbusException>(() => ModbusRtuCodec.ParseRegisterResponse(frame, 1, 3));
 
         Assert.Equal((byte)0x02, exception.ExceptionCode);
-    }
-
-    [Fact]
-    public void XModemBlockRoundTripsAndDetectsDamage()
-    {
-        var data = Encoding.ASCII.GetBytes("SerialWorkbench");
-        var block = XModemCodec.CreateBlock(7, data);
-
-        var payload = XModemCodec.ValidateBlock(block, 7);
-        Assert.Equal(data, payload.Span[..data.Length].ToArray());
-
-        block[12] ^= 0xFF;
-        Assert.Throws<InvalidDataException>(() => XModemCodec.ValidateBlock(block, 7));
-        Assert.Throws<InvalidDataException>(() => XModemCodec.ValidateBlock(ReadOnlyMemory<byte>.Empty, 7));
     }
 
     private static byte[] WithModbusCrc(ReadOnlySpan<byte> data)

@@ -6,7 +6,6 @@
     <Project Path="src/SerialWorkbench.Serial.Windows/SerialWorkbench.Serial.Windows.csproj" />
     <Project Path="src/SerialWorkbench.Protocols/SerialWorkbench.Protocols.csproj" />
     <Project Path="src/SerialWorkbench.Modbus/SerialWorkbench.Modbus.csproj" />
-    <Project Path="src/SerialWorkbench.Transfer/SerialWorkbench.Transfer.csproj" />
     <Project Path="src/SerialWorkbench.Sessions/SerialWorkbench.Sessions.csproj" />
     <Project Path="src/SerialWorkbench.Storage/SerialWorkbench.Storage.csproj" />
     <Project Path="src/SerialWorkbench.Extensions.Abstractions/SerialWorkbench.Extensions.Abstractions.csproj" />
