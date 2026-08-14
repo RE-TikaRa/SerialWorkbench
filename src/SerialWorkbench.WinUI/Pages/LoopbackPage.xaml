@@ -44,10 +44,6 @@
           </VisualState>
         </VisualStateGroup>
       </VisualStateManager.VisualStateGroups>
-      <StackPanel Spacing="6">
-        <TextBlock Text="回环检测" Style="{StaticResource TitleTextBlockStyle}" />
-        <TextBlock Text="验证串口发送与接收链路是否正常。" Style="{StaticResource PageDescriptionStyle}" />
-      </StackPanel>
       <Border Style="{StaticResource SurfaceCardStyle}">
         <StackPanel Spacing="{StaticResource CardContentSpacing}">
           <TextBlock Text="测试参数" Style="{StaticResource BodyStrongTextBlockStyle}" />

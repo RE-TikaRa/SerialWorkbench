@@ -22,11 +22,6 @@
           </VisualState>
         </VisualStateGroup>
       </VisualStateManager.VisualStateGroups>
-      <StackPanel Spacing="6">
-        <TextBlock Text="设置" Style="{StaticResource TitleTextBlockStyle}" />
-        <TextBlock Text="配置工作区、外观和应用行为。" Style="{StaticResource PageDescriptionStyle}" />
-      </StackPanel>
-
       <toolkit:SettingsCard Header="工作区" Description="管理会话文件和工作区路径。" HorizontalContentAlignment="Stretch">
         <toolkit:SettingsCard.HeaderIcon>
           <FontIcon Glyph="&#xE8B7;" />

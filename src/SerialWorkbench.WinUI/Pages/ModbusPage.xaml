@@ -52,10 +52,6 @@
           </VisualState>
         </VisualStateGroup>
       </VisualStateManager.VisualStateGroups>
-      <StackPanel Spacing="6">
-        <TextBlock Text="Modbus RTU" Style="{StaticResource TitleTextBlockStyle}" />
-        <TextBlock Text="构造读写请求帧发送到当前串口，并解析寄存器响应。" Style="{StaticResource PageDescriptionStyle}" />
-      </StackPanel>
       <Border Style="{StaticResource SurfaceCardStyle}">
         <StackPanel Spacing="{StaticResource CardContentSpacing}">
           <TextBlock Text="请求" Style="{StaticResource BodyStrongTextBlockStyle}" />

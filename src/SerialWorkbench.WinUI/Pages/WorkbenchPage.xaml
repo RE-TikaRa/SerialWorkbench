@@ -17,7 +17,6 @@
     <Grid x:Name="WorkbenchLayout" MinHeight="{x:Bind WorkbenchScroller.ActualHeight, Mode=OneWay}" Padding="{StaticResource ContentPagePadding}" RowSpacing="{StaticResource ContentPageSpacing}">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
-        <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
         <RowDefinition Height="Auto" />
       </Grid.RowDefinitions>
@@ -156,11 +155,7 @@
           </VisualState>
         </VisualStateGroup>
       </VisualStateManager.VisualStateGroups>
-      <StackPanel Grid.Row="0" Spacing="6">
-        <TextBlock Text="工作台" Style="{StaticResource TitleTextBlockStyle}" />
-        <TextBlock Text="连接串口、收发报文并查看实时波形。" Style="{StaticResource PageDescriptionStyle}" />
-      </StackPanel>
-      <Border Grid.Row="1" Style="{StaticResource SurfaceCardStyle}">
+      <Border Grid.Row="0" Style="{StaticResource SurfaceCardStyle}">
         <StackPanel Spacing="{StaticResource CardContentSpacing}">
           <TextBlock Text="串口连接" Style="{StaticResource BodyStrongTextBlockStyle}" />
           <Grid ColumnSpacing="12" RowSpacing="14">
@@ -253,7 +248,7 @@
           </Expander>
         </StackPanel>
       </Border>
-      <Border Grid.Row="2" MinHeight="260" Style="{StaticResource SurfaceCardStyle}" Padding="0">
+      <Border Grid.Row="1" MinHeight="260" Style="{StaticResource SurfaceCardStyle}" Padding="0">
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -343,7 +338,7 @@
           </Grid>
         </Grid>
       </Border>
-      <Border Grid.Row="3" Style="{StaticResource SurfaceCardStyle}">
+      <Border Grid.Row="2" Style="{StaticResource SurfaceCardStyle}">
         <StackPanel Spacing="{StaticResource CardContentSpacing}">
           <Grid ColumnSpacing="12" RowSpacing="12">
             <Grid.RowDefinitions>

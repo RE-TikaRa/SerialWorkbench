@@ -39,11 +39,7 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <StackPanel Spacing="6">
-      <TextBlock Text="会话" Style="{StaticResource TitleTextBlockStyle}" />
-      <TextBlock Text="浏览和管理已保存的串口工作记录。" Style="{StaticResource PageDescriptionStyle}" />
-      <TextBlock x:Name="WorkspacePath" Text="尚未选择工作区" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" />
-    </StackPanel>
+    <TextBlock x:Name="WorkspacePath" Text="尚未选择工作区" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" />
 
     <Grid x:Name="SessionGrid" Grid.Row="1" ColumnSpacing="{StaticResource ContentPageSpacing}" RowSpacing="{StaticResource ContentPageSpacing}">
       <Grid.RowDefinitions>

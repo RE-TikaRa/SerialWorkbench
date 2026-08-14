@@ -332,18 +332,19 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var pageType = tag switch
+        var destination = tag switch
         {
-            "Loopback" => typeof(LoopbackPage),
-            "Modbus" => typeof(ModbusPage),
-            "Sessions" => typeof(SessionsPage),
-            "Settings" => typeof(SettingsPage),
-            "Workbench" => typeof(WorkbenchPage),
-            _ => typeof(WorkbenchPage),
+            "Loopback" => (PageType: typeof(LoopbackPage), Title: "回环检测", Description: "验证串口发送与接收链路是否正常。"),
+            "Modbus" => (PageType: typeof(ModbusPage), Title: "Modbus RTU", Description: "构造读写请求帧发送到当前串口，并解析寄存器响应。"),
+            "Sessions" => (PageType: typeof(SessionsPage), Title: "会话记录", Description: "浏览和管理已保存的串口工作记录。"),
+            "Settings" => (PageType: typeof(SettingsPage), Title: "设置", Description: "配置工作区、外观和应用行为。"),
+            _ => (PageType: typeof(WorkbenchPage), Title: "工作台", Description: "连接串口、收发报文并查看实时波形。"),
         };
-        if (ContentFrame.CurrentSourcePageType != pageType)
+        PageTitleText.Text = destination.Title;
+        PageDescriptionText.Text = destination.Description;
+        if (ContentFrame.CurrentSourcePageType != destination.PageType)
         {
-            ContentFrame.Navigate(pageType, null, args.RecommendedNavigationTransitionInfo);
+            ContentFrame.Navigate(destination.PageType, null, args.RecommendedNavigationTransitionInfo);
         }
     }
 

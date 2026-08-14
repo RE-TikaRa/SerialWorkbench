@@ -44,10 +44,15 @@
       <Grid>
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
           <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <InfoBar x:Name="ErrorInfoBar" Margin="36,18,36,0" IsOpen="False" IsClosable="True" />
-        <Frame x:Name="ContentFrame" Grid.Row="1" IsNavigationStackEnabled="False" Navigated="ContentFrame_Navigated" NavigationFailed="ContentFrame_NavigationFailed" />
+        <StackPanel Margin="24,24,24,0" Spacing="6">
+          <TextBlock x:Name="PageTitleText" Text="工作台" Style="{StaticResource TitleTextBlockStyle}" />
+          <TextBlock x:Name="PageDescriptionText" Text="连接串口、收发报文并查看实时波形。" Style="{StaticResource PageDescriptionStyle}" />
+        </StackPanel>
+        <InfoBar x:Name="ErrorInfoBar" Grid.Row="1" Margin="24,18,24,0" IsOpen="False" IsClosable="True" />
+        <Frame x:Name="ContentFrame" Grid.Row="2" IsNavigationStackEnabled="False" Navigated="ContentFrame_Navigated" NavigationFailed="ContentFrame_NavigationFailed" />
       </Grid>
     </NavigationView>
   </Grid>
