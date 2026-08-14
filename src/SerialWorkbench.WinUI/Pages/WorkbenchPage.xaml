@@ -14,140 +14,140 @@
     </Storyboard>
   </Page.Resources>
   <ScrollView x:Name="WorkbenchScroller" ContentOrientation="Vertical" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Stretch">
+    <VisualStateManager.VisualStateGroups>
+      <VisualStateGroup x:Name="WindowStates">
+        <VisualState x:Name="Compact">
+          <VisualState.Setters>
+            <Setter Target="BaudRateComboBox.(Grid.Column)" Value="0" />
+            <Setter Target="BaudRateComboBox.(Grid.ColumnSpan)" Value="5" />
+            <Setter Target="MonitorFormat.(Grid.Row)" Value="2" />
+            <Setter Target="MonitorFormat.(Grid.Column)" Value="0" />
+            <Setter Target="MonitorFormat.(Grid.ColumnSpan)" Value="5" />
+            <Setter Target="ConnectButton.(Grid.Row)" Value="3" />
+            <Setter Target="ConnectButton.(Grid.Column)" Value="0" />
+            <Setter Target="ConnectButton.(Grid.ColumnSpan)" Value="5" />
+            <Setter Target="ConnectButton.HorizontalAlignment" Value="Stretch" />
+            <Setter Target="DataBitsNumberBox.(Grid.ColumnSpan)" Value="6" />
+            <Setter Target="ParityComboBox.(Grid.Row)" Value="1" />
+            <Setter Target="ParityComboBox.(Grid.Column)" Value="0" />
+            <Setter Target="ParityComboBox.(Grid.ColumnSpan)" Value="6" />
+            <Setter Target="StopBitsComboBox.(Grid.Row)" Value="2" />
+            <Setter Target="StopBitsComboBox.(Grid.ColumnSpan)" Value="6" />
+            <Setter Target="HandshakeComboBox.(Grid.Row)" Value="3" />
+            <Setter Target="HandshakeComboBox.(Grid.Column)" Value="0" />
+            <Setter Target="HandshakeComboBox.(Grid.ColumnSpan)" Value="6" />
+            <Setter Target="EncodingComboBox.(Grid.Row)" Value="4" />
+            <Setter Target="EncodingComboBox.(Grid.ColumnSpan)" Value="6" />
+            <Setter Target="ControlLinesPanel.(Grid.Row)" Value="5" />
+            <Setter Target="ControlLinesPanel.(Grid.Column)" Value="0" />
+            <Setter Target="ControlLinesPanel.(Grid.ColumnSpan)" Value="6" />
+            <Setter Target="ClearTrafficButton.(Grid.Row)" Value="1" />
+            <Setter Target="ClearTrafficButton.(Grid.Column)" Value="0" />
+            <Setter Target="ClearTrafficButton.(Grid.ColumnSpan)" Value="2" />
+            <Setter Target="ClearTrafficButton.HorizontalAlignment" Value="Stretch" />
+            <Setter Target="CopyHexButton.(Grid.Row)" Value="1" />
+            <Setter Target="CopyHexButton.(Grid.Column)" Value="2" />
+            <Setter Target="CopyHexButton.(Grid.ColumnSpan)" Value="2" />
+            <Setter Target="CopyHexButton.HorizontalAlignment" Value="Stretch" />
+            <Setter Target="PlotMode.(Grid.ColumnSpan)" Value="4" />
+            <Setter Target="PlotFrameLength.(Grid.Row)" Value="1" />
+            <Setter Target="PlotFrameLength.(Grid.Column)" Value="0" />
+            <Setter Target="PlotFrameLength.(Grid.ColumnSpan)" Value="4" />
+            <Setter Target="PlotSampleType.(Grid.Row)" Value="2" />
+            <Setter Target="PlotSampleType.(Grid.ColumnSpan)" Value="4" />
+            <Setter Target="PlotActions.(Grid.Row)" Value="3" />
+            <Setter Target="PlotActions.(Grid.Column)" Value="0" />
+            <Setter Target="PlotActions.(Grid.ColumnSpan)" Value="4" />
+            <Setter Target="PlotActions.HorizontalAlignment" Value="Left" />
+            <Setter Target="SendFormat.(Grid.ColumnSpan)" Value="6" />
+            <Setter Target="SendLineEnding.(Grid.Row)" Value="1" />
+            <Setter Target="SendLineEnding.(Grid.Column)" Value="0" />
+            <Setter Target="SendLineEnding.(Grid.ColumnSpan)" Value="6" />
+            <Setter Target="SendChecksum.(Grid.Row)" Value="2" />
+            <Setter Target="SendChecksum.(Grid.ColumnSpan)" Value="6" />
+            <Setter Target="LoopIntervalNumberBox.(Grid.Row)" Value="3" />
+            <Setter Target="LoopIntervalNumberBox.(Grid.Column)" Value="0" />
+            <Setter Target="LoopIntervalNumberBox.(Grid.ColumnSpan)" Value="6" />
+            <Setter Target="LoopSendToggle.(Grid.Row)" Value="4" />
+            <Setter Target="SendButton.(Grid.Row)" Value="4" />
+          </VisualState.Setters>
+        </VisualState>
+        <VisualState x:Name="Narrow" />
+        <VisualState x:Name="Wide">
+          <VisualState.Setters>
+            <Setter Target="PortComboBox.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="RefreshPortsButton.(Grid.Column)" Value="1" />
+            <Setter Target="BaudRateComboBox.(Grid.Row)" Value="0" />
+            <Setter Target="BaudRateComboBox.(Grid.Column)" Value="2" />
+            <Setter Target="BaudRateComboBox.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="MonitorFormat.(Grid.Row)" Value="0" />
+            <Setter Target="MonitorFormat.(Grid.Column)" Value="3" />
+            <Setter Target="MonitorFormat.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="ConnectButton.(Grid.Row)" Value="0" />
+            <Setter Target="DataBitsNumberBox.(Grid.Row)" Value="0" />
+            <Setter Target="DataBitsNumberBox.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="ParityComboBox.(Grid.Row)" Value="0" />
+            <Setter Target="ParityComboBox.(Grid.Column)" Value="1" />
+            <Setter Target="ParityComboBox.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="StopBitsComboBox.(Grid.Row)" Value="0" />
+            <Setter Target="StopBitsComboBox.(Grid.Column)" Value="2" />
+            <Setter Target="StopBitsComboBox.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="HandshakeComboBox.(Grid.Row)" Value="0" />
+            <Setter Target="HandshakeComboBox.(Grid.Column)" Value="3" />
+            <Setter Target="HandshakeComboBox.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="EncodingComboBox.(Grid.Row)" Value="0" />
+            <Setter Target="EncodingComboBox.(Grid.Column)" Value="4" />
+            <Setter Target="EncodingComboBox.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="ControlLinesPanel.(Grid.Row)" Value="0" />
+            <Setter Target="ControlLinesPanel.(Grid.Column)" Value="5" />
+            <Setter Target="ControlLinesPanel.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="MonitorActions.(Grid.Row)" Value="0" />
+            <Setter Target="MonitorActions.HorizontalAlignment" Value="Right" />
+            <Setter Target="PlotMode.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="PlotFrameLength.(Grid.Column)" Value="1" />
+            <Setter Target="PlotFrameLength.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="PlotSampleType.(Grid.Row)" Value="0" />
+            <Setter Target="PlotSampleType.(Grid.Column)" Value="2" />
+            <Setter Target="PlotSampleType.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="PlotActions.(Grid.Row)" Value="0" />
+            <Setter Target="PlotActions.(Grid.Column)" Value="3" />
+            <Setter Target="PlotActions.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="SendHistory.(Grid.Row)" Value="0" />
+            <Setter Target="SendHistory.(Grid.Column)" Value="1" />
+            <Setter Target="SendHistory.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="SendFormat.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="SendLineEnding.(Grid.Column)" Value="1" />
+            <Setter Target="SendLineEnding.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="SendChecksum.(Grid.Row)" Value="0" />
+            <Setter Target="SendChecksum.(Grid.Column)" Value="2" />
+            <Setter Target="SendChecksum.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="LoopSendToggle.(Grid.Row)" Value="0" />
+            <Setter Target="LoopSendToggle.(Grid.Column)" Value="3" />
+            <Setter Target="LoopSendToggle.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="LoopIntervalNumberBox.(Grid.Row)" Value="0" />
+            <Setter Target="LoopIntervalNumberBox.(Grid.Column)" Value="4" />
+            <Setter Target="LoopIntervalNumberBox.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="SendButton.(Grid.Row)" Value="0" />
+            <Setter Target="SendButton.(Grid.Column)" Value="5" />
+            <Setter Target="SendButton.(Grid.ColumnSpan)" Value="1" />
+          </VisualState.Setters>
+        </VisualState>
+      </VisualStateGroup>
+      <VisualStateGroup x:Name="PageMarginStates">
+        <VisualState x:Name="CompactPageMargins">
+          <VisualState.Setters>
+            <Setter Target="WorkbenchLayout.Padding" Value="{StaticResource CompactContentPagePadding}" />
+          </VisualState.Setters>
+        </VisualState>
+        <VisualState x:Name="StandardPageMargins" />
+      </VisualStateGroup>
+    </VisualStateManager.VisualStateGroups>
     <Grid x:Name="WorkbenchLayout" MinHeight="{x:Bind WorkbenchScroller.ActualHeight, Mode=OneWay}" Padding="{StaticResource ContentPagePadding}" RowSpacing="{StaticResource ContentPageSpacing}">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
         <RowDefinition Height="Auto" />
       </Grid.RowDefinitions>
-      <VisualStateManager.VisualStateGroups>
-        <VisualStateGroup x:Name="WindowStates">
-          <VisualState x:Name="Compact">
-            <VisualState.Setters>
-              <Setter Target="BaudRateComboBox.(Grid.Column)" Value="0" />
-              <Setter Target="BaudRateComboBox.(Grid.ColumnSpan)" Value="5" />
-              <Setter Target="MonitorFormat.(Grid.Row)" Value="2" />
-              <Setter Target="MonitorFormat.(Grid.Column)" Value="0" />
-              <Setter Target="MonitorFormat.(Grid.ColumnSpan)" Value="5" />
-              <Setter Target="ConnectButton.(Grid.Row)" Value="3" />
-              <Setter Target="ConnectButton.(Grid.Column)" Value="0" />
-              <Setter Target="ConnectButton.(Grid.ColumnSpan)" Value="5" />
-              <Setter Target="ConnectButton.HorizontalAlignment" Value="Stretch" />
-              <Setter Target="DataBitsNumberBox.(Grid.ColumnSpan)" Value="6" />
-              <Setter Target="ParityComboBox.(Grid.Row)" Value="1" />
-              <Setter Target="ParityComboBox.(Grid.Column)" Value="0" />
-              <Setter Target="ParityComboBox.(Grid.ColumnSpan)" Value="6" />
-              <Setter Target="StopBitsComboBox.(Grid.Row)" Value="2" />
-              <Setter Target="StopBitsComboBox.(Grid.ColumnSpan)" Value="6" />
-              <Setter Target="HandshakeComboBox.(Grid.Row)" Value="3" />
-              <Setter Target="HandshakeComboBox.(Grid.Column)" Value="0" />
-              <Setter Target="HandshakeComboBox.(Grid.ColumnSpan)" Value="6" />
-              <Setter Target="EncodingComboBox.(Grid.Row)" Value="4" />
-              <Setter Target="EncodingComboBox.(Grid.ColumnSpan)" Value="6" />
-              <Setter Target="ControlLinesPanel.(Grid.Row)" Value="5" />
-              <Setter Target="ControlLinesPanel.(Grid.Column)" Value="0" />
-              <Setter Target="ControlLinesPanel.(Grid.ColumnSpan)" Value="6" />
-              <Setter Target="ClearTrafficButton.(Grid.Row)" Value="1" />
-              <Setter Target="ClearTrafficButton.(Grid.Column)" Value="0" />
-              <Setter Target="ClearTrafficButton.(Grid.ColumnSpan)" Value="2" />
-              <Setter Target="ClearTrafficButton.HorizontalAlignment" Value="Stretch" />
-              <Setter Target="CopyHexButton.(Grid.Row)" Value="1" />
-              <Setter Target="CopyHexButton.(Grid.Column)" Value="2" />
-              <Setter Target="CopyHexButton.(Grid.ColumnSpan)" Value="2" />
-              <Setter Target="CopyHexButton.HorizontalAlignment" Value="Stretch" />
-              <Setter Target="PlotMode.(Grid.ColumnSpan)" Value="4" />
-              <Setter Target="PlotFrameLength.(Grid.Row)" Value="1" />
-              <Setter Target="PlotFrameLength.(Grid.Column)" Value="0" />
-              <Setter Target="PlotFrameLength.(Grid.ColumnSpan)" Value="4" />
-              <Setter Target="PlotSampleType.(Grid.Row)" Value="2" />
-              <Setter Target="PlotSampleType.(Grid.ColumnSpan)" Value="4" />
-              <Setter Target="PlotActions.(Grid.Row)" Value="3" />
-              <Setter Target="PlotActions.(Grid.Column)" Value="0" />
-              <Setter Target="PlotActions.(Grid.ColumnSpan)" Value="4" />
-              <Setter Target="PlotActions.HorizontalAlignment" Value="Left" />
-              <Setter Target="SendFormat.(Grid.ColumnSpan)" Value="6" />
-              <Setter Target="SendLineEnding.(Grid.Row)" Value="1" />
-              <Setter Target="SendLineEnding.(Grid.Column)" Value="0" />
-              <Setter Target="SendLineEnding.(Grid.ColumnSpan)" Value="6" />
-              <Setter Target="SendChecksum.(Grid.Row)" Value="2" />
-              <Setter Target="SendChecksum.(Grid.ColumnSpan)" Value="6" />
-              <Setter Target="LoopIntervalNumberBox.(Grid.Row)" Value="3" />
-              <Setter Target="LoopIntervalNumberBox.(Grid.Column)" Value="0" />
-              <Setter Target="LoopIntervalNumberBox.(Grid.ColumnSpan)" Value="6" />
-              <Setter Target="LoopSendToggle.(Grid.Row)" Value="4" />
-              <Setter Target="SendButton.(Grid.Row)" Value="4" />
-            </VisualState.Setters>
-          </VisualState>
-          <VisualState x:Name="Narrow" />
-          <VisualState x:Name="Wide">
-            <VisualState.Setters>
-              <Setter Target="PortComboBox.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="RefreshPortsButton.(Grid.Column)" Value="1" />
-              <Setter Target="BaudRateComboBox.(Grid.Row)" Value="0" />
-              <Setter Target="BaudRateComboBox.(Grid.Column)" Value="2" />
-              <Setter Target="BaudRateComboBox.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="MonitorFormat.(Grid.Row)" Value="0" />
-              <Setter Target="MonitorFormat.(Grid.Column)" Value="3" />
-              <Setter Target="MonitorFormat.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="ConnectButton.(Grid.Row)" Value="0" />
-              <Setter Target="DataBitsNumberBox.(Grid.Row)" Value="0" />
-              <Setter Target="DataBitsNumberBox.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="ParityComboBox.(Grid.Row)" Value="0" />
-              <Setter Target="ParityComboBox.(Grid.Column)" Value="1" />
-              <Setter Target="ParityComboBox.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="StopBitsComboBox.(Grid.Row)" Value="0" />
-              <Setter Target="StopBitsComboBox.(Grid.Column)" Value="2" />
-              <Setter Target="StopBitsComboBox.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="HandshakeComboBox.(Grid.Row)" Value="0" />
-              <Setter Target="HandshakeComboBox.(Grid.Column)" Value="3" />
-              <Setter Target="HandshakeComboBox.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="EncodingComboBox.(Grid.Row)" Value="0" />
-              <Setter Target="EncodingComboBox.(Grid.Column)" Value="4" />
-              <Setter Target="EncodingComboBox.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="ControlLinesPanel.(Grid.Row)" Value="0" />
-              <Setter Target="ControlLinesPanel.(Grid.Column)" Value="5" />
-              <Setter Target="ControlLinesPanel.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="MonitorActions.(Grid.Row)" Value="0" />
-              <Setter Target="MonitorActions.HorizontalAlignment" Value="Right" />
-              <Setter Target="PlotMode.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="PlotFrameLength.(Grid.Column)" Value="1" />
-              <Setter Target="PlotFrameLength.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="PlotSampleType.(Grid.Row)" Value="0" />
-              <Setter Target="PlotSampleType.(Grid.Column)" Value="2" />
-              <Setter Target="PlotSampleType.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="PlotActions.(Grid.Row)" Value="0" />
-              <Setter Target="PlotActions.(Grid.Column)" Value="3" />
-              <Setter Target="PlotActions.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="SendHistory.(Grid.Row)" Value="0" />
-              <Setter Target="SendHistory.(Grid.Column)" Value="1" />
-              <Setter Target="SendHistory.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="SendFormat.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="SendLineEnding.(Grid.Column)" Value="1" />
-              <Setter Target="SendLineEnding.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="SendChecksum.(Grid.Row)" Value="0" />
-              <Setter Target="SendChecksum.(Grid.Column)" Value="2" />
-              <Setter Target="SendChecksum.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="LoopSendToggle.(Grid.Row)" Value="0" />
-              <Setter Target="LoopSendToggle.(Grid.Column)" Value="3" />
-              <Setter Target="LoopSendToggle.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="LoopIntervalNumberBox.(Grid.Row)" Value="0" />
-              <Setter Target="LoopIntervalNumberBox.(Grid.Column)" Value="4" />
-              <Setter Target="LoopIntervalNumberBox.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="SendButton.(Grid.Row)" Value="0" />
-              <Setter Target="SendButton.(Grid.Column)" Value="5" />
-              <Setter Target="SendButton.(Grid.ColumnSpan)" Value="1" />
-            </VisualState.Setters>
-          </VisualState>
-        </VisualStateGroup>
-        <VisualStateGroup x:Name="PageMarginStates">
-          <VisualState x:Name="CompactPageMargins">
-            <VisualState.Setters>
-              <Setter Target="WorkbenchLayout.Padding" Value="{StaticResource CompactContentPagePadding}" />
-            </VisualState.Setters>
-          </VisualState>
-          <VisualState x:Name="StandardPageMargins" />
-        </VisualStateGroup>
-      </VisualStateManager.VisualStateGroups>
       <Border Grid.Row="0" Style="{StaticResource SurfaceCardStyle}">
         <StackPanel Spacing="{StaticResource CardContentSpacing}">
           <TextBlock Text="串口连接" Style="{StaticResource BodyStrongTextBlockStyle}" />

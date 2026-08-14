@@ -4,48 +4,70 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     NavigationCacheMode="Required"
     SizeChanged="ModbusPage_SizeChanged">
-  <ScrollView x:Name="PageScroller" Padding="{StaticResource ContentPagePadding}" HorizontalContentAlignment="Stretch" VerticalScrollBarVisibility="Auto">
-    <StackPanel Spacing="{StaticResource ContentPageSpacing}">
-      <VisualStateManager.VisualStateGroups>
-        <VisualStateGroup x:Name="WindowStates">
-          <VisualState x:Name="Compact">
-            <VisualState.Setters>
-              <Setter Target="SlaveAddress.(Grid.ColumnSpan)" Value="4" />
-              <Setter Target="FunctionCode.(Grid.Row)" Value="1" />
-              <Setter Target="FunctionCode.(Grid.Column)" Value="0" />
-              <Setter Target="FunctionCode.(Grid.ColumnSpan)" Value="4" />
-              <Setter Target="StartAddress.(Grid.Row)" Value="2" />
-              <Setter Target="StartAddress.(Grid.ColumnSpan)" Value="4" />
-              <Setter Target="Quantity.(Grid.Row)" Value="3" />
-              <Setter Target="Quantity.(Grid.Column)" Value="0" />
-              <Setter Target="Quantity.(Grid.ColumnSpan)" Value="4" />
-            </VisualState.Setters>
-          </VisualState>
-          <VisualState x:Name="Narrow" />
-          <VisualState x:Name="Wide">
-            <VisualState.Setters>
-              <Setter Target="SlaveAddress.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="FunctionCode.(Grid.Column)" Value="1" />
-              <Setter Target="FunctionCode.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="StartAddress.(Grid.Row)" Value="0" />
-              <Setter Target="StartAddress.(Grid.Column)" Value="2" />
-              <Setter Target="StartAddress.(Grid.ColumnSpan)" Value="1" />
-              <Setter Target="Quantity.(Grid.Row)" Value="0" />
-              <Setter Target="Quantity.(Grid.Column)" Value="3" />
-              <Setter Target="Quantity.(Grid.ColumnSpan)" Value="1" />
-            </VisualState.Setters>
-          </VisualState>
-        </VisualStateGroup>
-        <VisualStateGroup x:Name="PageMarginStates">
-          <VisualState x:Name="CompactPageMargins">
-            <VisualState.Setters>
-              <Setter Target="PageScroller.Padding" Value="{StaticResource CompactContentPagePadding}" />
-            </VisualState.Setters>
-          </VisualState>
-          <VisualState x:Name="StandardPageMargins" />
-        </VisualStateGroup>
-      </VisualStateManager.VisualStateGroups>
-      <Border Style="{StaticResource SurfaceCardStyle}">
+  <ScrollView x:Name="PageScroller" HorizontalContentAlignment="Stretch" VerticalScrollBarVisibility="Auto">
+    <VisualStateManager.VisualStateGroups>
+      <VisualStateGroup x:Name="WindowStates">
+        <VisualState x:Name="Compact">
+          <VisualState.Setters>
+            <Setter Target="SlaveAddress.(Grid.ColumnSpan)" Value="4" />
+            <Setter Target="FunctionCode.(Grid.Row)" Value="1" />
+            <Setter Target="FunctionCode.(Grid.Column)" Value="0" />
+            <Setter Target="FunctionCode.(Grid.ColumnSpan)" Value="4" />
+            <Setter Target="StartAddress.(Grid.Row)" Value="2" />
+            <Setter Target="StartAddress.(Grid.ColumnSpan)" Value="4" />
+            <Setter Target="Quantity.(Grid.Row)" Value="3" />
+            <Setter Target="Quantity.(Grid.Column)" Value="0" />
+            <Setter Target="Quantity.(Grid.ColumnSpan)" Value="4" />
+          </VisualState.Setters>
+        </VisualState>
+        <VisualState x:Name="Narrow" />
+        <VisualState x:Name="Wide">
+          <VisualState.Setters>
+            <Setter Target="SlaveAddress.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="FunctionCode.(Grid.Column)" Value="1" />
+            <Setter Target="FunctionCode.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="StartAddress.(Grid.Row)" Value="0" />
+            <Setter Target="StartAddress.(Grid.Column)" Value="2" />
+            <Setter Target="StartAddress.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="Quantity.(Grid.Row)" Value="0" />
+            <Setter Target="Quantity.(Grid.Column)" Value="3" />
+            <Setter Target="Quantity.(Grid.ColumnSpan)" Value="1" />
+          </VisualState.Setters>
+        </VisualState>
+      </VisualStateGroup>
+      <VisualStateGroup x:Name="CardLayoutStates">
+        <VisualState x:Name="StackedCards" />
+        <VisualState x:Name="SplitCards">
+          <VisualState.Setters>
+            <Setter Target="RequestCard.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="ResponseCard.(Grid.Row)" Value="0" />
+            <Setter Target="ResponseCard.(Grid.Column)" Value="1" />
+            <Setter Target="ResponseCard.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="Result.(Grid.Row)" Value="1" />
+            <Setter Target="ContentRow.Height" Value="*" />
+          </VisualState.Setters>
+        </VisualState>
+      </VisualStateGroup>
+      <VisualStateGroup x:Name="PageMarginStates">
+        <VisualState x:Name="CompactPageMargins">
+          <VisualState.Setters>
+            <Setter Target="PageLayout.Padding" Value="{StaticResource CompactContentPagePadding}" />
+          </VisualState.Setters>
+        </VisualState>
+        <VisualState x:Name="StandardPageMargins" />
+      </VisualStateGroup>
+    </VisualStateManager.VisualStateGroups>
+    <Grid x:Name="PageLayout" MinHeight="{x:Bind PageScroller.ActualHeight, Mode=OneWay}" Padding="{StaticResource ContentPagePadding}" ColumnSpacing="{StaticResource ContentPageSpacing}" RowSpacing="{StaticResource ContentPageSpacing}">
+      <Grid.RowDefinitions>
+        <RowDefinition x:Name="ContentRow" Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <Border x:Name="RequestCard" Grid.ColumnSpan="2" Style="{StaticResource SurfaceCardStyle}">
         <StackPanel Spacing="{StaticResource CardContentSpacing}">
           <TextBlock Text="请求" Style="{StaticResource BodyStrongTextBlockStyle}" />
           <Grid ColumnSpacing="12" RowSpacing="14">
@@ -74,12 +96,18 @@
           <Button x:Name="SendButton" x:FieldModifier="public" Content="发送请求" Click="SendButton_Click" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Left" />
         </StackPanel>
       </Border>
-      <Border Style="{StaticResource SurfaceCardStyle}">
-        <StackPanel Spacing="{StaticResource CardContentSpacing}">
+      <Border x:Name="ResponseCard" Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource SurfaceCardStyle}">
+        <Grid RowSpacing="{StaticResource CardContentSpacing}">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
           <TextBlock Text="响应解析" Style="{StaticResource BodyStrongTextBlockStyle}" />
-          <TextBox x:Name="ResponseInput" x:FieldModifier="public" Header="响应帧 HEX" PlaceholderText="粘贴收到的响应帧，如 01 03 02 00 0A 38 43" FontFamily="{StaticResource MonospaceFontFamily}" />
-          <Button Content="解析响应" Click="ParseButton_Click" HorizontalAlignment="Left" />
-          <ListView x:Name="RegisterList" x:FieldModifier="public" MaxHeight="240" SelectionMode="None">
+          <TextBox x:Name="ResponseInput" x:FieldModifier="public" Grid.Row="1" Header="响应帧 HEX" PlaceholderText="粘贴收到的响应帧，如 01 03 02 00 0A 38 43" FontFamily="{StaticResource MonospaceFontFamily}" />
+          <Button Grid.Row="2" Content="解析响应" Click="ParseButton_Click" HorizontalAlignment="Left" />
+          <ListView x:Name="RegisterList" x:FieldModifier="public" Grid.Row="3" MinHeight="320" SelectionMode="None">
             <ListView.ItemTemplate>
               <DataTemplate>
                 <Grid Padding="8,4" ColumnSpacing="16">
@@ -95,9 +123,9 @@
               </DataTemplate>
             </ListView.ItemTemplate>
           </ListView>
-        </StackPanel>
+        </Grid>
       </Border>
-      <InfoBar x:Name="Result" x:FieldModifier="public" IsOpen="False" IsClosable="True" />
-    </StackPanel>
+      <InfoBar x:Name="Result" x:FieldModifier="public" Grid.Row="2" Grid.ColumnSpan="2" IsOpen="False" IsClosable="True" />
+    </Grid>
   </ScrollView>
 </Page>

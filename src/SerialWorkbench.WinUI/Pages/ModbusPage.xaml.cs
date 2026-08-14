@@ -8,7 +8,8 @@ namespace SerialWorkbench.WinUI.Pages;
 public sealed partial class ModbusPage : Page
 {
     private const double CompactLayoutWidth = 480;
-    private const double WideLayoutWidth = 720;
+    private const double SplitLayoutWidth = 960;
+    private const double WideLayoutWidth = 1440;
 
     public ModbusPage()
     {
@@ -59,6 +60,7 @@ public sealed partial class ModbusPage : Page
             _ => "Wide",
         };
         VisualStateManager.GoToState(this, state, false);
+        VisualStateManager.GoToState(this, e.NewSize.Width < SplitLayoutWidth ? "StackedCards" : "SplitCards", false);
         VisualStateManager.GoToState(this, e.NewSize.Width < 641 ? "CompactPageMargins" : "StandardPageMargins", false);
     }
 

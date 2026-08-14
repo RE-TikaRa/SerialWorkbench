@@ -4,40 +4,59 @@
     NavigationCacheMode="Required"
     SizeChanged="LoopbackPage_SizeChanged">
   <ScrollView x:Name="PageScroller" Padding="{StaticResource ContentPagePadding}" HorizontalContentAlignment="Stretch" VerticalScrollBarVisibility="Auto">
-    <StackPanel Spacing="{StaticResource ContentPageSpacing}">
-      <VisualStateManager.VisualStateGroups>
-        <VisualStateGroup x:Name="WindowStates">
-          <VisualState x:Name="Compact">
-            <VisualState.Setters>
-              <Setter Target="Length.(Grid.ColumnSpan)" Value="6" />
-              <Setter Target="Iterations.(Grid.Row)" Value="1" />
-              <Setter Target="Iterations.(Grid.Column)" Value="0" />
-              <Setter Target="Iterations.(Grid.ColumnSpan)" Value="6" />
-              <Setter Target="Pattern.(Grid.Row)" Value="2" />
-            </VisualState.Setters>
-          </VisualState>
-          <VisualState x:Name="Narrow" />
-          <VisualState x:Name="Wide">
-            <VisualState.Setters>
-              <Setter Target="Length.(Grid.ColumnSpan)" Value="2" />
-              <Setter Target="Iterations.(Grid.Column)" Value="2" />
-              <Setter Target="Iterations.(Grid.ColumnSpan)" Value="2" />
-              <Setter Target="Pattern.(Grid.Row)" Value="0" />
-              <Setter Target="Pattern.(Grid.Column)" Value="4" />
-              <Setter Target="Pattern.(Grid.ColumnSpan)" Value="2" />
-            </VisualState.Setters>
-          </VisualState>
-        </VisualStateGroup>
-        <VisualStateGroup x:Name="PageMarginStates">
-          <VisualState x:Name="CompactPageMargins">
-            <VisualState.Setters>
-              <Setter Target="PageScroller.Padding" Value="{StaticResource CompactContentPagePadding}" />
-            </VisualState.Setters>
-          </VisualState>
-          <VisualState x:Name="StandardPageMargins" />
-        </VisualStateGroup>
-      </VisualStateManager.VisualStateGroups>
-      <Border Style="{StaticResource SurfaceCardStyle}">
+    <VisualStateManager.VisualStateGroups>
+      <VisualStateGroup x:Name="WindowStates">
+        <VisualState x:Name="Compact">
+          <VisualState.Setters>
+            <Setter Target="Length.(Grid.ColumnSpan)" Value="6" />
+            <Setter Target="Iterations.(Grid.Row)" Value="1" />
+            <Setter Target="Iterations.(Grid.Column)" Value="0" />
+            <Setter Target="Iterations.(Grid.ColumnSpan)" Value="6" />
+            <Setter Target="Pattern.(Grid.Row)" Value="2" />
+          </VisualState.Setters>
+        </VisualState>
+        <VisualState x:Name="Narrow" />
+        <VisualState x:Name="Wide">
+          <VisualState.Setters>
+            <Setter Target="Length.(Grid.ColumnSpan)" Value="2" />
+            <Setter Target="Iterations.(Grid.Column)" Value="2" />
+            <Setter Target="Iterations.(Grid.ColumnSpan)" Value="2" />
+            <Setter Target="Pattern.(Grid.Row)" Value="0" />
+            <Setter Target="Pattern.(Grid.Column)" Value="4" />
+            <Setter Target="Pattern.(Grid.ColumnSpan)" Value="2" />
+          </VisualState.Setters>
+        </VisualState>
+      </VisualStateGroup>
+      <VisualStateGroup x:Name="ResultLayoutStates">
+        <VisualState x:Name="StackedResults" />
+        <VisualState x:Name="SplitResults">
+          <VisualState.Setters>
+            <Setter Target="ParameterCard.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="ResultCard.(Grid.Row)" Value="0" />
+            <Setter Target="ResultCard.(Grid.Column)" Value="1" />
+            <Setter Target="ResultCard.(Grid.ColumnSpan)" Value="1" />
+          </VisualState.Setters>
+        </VisualState>
+      </VisualStateGroup>
+      <VisualStateGroup x:Name="PageMarginStates">
+        <VisualState x:Name="CompactPageMargins">
+          <VisualState.Setters>
+            <Setter Target="PageScroller.Padding" Value="{StaticResource CompactContentPagePadding}" />
+          </VisualState.Setters>
+        </VisualState>
+        <VisualState x:Name="StandardPageMargins" />
+      </VisualStateGroup>
+    </VisualStateManager.VisualStateGroups>
+    <Grid x:Name="LoopbackLayout" ColumnSpacing="{StaticResource ContentPageSpacing}" RowSpacing="{StaticResource ContentPageSpacing}">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <Border x:Name="ParameterCard" Grid.ColumnSpan="2" Style="{StaticResource SurfaceCardStyle}">
         <StackPanel Spacing="{StaticResource CardContentSpacing}">
           <TextBlock Text="测试参数" Style="{StaticResource BodyStrongTextBlockStyle}" />
           <Grid ColumnSpacing="12" RowSpacing="14">
@@ -65,7 +84,12 @@
           <Button x:Name="RunButton" x:FieldModifier="public" Content="运行检测" Click="RunButton_Click" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Left" />
         </StackPanel>
       </Border>
-      <InfoBar x:Name="Result" x:FieldModifier="public" IsOpen="False" IsClosable="True" />
-    </StackPanel>
+      <Border x:Name="ResultCard" Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource SurfaceCardStyle}">
+        <StackPanel Spacing="{StaticResource CardContentSpacing}">
+          <TextBlock Text="检测结果" Style="{StaticResource BodyStrongTextBlockStyle}" />
+          <InfoBar x:Name="Result" x:FieldModifier="public" IsOpen="True" IsClosable="False" Title="等待检测" Message="运行检测后在这里显示结果。" />
+        </StackPanel>
+      </Border>
+    </Grid>
   </ScrollView>
 </Page>

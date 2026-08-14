@@ -5,18 +5,43 @@
     NavigationCacheMode="Required"
     SizeChanged="SettingsPage_SizeChanged">
   <ScrollView x:Name="PageScroller" Padding="{StaticResource ContentPagePadding}" HorizontalContentAlignment="Stretch" VerticalScrollBarVisibility="Auto">
-    <StackPanel Spacing="{StaticResource ContentPageSpacing}">
-      <VisualStateManager.VisualStateGroups>
-        <VisualStateGroup x:Name="PageMarginStates">
-          <VisualState x:Name="CompactPageMargins">
-            <VisualState.Setters>
-              <Setter Target="PageScroller.Padding" Value="{StaticResource CompactContentPagePadding}" />
-            </VisualState.Setters>
-          </VisualState>
-          <VisualState x:Name="StandardPageMargins" />
-        </VisualStateGroup>
-      </VisualStateManager.VisualStateGroups>
-      <toolkit:SettingsCard Header="工作区" Description="管理会话文件和工作区路径。" HorizontalContentAlignment="Stretch">
+    <VisualStateManager.VisualStateGroups>
+      <VisualStateGroup x:Name="SettingsLayoutStates">
+        <VisualState x:Name="StackedSettings" />
+        <VisualState x:Name="WideSettings">
+          <VisualState.Setters>
+            <Setter Target="WorkspaceCard.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="AppearanceCard.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="AboutCard.(Grid.Row)" Value="0" />
+            <Setter Target="AboutCard.(Grid.Column)" Value="1" />
+            <Setter Target="AboutCard.(Grid.RowSpan)" Value="2" />
+            <Setter Target="AboutCard.(Grid.ColumnSpan)" Value="1" />
+          </VisualState.Setters>
+        </VisualState>
+      </VisualStateGroup>
+      <VisualStateGroup x:Name="PageMarginStates">
+        <VisualState x:Name="CompactPageMargins">
+          <VisualState.Setters>
+            <Setter Target="PageScroller.Padding" Value="{StaticResource CompactContentPagePadding}" />
+          </VisualState.Setters>
+        </VisualState>
+        <VisualState x:Name="StandardPageMargins" />
+      </VisualStateGroup>
+    </VisualStateManager.VisualStateGroups>
+    <Grid x:Name="SettingsLayout" ColumnSpacing="{StaticResource ContentPageSpacing}" RowSpacing="{StaticResource ContentPageSpacing}">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <toolkit:SettingsCard x:Name="WorkspaceCard" Grid.ColumnSpan="2" Header="工作区" Description="管理会话文件和工作区路径。" HorizontalContentAlignment="Stretch">
+        <toolkit:SettingsCard.Resources>
+          <x:Double x:Key="SettingsCardWrapThreshold">800</x:Double>
+        </toolkit:SettingsCard.Resources>
         <toolkit:SettingsCard.HeaderIcon>
           <FontIcon Glyph="&#xE8B7;" />
         </toolkit:SettingsCard.HeaderIcon>
@@ -37,18 +62,21 @@
         </Grid>
       </toolkit:SettingsCard>
 
-      <toolkit:SettingsCard Header="外观" Description="选择应用主题，或跟随 Windows 设置。" HorizontalContentAlignment="Stretch">
+      <toolkit:SettingsCard x:Name="AppearanceCard" Grid.Row="1" Grid.ColumnSpan="2" Header="外观" Description="选择应用主题，或跟随 Windows 设置。" HorizontalContentAlignment="Stretch">
         <toolkit:SettingsCard.HeaderIcon>
           <FontIcon Glyph="&#xE790;" />
         </toolkit:SettingsCard.HeaderIcon>
-        <ComboBox x:Name="ThemeSelector" x:FieldModifier="public" MaxWidth="320" HorizontalAlignment="Stretch" SelectionChanged="ThemeSelector_SelectionChanged">
+        <ComboBox x:Name="ThemeSelector" x:FieldModifier="public" HorizontalAlignment="Stretch" SelectionChanged="ThemeSelector_SelectionChanged">
           <x:String>跟随系统</x:String>
           <x:String>浅色</x:String>
           <x:String>深色</x:String>
         </ComboBox>
       </toolkit:SettingsCard>
 
-      <toolkit:SettingsCard Header="关于 SerialWorkbench" Description="查看版本和运行环境信息。" HorizontalContentAlignment="Stretch">
+      <toolkit:SettingsCard x:Name="AboutCard" Grid.Row="2" Grid.ColumnSpan="2" Header="关于 SerialWorkbench" Description="查看版本和运行环境信息。" HorizontalContentAlignment="Stretch">
+        <toolkit:SettingsCard.Resources>
+          <x:Double x:Key="SettingsCardWrapThreshold">640</x:Double>
+        </toolkit:SettingsCard.Resources>
         <toolkit:SettingsCard.HeaderIcon>
           <FontIcon Glyph="&#xE946;" />
         </toolkit:SettingsCard.HeaderIcon>
@@ -79,6 +107,6 @@
           <TextBlock Grid.Row="5" Grid.Column="1" Text="Apache License 2.0 · LICENSE" />
         </Grid>
       </toolkit:SettingsCard>
-    </StackPanel>
+    </Grid>
   </ScrollView>
 </Page>

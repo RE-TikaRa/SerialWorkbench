@@ -5,7 +5,8 @@ namespace SerialWorkbench.WinUI.Pages;
 public sealed partial class LoopbackPage : Page
 {
     private const double CompactLayoutWidth = 360;
-    private const double WideLayoutWidth = 520;
+    private const double SplitLayoutWidth = 960;
+    private const double WideLayoutWidth = 1200;
 
     public LoopbackPage() => InitializeComponent();
     public event EventHandler? RunRequested;
@@ -29,6 +30,7 @@ public sealed partial class LoopbackPage : Page
             _ => "Wide",
         };
         VisualStateManager.GoToState(this, state, false);
+        VisualStateManager.GoToState(this, e.NewSize.Width < SplitLayoutWidth ? "StackedResults" : "SplitResults", false);
         VisualStateManager.GoToState(this, e.NewSize.Width < 641 ? "CompactPageMargins" : "StandardPageMargins", false);
     }
     private void RunButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => RunRequested?.Invoke(this, EventArgs.Empty);
