@@ -83,8 +83,11 @@ public sealed partial class SessionsPage : Page
         EventsEmptyState.Visibility = Visibility.Collapsed;
     }
 
-    private void SessionsPage_SizeChanged(object sender, SizeChangedEventArgs e) =>
+    private void SessionsPage_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
         VisualStateManager.GoToState(this, e.NewSize.Width >= 760 ? "WideSessions" : "CompactSessions", false);
+        VisualStateManager.GoToState(this, e.NewSize.Width < 641 ? "CompactPageMargins" : "StandardPageMargins", false);
+    }
 
     private void RefreshSessionsButton_Click(object sender, RoutedEventArgs e) => RefreshRequested?.Invoke(this, EventArgs.Empty);
 

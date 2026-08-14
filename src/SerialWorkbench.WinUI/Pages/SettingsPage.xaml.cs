@@ -26,6 +26,9 @@ public sealed partial class SettingsPage : Page
 
     public event EventHandler<ElementTheme>? ThemeChangeRequested;
 
+    private void SettingsPage_SizeChanged(object sender, SizeChangedEventArgs e) =>
+        VisualStateManager.GoToState(this, e.NewSize.Width < 641 ? "CompactPageMargins" : "StandardPageMargins", false);
+
     private void ChooseWorkspaceButton_Click(object sender, RoutedEventArgs e) => ChooseWorkspaceRequested?.Invoke(this, EventArgs.Empty);
     private void ClearWorkspaceButton_Click(object sender, RoutedEventArgs e) => ClearWorkspaceRequested?.Invoke(this, EventArgs.Empty);
 

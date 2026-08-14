@@ -59,6 +59,7 @@ public sealed partial class ModbusPage : Page
             _ => "Wide",
         };
         VisualStateManager.GoToState(this, state, false);
+        VisualStateManager.GoToState(this, e.NewSize.Width < 641 ? "CompactPageMargins" : "StandardPageMargins", false);
     }
 
     private byte[] BuildFrame()

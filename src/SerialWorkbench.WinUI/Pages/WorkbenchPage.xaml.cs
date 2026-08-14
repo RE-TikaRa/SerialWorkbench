@@ -197,6 +197,7 @@ public sealed partial class WorkbenchPage : Page
             _ => "Wide",
         };
         VisualStateManager.GoToState(this, state, false);
+        VisualStateManager.GoToState(this, e.NewSize.Width < 641 ? "CompactPageMargins" : "StandardPageMargins", false);
     }
 
     private void ApplyPlotTheme()

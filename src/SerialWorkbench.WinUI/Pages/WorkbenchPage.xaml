@@ -141,18 +141,11 @@
         </VisualStateGroup>
         <VisualStateGroup x:Name="PageMarginStates">
           <VisualState x:Name="CompactPageMargins">
-            <VisualState.StateTriggers>
-              <AdaptiveTrigger MinWindowWidth="0" />
-            </VisualState.StateTriggers>
             <VisualState.Setters>
               <Setter Target="WorkbenchLayout.Padding" Value="{StaticResource CompactContentPagePadding}" />
             </VisualState.Setters>
           </VisualState>
-          <VisualState x:Name="StandardPageMargins">
-            <VisualState.StateTriggers>
-              <AdaptiveTrigger MinWindowWidth="641" />
-            </VisualState.StateTriggers>
-          </VisualState>
+          <VisualState x:Name="StandardPageMargins" />
         </VisualStateGroup>
       </VisualStateManager.VisualStateGroups>
       <Border Grid.Row="0" Style="{StaticResource SurfaceCardStyle}">

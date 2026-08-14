@@ -4,8 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     NavigationCacheMode="Required"
     SizeChanged="ModbusPage_SizeChanged">
-  <ScrollView x:Name="PageScroller" Padding="{StaticResource ContentPagePadding}" VerticalScrollBarVisibility="Auto">
-    <StackPanel MaxWidth="1064" Spacing="{StaticResource ContentPageSpacing}">
+  <ScrollView x:Name="PageScroller" Padding="{StaticResource ContentPagePadding}" HorizontalContentAlignment="Stretch" VerticalScrollBarVisibility="Auto">
+    <StackPanel Spacing="{StaticResource ContentPageSpacing}">
       <VisualStateManager.VisualStateGroups>
         <VisualStateGroup x:Name="WindowStates">
           <VisualState x:Name="Compact">
@@ -38,18 +38,11 @@
         </VisualStateGroup>
         <VisualStateGroup x:Name="PageMarginStates">
           <VisualState x:Name="CompactPageMargins">
-            <VisualState.StateTriggers>
-              <AdaptiveTrigger MinWindowWidth="0" />
-            </VisualState.StateTriggers>
             <VisualState.Setters>
               <Setter Target="PageScroller.Padding" Value="{StaticResource CompactContentPagePadding}" />
             </VisualState.Setters>
           </VisualState>
-          <VisualState x:Name="StandardPageMargins">
-            <VisualState.StateTriggers>
-              <AdaptiveTrigger MinWindowWidth="641" />
-            </VisualState.StateTriggers>
-          </VisualState>
+          <VisualState x:Name="StandardPageMargins" />
         </VisualStateGroup>
       </VisualStateManager.VisualStateGroups>
       <Border Style="{StaticResource SurfaceCardStyle}">

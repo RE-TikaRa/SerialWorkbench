@@ -41,13 +41,13 @@
       <NavigationView.FooterMenuItems>
         <NavigationViewItem Content="设置" Icon="Setting" Tag="Settings" />
       </NavigationView.FooterMenuItems>
-      <Grid>
+      <Grid x:Name="ContentShell" SizeChanged="ContentShell_SizeChanged">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
           <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <StackPanel Margin="24,24,24,0" Spacing="6">
+        <StackPanel x:Name="PageHeader" Margin="24,24,24,0" Spacing="6">
           <TextBlock x:Name="PageTitleText" Text="工作台" Style="{StaticResource TitleTextBlockStyle}" />
           <TextBlock x:Name="PageDescriptionText" Text="连接串口、收发报文并查看实时波形。" Style="{StaticResource PageDescriptionStyle}" />
         </StackPanel>

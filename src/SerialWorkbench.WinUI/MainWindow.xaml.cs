@@ -348,6 +348,14 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void ContentShell_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var compact = e.NewSize.Width < 641;
+        var horizontal = compact ? 12 : 24;
+        PageHeader.Margin = new Thickness(horizontal, horizontal, horizontal, 0);
+        ErrorInfoBar.Margin = new Thickness(horizontal, compact ? 12 : 18, horizontal, 0);
+    }
+
     private async void ContentFrame_Navigated(object sender, NavigationEventArgs e)
     {
         switch (e.Content)

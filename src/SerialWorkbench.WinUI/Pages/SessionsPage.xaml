@@ -7,18 +7,11 @@
     <VisualStateManager.VisualStateGroups>
       <VisualStateGroup x:Name="PageMarginStates">
         <VisualState x:Name="CompactPageMargins">
-          <VisualState.StateTriggers>
-            <AdaptiveTrigger MinWindowWidth="0" />
-          </VisualState.StateTriggers>
           <VisualState.Setters>
             <Setter Target="PageLayout.Padding" Value="{StaticResource CompactContentPagePadding}" />
           </VisualState.Setters>
         </VisualState>
-        <VisualState x:Name="StandardPageMargins">
-          <VisualState.StateTriggers>
-            <AdaptiveTrigger MinWindowWidth="641" />
-          </VisualState.StateTriggers>
-        </VisualState>
+        <VisualState x:Name="StandardPageMargins" />
       </VisualStateGroup>
       <VisualStateGroup x:Name="SessionLayoutStates">
         <VisualState x:Name="WideSessions" />
