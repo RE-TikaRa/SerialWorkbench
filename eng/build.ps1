@@ -1,6 +1,8 @@
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "common.ps1")
 
+$configuration = $env:Configuration
+$env:Configuration = "Release"
 Push-Location $RepositoryRoot
 try {
     Invoke-RepositoryDotNet @("format", "SerialWorkbench.slnx")
@@ -8,4 +10,5 @@ try {
 }
 finally {
     Pop-Location
+    $env:Configuration = $configuration
 }
