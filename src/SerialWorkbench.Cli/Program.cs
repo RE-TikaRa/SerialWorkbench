@@ -235,9 +235,9 @@ static void PrintHelp()
         serial-workbench host status|stop
         serial-workbench workspace show|clear
         serial-workbench workspace set --path PATH
-        serial-workbench send --port COM17 (--text TEXT | --hex HEX) [--baud 115200]
-        serial-workbench monitor --port COM17 [--seconds 10] [--output text|jsonl]
-        serial-workbench loopback run --port COM17 [--baud 115200] [--length 4096] [--iterations 1]
+        serial-workbench send --port <port> (--text TEXT | --hex HEX) [--baud 115200]
+        serial-workbench monitor --port <port> [--seconds 10] [--output text|jsonl]
+        serial-workbench loopback run --port <port> [--baud 115200] [--length 4096] [--iterations 1]
         """);
 }
 

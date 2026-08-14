@@ -16,7 +16,6 @@ public sealed partial class WorkbenchPage : Page
     private const int MaxWavePoints = 2000;
     private readonly WaveformParser waveformParser = new();
     private readonly List<List<double>> channelData = [];
-    private readonly List<IPlottable> channelPlots = [];
     private ThemeSettings? themeSettings;
     private bool viewSelectionInitialized;
 
@@ -164,12 +163,10 @@ public sealed partial class WorkbenchPage : Page
     private void RedrawWaveform()
     {
         WavePlot.Plot.Clear();
-        channelPlots.Clear();
         for (var channel = 0; channel < channelData.Count; channel++)
         {
             var scatter = WavePlot.Plot.Add.Signal(channelData[channel].ToArray());
             scatter.LegendText = $"CH{channel}";
-            channelPlots.Add(scatter);
         }
 
         WavePlot.Plot.Axes.AutoScale();
@@ -268,7 +265,6 @@ public sealed partial class WorkbenchPage : Page
     private void PlotClearButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         channelData.Clear();
-        channelPlots.Clear();
         waveformParser.Reset();
         WavePlot.Plot.Clear();
         WavePlot.Refresh();
