@@ -28,7 +28,7 @@
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
       <FontFamily x:Key="MonospaceFontFamily">Consolas</FontFamily>
-      <Style x:Key="ToolbarButtonStyle" TargetType="Button">
+      <Style x:Key="ToolbarButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
         <Setter Property="MinWidth" Value="84" />
         <Setter Property="MinHeight" Value="36" />
         <Setter Property="HorizontalAlignment" Value="Left" />
@@ -57,16 +57,16 @@
       <Thickness x:Key="CompactContentPagePadding">12</Thickness>
       <x:Double x:Key="ContentPageSpacing">20</x:Double>
       <x:Double x:Key="CardContentSpacing">14</x:Double>
-      <Style TargetType="ComboBox">
+      <Style TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
         <Setter Property="MinHeight" Value="36" />
       </Style>
-      <Style TargetType="TextBox">
+      <Style TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
         <Setter Property="MinHeight" Value="36" />
       </Style>
       <Style TargetType="NumberBox">
         <Setter Property="MinHeight" Value="36" />
       </Style>
-      <Style x:Key="TrafficListViewItemStyle" TargetType="ListViewItem">
+      <Style x:Key="TrafficListViewItemStyle" TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="MinHeight" Value="38" />
         <Setter Property="Padding" Value="0" />
