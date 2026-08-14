@@ -107,6 +107,24 @@ public sealed record LoopbackResult(
     byte? ActualByte,
     string? Error);
 
+public sealed record ModbusTransactionRequest(
+    Guid ConnectionId,
+    byte[] Frame,
+    byte SlaveAddress,
+    byte FunctionCode,
+    int TimeoutMilliseconds = 2000);
+
+public sealed record ModbusTransactionResult(
+    bool Success,
+    byte[] ResponseFrame,
+    byte FunctionCode,
+    ushort[] Registers,
+    ushort? Address,
+    ushort? Value,
+    byte? ExceptionCode,
+    TimeSpan Duration,
+    string? Error);
+
 public sealed record SessionDescriptor(
     Guid Id,
     string Path,

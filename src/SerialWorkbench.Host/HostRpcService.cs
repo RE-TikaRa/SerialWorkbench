@@ -86,6 +86,9 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
     public Task<LoopbackResult> RunLoopbackAsync(LoopbackRequest request, CancellationToken cancellationToken) =>
         runtime.Connections.RunLoopbackAsync(request, cancellationToken);
 
+    public Task<ModbusTransactionResult> RunModbusAsync(ModbusTransactionRequest request, CancellationToken cancellationToken) =>
+        runtime.Connections.RunModbusAsync(request, cancellationToken);
+
     public Task<RpcResult> StopHostAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

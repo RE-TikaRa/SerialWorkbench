@@ -67,6 +67,52 @@ public sealed partial class WorkbenchPage : Page
     public bool IsPaused => PauseButton.Content?.ToString() == "继续";
     public bool ShowTimestamp => TimestampToggle.IsChecked == true;
 
+    public void ApplySerialPreference(SerialPreference preference)
+    {
+        BaudRateComboBox.Text = preference.BaudRate.ToString(CultureInfo.InvariantCulture);
+        DataBitsNumberBox.Value = preference.DataBits;
+        ParityComboBox.SelectedIndex = (int)preference.Parity;
+        StopBitsComboBox.SelectedIndex = (int)preference.StopBits;
+        HandshakeComboBox.SelectedIndex = (int)preference.Handshake;
+        EncodingComboBox.SelectedIndex = preference.EncodingName.ToLowerInvariant() switch
+        {
+            "us-ascii" => 1,
+            "gb2312" => 2,
+            "gbk" => 3,
+            "utf-16" or "unicode" => 4,
+            _ => 0,
+        };
+        DtrCheckBox.IsChecked = preference.DtrEnable;
+        RtsCheckBox.IsChecked = preference.RtsEnable;
+        MonitorFormat.SelectedIndex = preference.MonitorFormatIndex;
+        SendFormat.SelectedIndex = preference.SendFormatIndex;
+        SendLineEnding.SelectedIndex = preference.SendLineEndingIndex;
+        SendChecksum.SelectedIndex = preference.SendChecksumIndex;
+        LoopIntervalNumberBox.Value = preference.LoopIntervalMilliseconds;
+        PlotMode.SelectedIndex = preference.PlotModeIndex;
+        PlotFrameLength.Value = preference.PlotFrameLength;
+        PlotSampleType.SelectedIndex = preference.PlotSampleTypeIndex;
+    }
+
+    public SerialPreference ReadSerialPreference(string? portName) => new(
+        portName,
+        checked((int)BaudRate),
+        DataBits,
+        Parity,
+        StopBits,
+        Handshake,
+        SelectedEncoding.WebName,
+        DtrEnable,
+        RtsEnable,
+        MonitorFormatIndex,
+        SendFormatIndex,
+        SendLineEndingIndex,
+        SendChecksumIndex,
+        LoopIntervalMs,
+        PlotMode.SelectedIndex,
+        (int)PlotFrameLength.Value,
+        PlotSampleType.SelectedIndex);
+
     private void ConnectButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ConnectRequested?.Invoke(this, EventArgs.Empty);
     private void RefreshPortsButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => RefreshPortsRequested?.Invoke(this, EventArgs.Empty);
     private void PauseButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => PauseRequested?.Invoke(this, EventArgs.Empty);

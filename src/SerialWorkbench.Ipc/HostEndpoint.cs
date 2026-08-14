@@ -118,6 +118,9 @@ public sealed class HostRpcClient : IHostRpc, IAsyncDisposable
     public Task<LoopbackResult> RunLoopbackAsync(LoopbackRequest request, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<LoopbackResult>(nameof(RunLoopbackAsync), [request], cancellationToken);
 
+    public Task<ModbusTransactionResult> RunModbusAsync(ModbusTransactionRequest request, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<ModbusTransactionResult>(nameof(RunModbusAsync), [request], cancellationToken);
+
     public Task<HostStatusDto> SetWorkspaceAsync(SetWorkspaceRequest request, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<HostStatusDto>(nameof(SetWorkspaceAsync), [request], cancellationToken);
 

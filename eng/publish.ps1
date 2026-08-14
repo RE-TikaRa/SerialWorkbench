@@ -13,7 +13,8 @@ if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
 & (Join-Path $PSScriptRoot "test.ps1")
 
 $componentRoot = Reset-RepositoryBuildDirectory (Join-Path $RepositoryRoot "artifacts\publish-components\win-x64")
-$outputRoot = Reset-RepositoryBuildDirectory $OutputDirectory
+$outputRoot = Resolve-RepositoryBuildPath $OutputDirectory
+New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
 $components = @(
     @{ Name = "host"; Project = "src\SerialWorkbench.Host\SerialWorkbench.Host.csproj" },
     @{ Name = "cli"; Project = "src\SerialWorkbench.Cli\SerialWorkbench.Cli.csproj" },

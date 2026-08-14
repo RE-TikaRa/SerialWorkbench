@@ -13,7 +13,9 @@ public sealed partial class SettingsPage : Page
     {
         InitializeComponent();
         var assembly = typeof(SettingsPage).Assembly;
-        AppVersion.Text = assembly.GetName().Version?.ToString() ?? "未知";
+        AppVersion.Text = assembly.GetCustomAttributes<AssemblyInformationalVersionAttribute>().SingleOrDefault()?.InformationalVersion
+            ?? assembly.GetName().Version?.ToString()
+            ?? "未知";
         DotnetVersion.Text = RuntimeInformation.FrameworkDescription;
         WindowsAppRuntimeVersion.Text = assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
             .Single(attribute => attribute.Key == "WindowsAppSDKVersion").Value;

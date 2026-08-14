@@ -34,6 +34,8 @@ public sealed partial class MainWindow : Window
     private SettingsPage? settingsPage;
     private SessionsPage? sessionsPage;
     private ModbusPage? modbusPage;
+    private readonly SerialPreference serialPreference = SerialPreferenceStore.Load();
+    private readonly string? preferredWorkspace = WorkspacePreferenceStore.Load();
 
     public MainWindow()
     {
@@ -80,7 +82,12 @@ public sealed partial class MainWindow : Window
 
             workbenchPage?.SetConnectionStatus("未连接串口");
             await RefreshPortsAsync();
+            workbenchPage?.ApplySerialPreference(serialPreference);
             SetSerialConfigurationEnabled(true);
+            if (preferredWorkspace is not null && !workspaceSelected)
+            {
+                await ChangeWorkspaceAsync(preferredWorkspace);
+            }
             eventTimer.Start();
             await RefreshStatusAsync();
         }
@@ -136,6 +143,7 @@ public sealed partial class MainWindow : Window
                 workbenchPage?.Handshake ?? SerialHandshake.None,
                 workbenchPage?.DtrEnable ?? false,
                 workbenchPage?.RtsEnable ?? false);
+            SerialPreferenceStore.Save(workbenchPage!.ReadSerialPreference(port.PortName));
             var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(options), CancellationToken.None);
             connectionId = connection.Id;
             if (workbenchPage is not null)
@@ -451,7 +459,9 @@ public sealed partial class MainWindow : Window
             combo.ItemsSource = ports;
             var target = currentName is not null
                 ? ports.FirstOrDefault(item => item.PortName.Equals(currentName, StringComparison.OrdinalIgnoreCase))
-                : null;
+                : serialPreference.PortName is not null
+                    ? ports.FirstOrDefault(item => item.PortName.Equals(serialPreference.PortName, StringComparison.OrdinalIgnoreCase))
+                    : null;
             combo.SelectedItem = target ?? (ports.Count > 0 ? ports[0] : null);
         }
         catch (Exception ex)
@@ -658,8 +668,9 @@ public sealed partial class MainWindow : Window
         modbusPage.SetSending(true);
         try
         {
-            await client.SendAsync(new SendRequest(current, frame, "winui.modbus"), CancellationToken.None);
-            modbusPage.ShowResult($"已发送 {frame.Length:N0} 字节，响应见接收页报文流。", InfoBarSeverity.Success);
+            var request = new ModbusTransactionRequest(current, frame, modbusPage.SlaveAddressValue, modbusPage.FunctionCodeValue);
+            var response = await client.RunModbusAsync(request, CancellationToken.None);
+            modbusPage.ShowResponse(response);
         }
         catch (Exception ex)
         {
@@ -713,6 +724,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var status = await client.SetWorkspaceAsync(new SetWorkspaceRequest(path), CancellationToken.None);
+            WorkspacePreferenceStore.Save(path);
             workspaceSelected = status.WorkspaceRoot is not null;
             workspacePath = status.WorkspaceRoot is null ? $"全局数据：{status.DataRoot}" : $"工作区：{status.WorkspaceRoot}";
             settingsPage?.SetWorkspace(workspacePath, workspaceSelected);
@@ -731,6 +743,11 @@ public sealed partial class MainWindow : Window
         eventTimer.Stop();
         portRefreshTimer.Stop();
         loopSendTimer.Stop();
+        if (workbenchPage is not null)
+        {
+            SerialPreferenceStore.Save(workbenchPage.ReadSerialPreference(workbenchPage.SelectedPort?.PortName));
+        }
+
         if (client is null)
         {
             return;

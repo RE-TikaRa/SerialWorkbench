@@ -5,6 +5,32 @@ namespace SerialWorkbench.Modbus;
 
 public static class ModbusRtuCodec
 {
+    public static int? GetResponseLength(ReadOnlySpan<byte> framePrefix, byte expectedFunction)
+    {
+        if (framePrefix.Length < 2)
+        {
+            return null;
+        }
+
+        var functionCode = framePrefix[1];
+
+        if (functionCode != expectedFunction && functionCode != (expectedFunction | 0x80))
+        {
+            throw new InvalidDataException("Modbus response function does not match the request.");
+        }
+
+        if ((functionCode & 0x80) != 0)
+        {
+            return 5;
+        }
+
+        return expectedFunction == 6
+            ? 8
+            : framePrefix.Length >= 3
+                ? framePrefix[2] + 5
+                : null;
+    }
+
     public static byte[] BuildReadRequest(byte slaveAddress, byte functionCode, ushort startAddress, ushort quantity)
     {
         if (functionCode is not (1 or 2 or 3 or 4))
@@ -75,6 +101,28 @@ public static class ModbusRtuCodec
         }
 
         return registers;
+    }
+
+    public static (ushort Address, ushort Value) ParseWriteSingleRegisterResponse(ReadOnlySpan<byte> frame, byte expectedSlave)
+    {
+        if (frame.Length != 8)
+        {
+            throw new InvalidDataException("Modbus write response length is invalid.");
+        }
+
+        if (!HasValidCrc(frame))
+        {
+            throw new InvalidDataException("Modbus CRC is invalid.");
+        }
+
+        if (frame[0] != expectedSlave || frame[1] != 6)
+        {
+            throw new InvalidDataException("Modbus response address or function does not match the request.");
+        }
+
+        return (
+            BinaryPrimitives.ReadUInt16BigEndian(frame[2..4]),
+            BinaryPrimitives.ReadUInt16BigEndian(frame[4..6]));
     }
 }
 

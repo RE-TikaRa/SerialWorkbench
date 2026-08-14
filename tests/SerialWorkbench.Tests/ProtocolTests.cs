@@ -61,6 +61,28 @@ public sealed class ProtocolTests
         Assert.Equal((byte)0x02, exception.ExceptionCode);
     }
 
+    [Theory]
+    [InlineData(3, 7)]
+    [InlineData(4, 9)]
+    [InlineData(6, 8)]
+    public void ModbusResponseLengthIsDerivedFromTheFunction(byte function, int length)
+    {
+        var prefix = function == 6 ? new byte[] { 1, function } : new byte[] { 1, function, (byte)(length - 5) };
+
+        Assert.Equal(length, ModbusRtuCodec.GetResponseLength(prefix, function)!.Value);
+    }
+
+    [Fact]
+    public void ModbusWriteSingleRegisterResponseParsesTheEcho()
+    {
+        var frame = WithModbusCrc([0x01, 0x06, 0x00, 0x10, 0xAB, 0xCD]);
+
+        var result = ModbusRtuCodec.ParseWriteSingleRegisterResponse(frame, 1);
+
+        Assert.Equal((ushort)0x0010, result.Address);
+        Assert.Equal((ushort)0xABCD, result.Value);
+    }
+
     private static byte[] WithModbusCrc(ReadOnlySpan<byte> data)
     {
         var frame = new byte[data.Length + 2];

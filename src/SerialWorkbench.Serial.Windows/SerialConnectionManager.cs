@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using SerialWorkbench.Application;
 using SerialWorkbench.Domain;
+using SerialWorkbench.Modbus;
 
 namespace SerialWorkbench.Serial.Windows;
 
@@ -117,6 +119,84 @@ public sealed class SerialConnectionManager(
 
         stopwatch.Stop();
         return new LoopbackResult(true, request.Iterations, sent, received, stopwatch.Elapsed, Rate(received, stopwatch.Elapsed), null, null, null, null);
+    }
+
+    public async Task<ModbusTransactionResult> RunModbusAsync(ModbusTransactionRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Frame.Length < 2)
+        {
+            throw new ArgumentException("Modbus request frame must contain an address and function code.", nameof(request));
+        }
+
+        if (request.TimeoutMilliseconds is < 1 or > 600_000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(request), request.TimeoutMilliseconds, "Timeout must be between 1 and 600000 milliseconds.");
+        }
+
+        if (request.Frame[0] != request.SlaveAddress || request.Frame[1] != request.FunctionCode)
+        {
+            throw new InvalidDataException("Modbus request metadata does not match the frame.");
+        }
+
+        if (request.Frame.Length != 8 || !ModbusRtuCodec.HasValidCrc(request.Frame))
+        {
+            throw new InvalidDataException("Modbus request frame length or CRC is invalid.");
+        }
+
+        var connection = Get(request.ConnectionId);
+        await using var lease = leases.Acquire(request.ConnectionId, "modbus");
+        await using var subscription = connection.Subscribe();
+        var stopwatch = Stopwatch.StartNew();
+        await connection.SendAsync(request.Frame, "modbus", cancellationToken).ConfigureAwait(false);
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(request.TimeoutMilliseconds);
+        var buffer = new List<byte>(256);
+        try
+        {
+            while (true)
+            {
+                var block = await subscription.Reader.ReadAsync(timeout.Token).ConfigureAwait(false);
+                buffer.AddRange(block);
+                var length = ModbusRtuCodec.GetResponseLength(CollectionsMarshal.AsSpan(buffer), request.FunctionCode);
+                if (length is null || buffer.Count < length.Value)
+                {
+                    continue;
+                }
+
+                var frame = buffer.GetRange(0, length.Value).ToArray();
+                stopwatch.Stop();
+                try
+                {
+                    if ((frame[1] & 0x80) != 0)
+                    {
+                        ModbusRtuCodec.ParseRegisterResponse(frame, request.SlaveAddress, request.FunctionCode);
+                    }
+
+                    if (request.FunctionCode == 6)
+                    {
+                        var result = ModbusRtuCodec.ParseWriteSingleRegisterResponse(frame, request.SlaveAddress);
+                        return new ModbusTransactionResult(true, frame, request.FunctionCode, [], result.Address, result.Value, null, stopwatch.Elapsed, null);
+                    }
+
+                    var registers = ModbusRtuCodec.ParseRegisterResponse(frame, request.SlaveAddress, request.FunctionCode);
+                    return new ModbusTransactionResult(true, frame, request.FunctionCode, registers, null, null, null, stopwatch.Elapsed, null);
+                }
+                catch (ModbusException exception)
+                {
+                    return new ModbusTransactionResult(false, frame, request.FunctionCode, [], null, null, exception.ExceptionCode, stopwatch.Elapsed, exception.Message);
+                }
+                catch (InvalidDataException exception)
+                {
+                    return new ModbusTransactionResult(false, frame, request.FunctionCode, [], null, null, null, stopwatch.Elapsed, exception.Message);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            stopwatch.Stop();
+            return new ModbusTransactionResult(false, buffer.ToArray(), request.FunctionCode, [], null, null, null, stopwatch.Elapsed, "Timed out waiting for Modbus response.");
+        }
     }
 
     public async ValueTask DisposeAsync()

@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using SerialWorkbench.Domain;
 using SerialWorkbench.Modbus;
 using SerialWorkbench.Protocols;
 
@@ -21,6 +22,10 @@ public sealed partial class ModbusPage : Page
 
     public byte[]? RequestFrame { get; private set; }
 
+    public byte SlaveAddressValue => (byte)SlaveAddress.Value;
+
+    public byte FunctionCodeValue => FunctionValue;
+
     public void SetSending(bool sending) => SendButton.IsEnabled = !sending;
 
     public void ShowResult(string message, InfoBarSeverity severity)
@@ -29,6 +34,25 @@ public sealed partial class ModbusPage : Page
         Result.Message = message;
         Result.Severity = severity;
         Result.IsOpen = true;
+    }
+
+    public void ShowResponse(ModbusTransactionResult response)
+    {
+        ResponseInput.Text = HexCodec.Format(response.ResponseFrame);
+        if (response.Success)
+        {
+            var rows = response.FunctionCode == 6 && response.Address is { } address && response.Value is { } value
+                ? [new RegisterRow($"0x{address:X4}", $"0x{value:X4}", value.ToString(System.Globalization.CultureInfo.InvariantCulture))]
+                : response.Registers
+                    .Select((value, index) => new RegisterRow($"[{index}]", $"0x{value:X4}", value.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+                    .ToArray();
+            RegisterList.ItemsSource = rows;
+            ShowResult($"已收到响应 · {response.Duration.TotalMilliseconds:N0} ms", InfoBarSeverity.Success);
+            return;
+        }
+
+        RegisterList.ItemsSource = null;
+        ShowResult(response.Error ?? "Modbus 请求失败。", InfoBarSeverity.Error);
     }
 
     private byte FunctionValue => FunctionCode.SelectedIndex switch

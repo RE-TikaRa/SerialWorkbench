@@ -3,6 +3,7 @@
     <PackageReference Include="System.IO.Ports" />
     <PackageReference Include="System.Management" />
     <ProjectReference Include="../SerialWorkbench.Application/SerialWorkbench.Application.csproj" />
+    <ProjectReference Include="../SerialWorkbench.Modbus/SerialWorkbench.Modbus.csproj" />
     <ProjectReference Include="../SerialWorkbench.Domain/SerialWorkbench.Domain.csproj" />
   </ItemGroup>
 </Project>
