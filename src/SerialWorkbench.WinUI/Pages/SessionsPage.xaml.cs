@@ -9,6 +9,7 @@ namespace SerialWorkbench.WinUI.Pages;
 public sealed partial class SessionsPage : Page
 {
     private bool suppressSelection;
+    private readonly List<SessionRow> allSessions = [];
 
     public SessionsPage() => InitializeComponent();
 
@@ -30,11 +31,14 @@ public sealed partial class SessionsPage : Page
     {
         var selectedId = (SessionList.SelectedItem as SessionRow)?.Id;
         suppressSelection = true;
+        allSessions.Clear();
         Sessions.Clear();
         foreach (var session in sessions)
         {
-            Sessions.Add(SessionRow.From(session, session.Id == activeSessionId));
+            allSessions.Add(SessionRow.From(session, session.Id == activeSessionId));
         }
+
+        ApplyFilter();
 
         var selected = Sessions.FirstOrDefault(item => item.Id == selectedId) ?? Sessions.FirstOrDefault();
         SessionList.SelectedItem = selected;
@@ -90,6 +94,33 @@ public sealed partial class SessionsPage : Page
     }
 
     private void RefreshSessionsButton_Click(object sender, RoutedEventArgs e) => RefreshRequested?.Invoke(this, EventArgs.Empty);
+
+    private void SessionFilter_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilter();
+
+    private void ApplyFilter()
+    {
+        var selectedId = (SessionList.SelectedItem as SessionRow)?.Id;
+        var filter = SessionFilter?.Text.Trim();
+        var matches = string.IsNullOrEmpty(filter)
+            ? allSessions
+            : allSessions.Where(item => item.Title.Contains(filter, StringComparison.CurrentCultureIgnoreCase)
+                || item.Status.Contains(filter, StringComparison.CurrentCultureIgnoreCase)
+                || item.Summary.Contains(filter, StringComparison.CurrentCultureIgnoreCase)).ToList();
+
+        suppressSelection = true;
+        Sessions.Clear();
+        foreach (var session in matches)
+        {
+            Sessions.Add(session);
+        }
+
+        var selected = Sessions.FirstOrDefault(item => item.Id == selectedId) ?? Sessions.FirstOrDefault();
+        SessionList.SelectedItem = selected;
+        suppressSelection = false;
+        SessionsEmptyState.Text = allSessions.Count == 0 ? "尚无会话记录" : "没有匹配的会话";
+        SessionsEmptyState.Visibility = Sessions.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        UpdateSelection(selected);
+    }
 
     private void RevealSessionButton_Click(object sender, RoutedEventArgs e)
     {

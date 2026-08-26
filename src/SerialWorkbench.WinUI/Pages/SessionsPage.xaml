@@ -57,7 +57,14 @@
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBlock Text="已保存会话" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+            <Grid ColumnSpacing="8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="180" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="已保存会话" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+              <TextBox x:Name="SessionFilter" Grid.Column="1" PlaceholderText="筛选会话" TextChanged="SessionFilter_TextChanged" />
+            </Grid>
             <ProgressRing x:Name="LoadingRing" Grid.Column="1" Width="20" Height="20" IsActive="False" />
             <Button x:Name="RevealSessionButton" Grid.Column="2" IsEnabled="False" Click="RevealSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="在文件夹中显示">
               <SymbolIcon Symbol="Folder" />
