@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
@@ -44,7 +45,8 @@ public sealed partial class MainWindow : Window
     private SessionsPage? sessionsPage;
     private TerminalPage? terminalPage;
     private AutomationPage? automationPage;
-    private CancellationTokenSource? sequenceCancellation;
+    private XmodemPage? xmodemPage;
+    private Action? sequenceCancel;
     private ModbusPage? modbusPage;
     private readonly SerialPreference serialPreference = SerialPreferenceStore.Load();
     private readonly string? preferredWorkspace = WorkspacePreferenceStore.Load();
@@ -320,6 +322,8 @@ public sealed partial class MainWindow : Window
     {
         if (client is null)
         {
+            replayCancellation?.Dispose();
+            sequenceCancel = null;
             return;
         }
 
@@ -368,6 +372,7 @@ public sealed partial class MainWindow : Window
             "Modbus" => (PageType: typeof(ModbusPage), Title: "Modbus RTU", Description: "构造读写请求帧发送到当前串口，并解析寄存器响应。"),
             "ProtocolInspector" => (PageType: typeof(ProtocolInspectorPage), Title: "协议帧", Description: "使用协议模板查看地址、功能码、长度、CRC 和异常字段。"),
             "Automation" => (PageType: typeof(AutomationPage), Title: "自动化", Description: "编辑、保存并运行串口发送序列。"),
+            "Xmodem" => (PageType: typeof(XmodemPage), Title: "文件传输", Description: "使用 XMODEM-CRC 发送或接收文件。"),
             "Sessions" => (PageType: typeof(SessionsPage), Title: "会话记录", Description: "浏览和管理已保存的串口工作记录。"),
             "Settings" => (PageType: typeof(SettingsPage), Title: "设置", Description: "配置工作区、外观和应用行为。"),
             _ => (PageType: typeof(WorkbenchPage), Title: "工作台", Description: "连接串口、收发报文并查看实时波形。"),
@@ -440,6 +445,13 @@ public sealed partial class MainWindow : Window
                 page.SaveRequested += AutomationPage_SaveRequested;
                 page.CancelRequested -= AutomationPage_CancelRequested;
                 page.CancelRequested += AutomationPage_CancelRequested;
+                break;
+            case XmodemPage page:
+                xmodemPage = page;
+                page.SendRequested -= XmodemPage_SendRequested;
+                page.SendRequested += XmodemPage_SendRequested;
+                page.ReceiveRequested -= XmodemPage_ReceiveRequested;
+                page.ReceiveRequested += XmodemPage_ReceiveRequested;
                 break;
             case ModbusPage page:
                 modbusPage = page;
@@ -711,9 +723,10 @@ public sealed partial class MainWindow : Window
         try
         {
             var sequence = automationPage.Parse();
-            sequenceCancellation = new CancellationTokenSource();
+            using var cancellation = new CancellationTokenSource();
+            sequenceCancel = cancellation.Cancel;
             automationPage.SetRunning(true);
-            var result = await client.RunSequenceAsync(current, sequence, sequenceCancellation.Token);
+            var result = await client.RunSequenceAsync(current, sequence, cancellation.Token);
             automationPage.ShowResult(result.Completed ? "序列已完成。" : result.Error ?? "序列未完成。", result.Completed ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
         }
         catch (OperationCanceledException)
@@ -726,13 +739,12 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
-            sequenceCancellation?.Dispose();
-            sequenceCancellation = null;
+            sequenceCancel = null;
             automationPage.SetRunning(false);
         }
     }
 
-    private void AutomationPage_CancelRequested(object? sender, EventArgs e) => sequenceCancellation?.Cancel();
+    private void AutomationPage_CancelRequested(object? sender, EventArgs e) => sequenceCancel?.Invoke();
 
     private void AutomationPage_SaveRequested(object? sender, EventArgs e)
     {
@@ -755,6 +767,54 @@ public sealed partial class MainWindow : Window
         {
             automationPage.ShowResult(ex.Message, InfoBarSeverity.Error);
         }
+    }
+
+    private async void XmodemPage_SendRequested(object? sender, EventArgs e)
+    {
+        if (xmodemPage is null || client is null || connectionId is not { } current)
+        {
+            xmodemPage?.ShowResult("请先连接串口。", InfoBarSeverity.Warning);
+            return;
+        }
+
+        var picker = new Windows.Storage.Pickers.FileOpenPicker();
+        picker.FileTypeFilter.Add("*");
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+        var file = await picker.PickSingleFileAsync();
+        if (file is null) return;
+        xmodemPage.SetPath(file.Path);
+        try
+        {
+            var buffer = await Windows.Storage.FileIO.ReadBufferAsync(file);
+            var result = await client.SendXmodemAsync(current, buffer.ToArray(), CancellationToken.None);
+            xmodemPage.SetProgress($"{result.Blocks:N0} blocks · {result.Retries:N0} retries · {result.BytesTransferred:N0} bytes");
+            xmodemPage.ShowResult(result.Success ? "文件发送完成。" : result.Error ?? "文件发送失败。", result.Success ? InfoBarSeverity.Success : InfoBarSeverity.Error);
+        }
+        catch (Exception ex) { xmodemPage.ShowResult(ex.Message, InfoBarSeverity.Error); }
+    }
+
+    private async void XmodemPage_ReceiveRequested(object? sender, EventArgs e)
+    {
+        if (xmodemPage is null || client is null || connectionId is not { } current)
+        {
+            xmodemPage?.ShowResult("请先连接串口。", InfoBarSeverity.Warning);
+            return;
+        }
+
+        var picker = new Windows.Storage.Pickers.FileSavePicker { SuggestedFileName = "received.bin" };
+        picker.FileTypeChoices.Add("二进制文件", [".bin"]);
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+        var file = await picker.PickSaveFileAsync();
+        if (file is null) return;
+        xmodemPage.SetPath(file.Path);
+        try
+        {
+            var result = await client.ReceiveXmodemAsync(current, CancellationToken.None);
+            await Windows.Storage.FileIO.WriteBytesAsync(file, result.Data);
+            xmodemPage.SetProgress($"{result.Result.Blocks:N0} blocks · {result.Result.Retries:N0} retries · {result.Result.BytesTransferred:N0} bytes");
+            xmodemPage.ShowResult(result.Result.Success ? "文件接收完成。" : result.Result.Error ?? "文件接收失败。", result.Result.Success ? InfoBarSeverity.Success : InfoBarSeverity.Error);
+        }
+        catch (Exception ex) { xmodemPage.ShowResult(ex.Message, InfoBarSeverity.Error); }
     }
 
     private async void LoopSendTimer_Tick(object? sender, object e)
@@ -1276,6 +1336,8 @@ public sealed partial class MainWindow : Window
         }
 
         await client.DisposeAsync();
+        replayCancellation?.Dispose();
+        sequenceCancel = null;
     }
 
     private void SetConnectionBusy(bool busy)

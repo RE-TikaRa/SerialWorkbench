@@ -134,6 +134,16 @@ public sealed record SerialSequenceProgress(
     bool Cancelled,
     string? Error);
 
+public sealed record XmodemTransferResult(
+    bool Success,
+    long BytesTransferred,
+    int Blocks,
+    int Retries,
+    TimeSpan Duration,
+    string? Error);
+
+public sealed record XmodemReceiveResult(XmodemTransferResult Result, byte[] Data);
+
 public sealed record ModbusTransactionRequest(
     Guid ConnectionId,
     byte[] Frame,

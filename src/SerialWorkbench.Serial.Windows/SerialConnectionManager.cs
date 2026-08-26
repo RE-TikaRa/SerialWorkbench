@@ -284,6 +284,21 @@ public sealed class SerialConnectionManager(
         return new SerialSequenceProgress(sequence.Name, sequence.Steps.Count, sequence.Steps.Count, 0, 0, true, false, null);
     }
 
+    public async Task<XmodemTransferResult> SendXmodemAsync(Guid connectionId, byte[] data, CancellationToken cancellationToken)
+    {
+        var connection = Get(connectionId);
+        await using var lease = leases.Acquire(connectionId, "xmodem.send");
+        return await XmodemCrc.SendAsync(connection, data, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<XmodemReceiveResult> ReceiveXmodemAsync(Guid connectionId, CancellationToken cancellationToken)
+    {
+        var connection = Get(connectionId);
+        await using var lease = leases.Acquire(connectionId, "xmodem.receive");
+        var transfer = await XmodemCrc.ReceiveAsync(connection, cancellationToken).ConfigureAwait(false);
+        return new XmodemReceiveResult(transfer.Result, transfer.Data);
+    }
+
     public async ValueTask DisposeAsync()
     {
         foreach (var id in connections.Keys)

@@ -130,6 +130,12 @@ public sealed class HostRpcClient : IHostRpc, IAsyncDisposable
     public Task<SerialSequenceProgress> RunSequenceAsync(Guid connectionId, SerialSequenceDefinition sequence, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<SerialSequenceProgress>(nameof(RunSequenceAsync), [connectionId, sequence], cancellationToken);
 
+    public Task<XmodemTransferResult> SendXmodemAsync(Guid connectionId, byte[] data, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<XmodemTransferResult>(nameof(SendXmodemAsync), [connectionId, data], cancellationToken);
+
+    public Task<XmodemReceiveResult> ReceiveXmodemAsync(Guid connectionId, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<XmodemReceiveResult>(nameof(ReceiveXmodemAsync), [connectionId], cancellationToken);
+
     public Task<ModbusTransactionResult> RunModbusAsync(ModbusTransactionRequest request, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<ModbusTransactionResult>(nameof(RunModbusAsync), [request], cancellationToken);
 

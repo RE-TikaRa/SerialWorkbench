@@ -1,0 +1,14 @@
+<Page x:Class="SerialWorkbench.WinUI.Pages.XmodemPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" NavigationCacheMode="Required">
+  <Grid Padding="{StaticResource ContentPagePadding}" RowSpacing="{StaticResource ContentPageSpacing}">
+    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+    <Border Style="{StaticResource SurfaceCardStyle}">
+      <StackPanel Spacing="12">
+        <TextBlock Text="XMODEM-CRC 文件传输" Style="{StaticResource BodyStrongTextBlockStyle}" />
+        <TextBlock Text="使用当前串口连接传输文件，传输过程与普通发送互斥。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <TextBox x:Name="FilePath" Header="文件" IsReadOnly="True" />
+        <Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><InfoBar x:Name="Result" IsOpen="False" IsClosable="True" /><Button Grid.Column="1" Content="发送文件" Click="SendButton_Click" /><Button Grid.Column="2" Content="接收文件" Click="ReceiveButton_Click" /></Grid>
+      </StackPanel>
+    </Border>
+    <TextBlock Grid.Row="1" x:Name="ProgressText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+  </Grid>
+</Page>
