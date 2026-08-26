@@ -15,6 +15,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="Assets\SerialWorkbench.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\schemas\modbus-rtu.schema.json" Link="schemas\modbus-rtu.schema.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" />
     <PackageReference Include="Microsoft.WindowsAppSDK" />
     <PackageReference Include="ScottPlot.WinUI" />

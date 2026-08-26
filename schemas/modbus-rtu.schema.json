@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://serialworkbench.local/schemas/modbus-rtu.schema.json",
+  "title": "Modbus RTU frame template",
+  "type": "object",
+  "properties": {
+    "address": { "type": "integer", "minimum": 0, "maximum": 247 },
+    "functionCode": { "type": "integer", "minimum": 0, "maximum": 255 },
+    "length": { "type": "integer", "minimum": 2 },
+    "crc": { "type": "string" },
+    "exceptionCode": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 }
+  },
+  "required": ["address", "functionCode", "length", "crc"]
+}

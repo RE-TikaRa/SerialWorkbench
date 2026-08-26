@@ -5,6 +5,92 @@ namespace SerialWorkbench.Modbus;
 
 public static class ModbusRtuCodec
 {
+    public static ModbusFrameInspection Inspect(ReadOnlySpan<byte> frame)
+    {
+        if (frame.Length < 2)
+        {
+            return new ModbusFrameInspection(false, "Modbus RTU", null, null, null, frame.Length, null, null, null, null, null, null, "Modbus frame is too short.");
+        }
+
+        var address = frame[0];
+        var function = frame[1];
+        byte? exception = (function & 0x80) != 0 && frame.Length >= 3 ? frame[2] : null;
+        var baseFunction = (byte)(function & 0x7F);
+        var kind = exception is not null ? "Exception response" : "Modbus RTU";
+        int? expectedLength = null;
+        byte? byteCount = null;
+        ushort? dataAddress = null;
+        ushort? value = null;
+        string? error = null;
+
+        if (exception is not null)
+        {
+            expectedLength = 5;
+        }
+        else if (baseFunction is 1 or 2 or 3 or 4)
+        {
+            if (frame.Length == 8)
+            {
+                kind = "Request";
+                dataAddress = BinaryPrimitives.ReadUInt16BigEndian(frame[2..4]);
+                value = BinaryPrimitives.ReadUInt16BigEndian(frame[4..6]);
+                expectedLength = 8;
+            }
+            else if (frame.Length >= 3)
+            {
+                kind = "Read response";
+                byteCount = frame[2];
+                expectedLength = byteCount + 5;
+            }
+        }
+        else if (baseFunction is 5 or 6)
+        {
+            kind = "Write single response";
+            expectedLength = 8;
+            if (frame.Length >= 6)
+            {
+                dataAddress = BinaryPrimitives.ReadUInt16BigEndian(frame[2..4]);
+                value = BinaryPrimitives.ReadUInt16BigEndian(frame[4..6]);
+            }
+        }
+
+        if (expectedLength is { } length && frame.Length != length)
+        {
+            error = $"Expected {length} bytes, received {frame.Length}.";
+        }
+
+        ushort? calculatedCrc = null;
+        ushort? actualCrc = null;
+        if (frame.Length >= 4)
+        {
+            calculatedCrc = Checksums.Crc16Modbus(frame[..^2]);
+            actualCrc = BinaryPrimitives.ReadUInt16LittleEndian(frame[^2..]);
+            if (calculatedCrc != actualCrc)
+            {
+                error ??= "Modbus CRC is invalid.";
+            }
+        }
+        else
+        {
+            error ??= "Modbus frame does not contain a CRC.";
+        }
+
+        return new ModbusFrameInspection(
+            error is null,
+            kind,
+            address,
+            function,
+            exception,
+            frame.Length,
+            expectedLength,
+            byteCount,
+            dataAddress,
+            value,
+            calculatedCrc,
+            actualCrc,
+            error);
+    }
+
     public static int? GetResponseLength(ReadOnlySpan<byte> framePrefix, byte expectedFunction)
     {
         if (framePrefix.Length < 2)
@@ -125,6 +211,21 @@ public static class ModbusRtuCodec
             BinaryPrimitives.ReadUInt16BigEndian(frame[4..6]));
     }
 }
+
+public sealed record ModbusFrameInspection(
+    bool IsValid,
+    string Kind,
+    byte? Address,
+    byte? FunctionCode,
+    byte? ExceptionCode,
+    int FrameLength,
+    int? ExpectedLength,
+    byte? ByteCount,
+    ushort? DataAddress,
+    ushort? Value,
+    ushort? CalculatedCrc,
+    ushort? ActualCrc,
+    string? Error);
 
 public sealed class ModbusException(byte exceptionCode) : Exception($"Modbus exception 0x{exceptionCode:X2}: {GetDescription(exceptionCode)}.")
 {

@@ -84,6 +84,22 @@ public sealed class ProtocolTests
         Assert.Equal((ushort)0xABCD, result.Value);
     }
 
+    [Fact]
+    public void ModbusFrameInspectionReportsFieldsAndCrc()
+    {
+        var frame = WithModbusCrc([0x01, 0x03, 0x02, 0x00, 0x0A]);
+
+        var inspection = ModbusRtuCodec.Inspect(frame);
+
+        Assert.True(inspection.IsValid);
+        Assert.Equal("Read response", inspection.Kind);
+        Assert.Equal((byte)1, inspection.Address);
+        Assert.Equal((byte)3, inspection.FunctionCode);
+        Assert.Equal((byte)2, inspection.ByteCount);
+        Assert.Equal(7, inspection.ExpectedLength);
+        Assert.Equal(inspection.CalculatedCrc, inspection.ActualCrc);
+    }
+
     private static byte[] WithModbusCrc(ReadOnlySpan<byte> data)
     {
         var frame = new byte[data.Length + 2];
