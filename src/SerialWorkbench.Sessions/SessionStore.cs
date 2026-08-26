@@ -80,6 +80,44 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
         }
     }
 
+    public async Task<IReadOnlyList<SerialTrafficEvent>> ReadAllEventsAsync(Guid sessionId, CancellationToken cancellationToken)
+    {
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var session = (await ReadDescriptorsAsync(cancellationToken).ConfigureAwait(false)).SingleOrDefault(item => item.Id == sessionId)
+                ?? throw new KeyNotFoundException($"Session {sessionId:D} does not exist.");
+            await using var sessionConnection = CreateReadOnlyConnection(session.Path);
+            await sessionConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            await using var command = sessionConnection.CreateCommand();
+            command.CommandText = """
+                SELECT sequence, utc, monotonic_ticks, connection_id, direction, data, source, message
+                FROM events
+                ORDER BY sequence;
+                """;
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            var events = new List<SerialTrafficEvent>();
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                events.Add(new SerialTrafficEvent(
+                    reader.GetInt64(0),
+                    DateTimeOffset.Parse(reader.GetString(1), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+                    reader.GetInt64(2),
+                    Guid.Parse(reader.GetString(3)),
+                    Enum.Parse<SerialDirection>(reader.GetString(4)),
+                    (byte[])reader[5],
+                    reader.GetString(6),
+                    reader.IsDBNull(7) ? null : reader.GetString(7)));
+            }
+
+            return events;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
     public async Task<string> ExportCsvAsync(Guid sessionId, CancellationToken cancellationToken)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using Microsoft.UI;
@@ -29,6 +30,14 @@ public sealed partial class MainWindow : Window
     private bool workspaceSelected;
     private string workspacePath = "尚未选择工作区";
     private Guid? activeSessionId;
+    private readonly object replayGate = new();
+    private CancellationTokenSource? replayCancellation;
+    private Guid? replaySessionId;
+    private bool replayPaused;
+    private int replayCurrent;
+    private int replayTotal;
+    private long replaySequence;
+    private TaskCompletionSource<bool> replayStateChanged = CreateReplaySignal();
     private WorkbenchPage? workbenchPage;
     private LoopbackPage? loopbackPage;
     private SettingsPage? settingsPage;
@@ -252,7 +261,7 @@ public sealed partial class MainWindow : Window
 
     private async void EventTimer_Tick(object? sender, object e)
     {
-        if (polling || paused || client is null)
+        if (polling || paused || replayCancellation is not null || client is null)
         {
             return;
         }
@@ -420,6 +429,12 @@ public sealed partial class MainWindow : Window
                 page.RevealRequested += SessionsPage_RevealRequested;
                 page.ExportRequested -= SessionsPage_ExportRequested;
                 page.ExportRequested += SessionsPage_ExportRequested;
+                page.ReplayRequested -= SessionsPage_ReplayRequested;
+                page.ReplayRequested += SessionsPage_ReplayRequested;
+                page.ReplayPauseRequested -= SessionsPage_ReplayPauseRequested;
+                page.ReplayPauseRequested += SessionsPage_ReplayPauseRequested;
+                page.ReplayStopRequested -= SessionsPage_ReplayStopRequested;
+                page.ReplayStopRequested += SessionsPage_ReplayStopRequested;
                 page.DeleteRequested -= SessionsPage_DeleteRequested;
                 page.DeleteRequested += SessionsPage_DeleteRequested;
                 page.SetWorkspace(workspacePath);
@@ -558,6 +573,189 @@ public sealed partial class MainWindow : Window
     private async void SessionsPage_RefreshRequested(object? sender, EventArgs e) => await RefreshSessionsAsync();
 
     private async void SessionsPage_SessionSelected(object? sender, Guid sessionId) => await ReadSessionEventsAsync(sessionId);
+
+    private async void SessionsPage_ReplayRequested(object? sender, Guid sessionId) => await ReplaySessionAsync(sessionId);
+
+    private void SessionsPage_ReplayPauseRequested(object? sender, Guid sessionId)
+    {
+        lock (replayGate)
+        {
+            if (replaySessionId != sessionId || replayCancellation is null)
+            {
+                return;
+            }
+
+            replayPaused = !replayPaused;
+            SignalReplayStateChanged();
+            sessionsPage?.SetReplayState(sessionId, true, replayPaused, replayCurrent, replaySequence, replayTotal);
+        }
+    }
+
+    private void SessionsPage_ReplayStopRequested(object? sender, Guid sessionId)
+    {
+        lock (replayGate)
+        {
+            if (replaySessionId != sessionId || replayCancellation is null)
+            {
+                return;
+            }
+
+            replayCancellation.Cancel();
+            SignalReplayStateChanged();
+        }
+    }
+
+    private async Task ReplaySessionAsync(Guid sessionId)
+    {
+        if (client is null || sessionsPage?.SelectedSession is not { } session || session.Id != sessionId)
+        {
+            return;
+        }
+
+        CancellationTokenSource cancellation;
+        lock (replayGate)
+        {
+            if (replayCancellation is not null)
+            {
+                return;
+            }
+
+            cancellation = new CancellationTokenSource();
+            replayCancellation = cancellation;
+            replaySessionId = sessionId;
+            replayPaused = false;
+            replayCurrent = 0;
+            replayTotal = 0;
+            replaySequence = 0;
+            replayStateChanged = CreateReplaySignal();
+        }
+
+        var events = Array.Empty<SerialTrafficEvent>();
+        var current = 0;
+        long sequence = 0;
+        try
+        {
+            events = [.. await client.ReadAllSessionEventsAsync(sessionId, cancellation.Token)];
+            replayTotal = events.Length;
+            sessionsPage.SetReplayState(sessionId, true, false, 0, 0, events.Length);
+            for (var index = 0; index < events.Length; index++)
+            {
+                cancellation.Token.ThrowIfCancellationRequested();
+                var item = events[index];
+                if (index > 0)
+                {
+                    await WaitReplayDelayAsync(item.Utc - events[index - 1].Utc, cancellation.Token);
+                }
+
+                await WaitReplayIfPausedAsync(cancellation.Token);
+                cancellation.Token.ThrowIfCancellationRequested();
+                TrafficRows.Add(TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, workbenchPage?.SelectedEncoding ?? Encoding.UTF8, workbenchPage?.ShowTimestamp ?? true));
+                while (TrafficRows.Count > 20_000)
+                {
+                    TrafficRows.RemoveAt(0);
+                }
+
+                current = index + 1;
+                sequence = item.Sequence;
+                replayCurrent = current;
+                replaySequence = sequence;
+                UpdateTrafficPresentation();
+                workbenchPage?.TrafficListView.ScrollIntoView(TrafficRows[^1]);
+                sessionsPage.SetReplayState(sessionId, true, IsReplayPaused(), current, sequence, events.Length);
+            }
+
+            sessionsPage.SetReplayState(sessionId, false, false, current, sequence, events.Length);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            sessionsPage.SetReplayState(sessionId, false, false, current, sequence, events.Length);
+        }
+        catch (Exception ex)
+        {
+            sessionsPage.SetReplayState(sessionId, false, false, current, sequence, events.Length);
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            lock (replayGate)
+            {
+                if (ReferenceEquals(replayCancellation, cancellation))
+                {
+                    replayCancellation = null;
+                    replaySessionId = null;
+                    replayPaused = false;
+                    SignalReplayStateChanged();
+                }
+            }
+
+            cancellation.Dispose();
+        }
+    }
+
+    private async Task WaitReplayDelayAsync(TimeSpan delay, CancellationToken cancellationToken)
+    {
+        var remaining = delay > TimeSpan.Zero ? delay : TimeSpan.Zero;
+        while (remaining > TimeSpan.Zero)
+        {
+            await WaitReplayIfPausedAsync(cancellationToken);
+            var started = Stopwatch.GetTimestamp();
+            var delayTask = Task.Delay(remaining, cancellationToken);
+            var stateTask = GetReplayStateChangedTask();
+            if (await Task.WhenAny(delayTask, stateTask).ConfigureAwait(true) == delayTask)
+            {
+                await delayTask.ConfigureAwait(true);
+                return;
+            }
+
+            remaining -= Stopwatch.GetElapsedTime(started);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+    }
+
+    private async Task WaitReplayIfPausedAsync(CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            Task stateTask;
+            lock (replayGate)
+            {
+                if (!replayPaused)
+                {
+                    return;
+                }
+
+                stateTask = replayStateChanged.Task;
+            }
+
+            await stateTask.WaitAsync(cancellationToken).ConfigureAwait(true);
+        }
+    }
+
+    private Task<bool> GetReplayStateChangedTask()
+    {
+        lock (replayGate)
+        {
+            return replayStateChanged.Task;
+        }
+    }
+
+    private bool IsReplayPaused()
+    {
+        lock (replayGate)
+        {
+            return replayPaused;
+        }
+    }
+
+    private void SignalReplayStateChanged()
+    {
+        var signal = replayStateChanged;
+        replayStateChanged = CreateReplaySignal();
+        signal.TrySetResult(true);
+    }
+
+    private static TaskCompletionSource<bool> CreateReplaySignal() =>
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private void SessionsPage_RevealRequested(object? sender, string path)
     {

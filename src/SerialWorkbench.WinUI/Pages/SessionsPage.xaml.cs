@@ -9,6 +9,7 @@ namespace SerialWorkbench.WinUI.Pages;
 public sealed partial class SessionsPage : Page
 {
     private bool suppressSelection;
+    private bool replayRunning;
     private readonly List<SessionRow> allSessions = [];
 
     public SessionsPage() => InitializeComponent();
@@ -26,6 +27,12 @@ public sealed partial class SessionsPage : Page
     public event EventHandler<string>? RevealRequested;
 
     public event EventHandler<Guid>? ExportRequested;
+
+    public event EventHandler<Guid>? ReplayRequested;
+
+    public event EventHandler<Guid>? ReplayPauseRequested;
+
+    public event EventHandler<Guid>? ReplayStopRequested;
 
     public event EventHandler<Guid>? DeleteRequested;
 
@@ -91,6 +98,29 @@ public sealed partial class SessionsPage : Page
         EventsEmptyState.Visibility = Visibility.Collapsed;
     }
 
+    public void SetReplayState(Guid sessionId, bool running, bool paused, int current, long sequence, int total)
+    {
+        if (SelectedSession?.Id != sessionId)
+        {
+            return;
+        }
+
+        replayRunning = running;
+        SessionList.IsEnabled = !running;
+        ReplaySessionButton.IsEnabled = !running;
+        ReplayPauseButton.IsEnabled = running;
+        ReplayStopButton.IsEnabled = running;
+        ReplayPauseIcon.Symbol = paused ? Symbol.Play : Symbol.Pause;
+        ReplayProgressBar.Maximum = Math.Max(total, 1);
+        ReplayProgressBar.Value = Math.Clamp(current, 0, Math.Max(total, 1));
+        ReplayProgressBar.Visibility = total > 0 ? Visibility.Visible : Visibility.Collapsed;
+        ReplayStatusText.Text = running
+            ? $"{(paused ? "已暂停" : "正在回放")} · {current:N0}/{total:N0} · 序号 {sequence}"
+            : current == 0
+                ? ""
+                : $"{(current == total ? "回放完成" : "已停止")} · {current:N0}/{total:N0} · 序号 {sequence}";
+    }
+
     private void SessionsPage_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         VisualStateManager.GoToState(this, e.NewSize.Width >= 760 ? "WideSessions" : "CompactSessions", false);
@@ -142,6 +172,30 @@ public sealed partial class SessionsPage : Page
         }
     }
 
+    private void ReplaySessionButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedSession is { } session)
+        {
+            ReplayRequested?.Invoke(this, session.Id);
+        }
+    }
+
+    private void ReplayPauseButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (replayRunning && SelectedSession is { } session)
+        {
+            ReplayPauseRequested?.Invoke(this, session.Id);
+        }
+    }
+
+    private void ReplayStopButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (replayRunning && SelectedSession is { } session)
+        {
+            ReplayStopRequested?.Invoke(this, session.Id);
+        }
+    }
+
     private async void DeleteSessionButton_Click(object sender, RoutedEventArgs e)
     {
         if (SessionList.SelectedItem is not SessionRow { IsActive: false } session)
@@ -182,6 +236,9 @@ public sealed partial class SessionsPage : Page
     private void UpdateSelection(SessionRow? session)
     {
         RevealSessionButton.IsEnabled = session is not null;
+        ReplaySessionButton.IsEnabled = session is not null && !replayRunning;
+        ReplayPauseButton.IsEnabled = false;
+        ReplayStopButton.IsEnabled = false;
         ExportSessionButton.IsEnabled = session is not null;
         DeleteSessionButton.IsEnabled = session is { IsActive: false };
         Events.Clear();

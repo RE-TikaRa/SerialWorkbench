@@ -102,6 +102,7 @@
         <Grid RowSpacing="12">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
           </Grid.RowDefinitions>
           <Grid ColumnSpacing="8">
@@ -109,16 +110,36 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="EventTitle" Text="选择会话以查看报文" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-            <Button x:Name="ExportSessionButton" Grid.Column="1" IsEnabled="False" Click="ExportSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="导出 CSV">
+            <Button x:Name="ReplaySessionButton" Grid.Column="1" IsEnabled="False" Click="ReplaySessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="回放会话">
+              <SymbolIcon Symbol="Play" />
+            </Button>
+            <Button x:Name="ReplayPauseButton" Grid.Column="2" IsEnabled="False" Click="ReplayPauseButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="暂停回放">
+              <SymbolIcon x:Name="ReplayPauseIcon" Symbol="Pause" />
+            </Button>
+            <Button x:Name="ReplayStopButton" Grid.Column="3" IsEnabled="False" Click="ReplayStopButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="停止回放">
+              <SymbolIcon Symbol="Stop" />
+            </Button>
+            <Button x:Name="ExportSessionButton" Grid.Column="4" IsEnabled="False" Click="ExportSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="导出 CSV">
               <SymbolIcon Symbol="Save" />
             </Button>
-            <Button x:Name="DeleteSessionButton" Grid.Column="2" IsEnabled="False" Click="DeleteSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="删除会话">
+            <Button x:Name="DeleteSessionButton" Grid.Column="5" IsEnabled="False" Click="DeleteSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="删除会话">
               <SymbolIcon Symbol="Delete" />
             </Button>
           </Grid>
-          <Grid Grid.Row="1">
+          <Grid Grid.Row="1" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ProgressBar x:Name="ReplayProgressBar" Maximum="1" Visibility="Collapsed" VerticalAlignment="Center" />
+            <TextBlock x:Name="ReplayStatusText" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid Grid.Row="2">
             <ListView x:Name="EventList" ItemsSource="{x:Bind Events}" SelectionMode="None">
               <ListView.ItemTemplate>
                 <DataTemplate>
