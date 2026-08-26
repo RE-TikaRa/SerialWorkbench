@@ -18,6 +18,8 @@ public sealed partial class SessionsPage : Page
 
     public ObservableCollection<SessionEventRow> Events { get; } = [];
 
+    public ObservableCollection<LoopbackHistoryRow> LoopbackResults { get; } = [];
+
     public SessionRow? SelectedSession => SessionList.SelectedItem as SessionRow;
 
     public event EventHandler? RefreshRequested;
@@ -80,6 +82,22 @@ public sealed partial class SessionsPage : Page
         EventsEmptyState.Visibility = events.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    public void SetLoopbackResults(Guid sessionId, IReadOnlyList<LoopbackHistoryEntry> results)
+    {
+        if (SelectedSession?.Id != sessionId)
+        {
+            return;
+        }
+
+        LoopbackResults.Clear();
+        foreach (var result in results)
+        {
+            LoopbackResults.Add(LoopbackHistoryRow.From(result));
+        }
+
+        LoopbackEmptyState.Visibility = LoopbackResults.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     public void SetBusy(bool busy)
     {
         LoadingRing.IsActive = busy;
@@ -94,6 +112,8 @@ public sealed partial class SessionsPage : Page
         }
 
         Events.Clear();
+        LoopbackResults.Clear();
+        LoopbackEmptyState.Visibility = Visibility.Visible;
         EventTitle.Text = "正在读取会话…";
         EventsEmptyState.Visibility = Visibility.Collapsed;
     }
@@ -242,6 +262,8 @@ public sealed partial class SessionsPage : Page
         ExportSessionButton.IsEnabled = session is not null;
         DeleteSessionButton.IsEnabled = session is { IsActive: false };
         Events.Clear();
+        LoopbackResults.Clear();
+        LoopbackEmptyState.Visibility = Visibility.Visible;
         EventTitle.Text = session is null ? "选择会话以查看报文" : session.Title;
         EventsEmptyState.Text = session is null ? "选择会话以查看报文" : "正在读取会话…";
         EventsEmptyState.Visibility = Visibility.Visible;
@@ -296,4 +318,29 @@ public sealed class SessionEventRow
             Source = item.Source,
             Display = Protocols.HexCodec.Format(item.Data),
         };
+}
+
+public sealed class LoopbackHistoryRow
+{
+    public string Time { get; private init; } = "";
+    public string Status { get; private init; } = "";
+    public string Summary { get; private init; } = "";
+    public string Details { get; private init; } = "";
+
+    public static LoopbackHistoryRow From(LoopbackHistoryEntry entry)
+    {
+        var result = entry.Result;
+        var difference = result.FirstDifferenceIndex is { } index
+            ? $"差异位置 {index} · 期望 {FormatByte(result.ExpectedByte)} · 实际 {FormatByte(result.ActualByte)}"
+            : result.Error ?? "无错误";
+        return new LoopbackHistoryRow
+        {
+            Time = entry.Utc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture),
+            Status = result.Passed ? "通过" : "失败",
+            Summary = $"{result.Iterations:N0} 次 · {result.Duration.TotalMilliseconds:N0} ms · {result.BytesPerSecond / 1024:N1} KiB/s · {difference}",
+            Details = difference,
+        };
+    }
+
+    private static string FormatByte(byte? value) => value is { } item ? $"0x{item:X2}" : "—";
 }

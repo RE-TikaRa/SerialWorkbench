@@ -104,6 +104,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
           <Grid ColumnSpacing="8">
             <Grid.ColumnDefinitions>
@@ -160,6 +161,27 @@
             </ListView>
             <TextBlock x:Name="EventsEmptyState" Text="选择会话以查看报文" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           </Grid>
+          <Expander Grid.Row="3" Header="回环统计" IsExpanded="False">
+            <Grid MinHeight="120">
+              <ListView x:Name="LoopbackResultList" ItemsSource="{x:Bind LoopbackResults}" SelectionMode="None">
+                <ListView.ItemTemplate>
+                  <DataTemplate>
+                    <Grid Padding="4,5" ColumnSpacing="10">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140" />
+                        <ColumnDefinition Width="60" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding Time}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                      <TextBlock Grid.Column="1" Text="{Binding Status}" FontWeight="SemiBold" />
+                      <TextBlock Grid.Column="2" Text="{Binding Summary}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Details}" />
+                    </Grid>
+                  </DataTemplate>
+                </ListView.ItemTemplate>
+              </ListView>
+              <TextBlock x:Name="LoopbackEmptyState" Text="该会话没有回环统计" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Grid>
+          </Expander>
         </Grid>
       </Border>
     </Grid>

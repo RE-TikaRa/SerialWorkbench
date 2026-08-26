@@ -251,6 +251,11 @@ public sealed partial class MainWindow : Window
                 : $"失败 · {result.Error} · 首个差异 {result.FirstDifferenceIndex}";
             var severity = result.Passed ? InfoBarSeverity.Success : InfoBarSeverity.Error;
             loopbackPage?.ShowResult(message, severity);
+            await RefreshStatusAsync();
+            if (activeSessionId is { } sessionId && sessionsPage?.SelectedSession?.Id == sessionId)
+            {
+                await ReadLoopbackResultsAsync(sessionId, sessionsPage);
+            }
         }
         catch (Exception ex)
         {
@@ -1009,6 +1014,25 @@ public sealed partial class MainWindow : Window
         {
             var events = await client.ReadSessionEventsAsync(new SessionEventQuery(sessionId), CancellationToken.None);
             page.SetEvents(sessionId, events);
+            await ReadLoopbackResultsAsync(sessionId, page);
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private async Task ReadLoopbackResultsAsync(Guid sessionId, SessionsPage page)
+    {
+        if (client is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var results = await client.ReadLoopbackResultsAsync(sessionId, CancellationToken.None);
+            page.SetLoopbackResults(sessionId, results);
         }
         catch (Exception ex)
         {

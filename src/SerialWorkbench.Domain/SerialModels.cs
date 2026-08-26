@@ -107,6 +107,12 @@ public sealed record LoopbackResult(
     byte? ActualByte,
     string? Error);
 
+public sealed record LoopbackHistoryEntry(
+    DateTimeOffset Utc,
+    Guid ConnectionId,
+    LoopbackRequest Request,
+    LoopbackResult Result);
+
 public sealed record ModbusTransactionRequest(
     Guid ConnectionId,
     byte[] Frame,

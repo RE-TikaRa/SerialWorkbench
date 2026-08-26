@@ -61,6 +61,8 @@ public interface IHostRpc
 
     Task<LoopbackResult> RunLoopbackAsync(LoopbackRequest request, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<LoopbackHistoryEntry>> ReadLoopbackResultsAsync(Guid sessionId, CancellationToken cancellationToken);
+
     Task<ModbusTransactionResult> RunModbusAsync(ModbusTransactionRequest request, CancellationToken cancellationToken);
 
     Task<HostStatusDto> SetWorkspaceAsync(SetWorkspaceRequest request, CancellationToken cancellationToken);

@@ -89,8 +89,15 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
         return new RpcResult(true);
     }
 
-    public Task<LoopbackResult> RunLoopbackAsync(LoopbackRequest request, CancellationToken cancellationToken) =>
-        runtime.Connections.RunLoopbackAsync(request, cancellationToken);
+    public async Task<LoopbackResult> RunLoopbackAsync(LoopbackRequest request, CancellationToken cancellationToken)
+    {
+        var result = await runtime.Connections.RunLoopbackAsync(request, cancellationToken).ConfigureAwait(false);
+        await runtime.Sessions.AppendLoopbackResultAsync(request, result, cancellationToken).ConfigureAwait(false);
+        return result;
+    }
+
+    public Task<IReadOnlyList<LoopbackHistoryEntry>> ReadLoopbackResultsAsync(Guid sessionId, CancellationToken cancellationToken) =>
+        runtime.Sessions.ReadLoopbackResultsAsync(sessionId, cancellationToken);
 
     public Task<ModbusTransactionResult> RunModbusAsync(ModbusTransactionRequest request, CancellationToken cancellationToken) =>
         runtime.Connections.RunModbusAsync(request, cancellationToken);

@@ -35,6 +35,9 @@ public sealed class StorageAndSessionTests
 
         await store.AppendAsync(CreateEvent(1, connectionId, SerialDirection.Transmit, [0x10, 0x20]), cancellationToken);
         await store.AppendAsync(CreateEvent(2, connectionId, SerialDirection.Receive, [0x30, 0x40, 0x50]), cancellationToken);
+        var loopbackRequest = new LoopbackRequest(connectionId, 3, 1, 5000, LoopbackPattern.Fixed, 7);
+        var loopbackResult = new LoopbackResult(true, 1, 3, 3, TimeSpan.FromMilliseconds(2), 1500, null, null, null, null);
+        await store.AppendLoopbackResultAsync(loopbackRequest, loopbackResult, cancellationToken);
 
         Assert.Equal(2, store.ActiveSession?.EventCount);
         Assert.Equal(5, store.ActiveSession?.RawByteCount);
@@ -68,6 +71,10 @@ public sealed class StorageAndSessionTests
         Assert.Equal([1, 2], events.Select(item => item.Sequence));
         var allEvents = await store.ReadAllEventsAsync(session.Id, cancellationToken);
         Assert.Equal([1, 2], allEvents.Select(item => item.Sequence));
+        var loopbackResults = await store.ReadLoopbackResultsAsync(session.Id, cancellationToken);
+        var loopbackHistory = Assert.Single(loopbackResults);
+        Assert.True(loopbackHistory.Result.Passed);
+        Assert.Equal(3, loopbackHistory.Result.SentBytes);
         await store.DeleteAsync(session.Id, cancellationToken);
         Assert.Empty(await store.ListAsync(cancellationToken));
     }

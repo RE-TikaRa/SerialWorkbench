@@ -118,6 +118,110 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
         }
     }
 
+    public async Task AppendLoopbackResultAsync(LoopbackRequest request, LoopbackResult result, CancellationToken cancellationToken)
+    {
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await EnsureOpenAsync(cancellationToken).ConfigureAwait(false);
+            await using var command = connection!.CreateCommand();
+            command.CommandText = """
+                INSERT INTO loopback_results(
+                    utc, connection_id, payload_length, iterations, timeout_milliseconds, pattern, seed,
+                    passed, sent_bytes, received_bytes, duration_milliseconds, bytes_per_second,
+                    first_difference_index, expected_byte, actual_byte, error)
+                VALUES(
+                    $utc, $connectionId, $payloadLength, $iterations, $timeoutMilliseconds, $pattern, $seed,
+                    $passed, $sentBytes, $receivedBytes, $durationMilliseconds, $bytesPerSecond,
+                    $firstDifferenceIndex, $expectedByte, $actualByte, $error);
+                """;
+            command.Parameters.AddWithValue("$utc", DateTimeOffset.UtcNow.ToString("O"));
+            command.Parameters.AddWithValue("$connectionId", request.ConnectionId.ToString("D"));
+            command.Parameters.AddWithValue("$payloadLength", request.PayloadLength);
+            command.Parameters.AddWithValue("$iterations", request.Iterations);
+            command.Parameters.AddWithValue("$timeoutMilliseconds", request.TimeoutMilliseconds);
+            command.Parameters.AddWithValue("$pattern", request.Pattern.ToString());
+            command.Parameters.AddWithValue("$seed", request.Seed);
+            command.Parameters.AddWithValue("$passed", result.Passed ? 1 : 0);
+            command.Parameters.AddWithValue("$sentBytes", result.SentBytes);
+            command.Parameters.AddWithValue("$receivedBytes", result.ReceivedBytes);
+            command.Parameters.AddWithValue("$durationMilliseconds", result.Duration.TotalMilliseconds);
+            command.Parameters.AddWithValue("$bytesPerSecond", result.BytesPerSecond);
+            command.Parameters.AddWithValue("$firstDifferenceIndex", (object?)result.FirstDifferenceIndex ?? DBNull.Value);
+            command.Parameters.AddWithValue("$expectedByte", (object?)result.ExpectedByte ?? DBNull.Value);
+            command.Parameters.AddWithValue("$actualByte", (object?)result.ActualByte ?? DBNull.Value);
+            command.Parameters.AddWithValue("$error", (object?)result.Error ?? DBNull.Value);
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    public async Task<IReadOnlyList<LoopbackHistoryEntry>> ReadLoopbackResultsAsync(Guid sessionId, CancellationToken cancellationToken)
+    {
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var session = (await ReadDescriptorsAsync(cancellationToken).ConfigureAwait(false)).SingleOrDefault(item => item.Id == sessionId)
+                ?? throw new KeyNotFoundException($"Session {sessionId:D} does not exist.");
+            await using var sessionConnection = CreateReadOnlyConnection(session.Path);
+            await sessionConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            await using (var table = sessionConnection.CreateCommand())
+            {
+                table.CommandText = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'loopback_results' LIMIT 1;";
+                if (await table.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is null)
+                {
+                    return [];
+                }
+            }
+
+            await using var command = sessionConnection.CreateCommand();
+            command.CommandText = """
+                SELECT utc, connection_id, payload_length, iterations, timeout_milliseconds, pattern, seed,
+                       passed, sent_bytes, received_bytes, duration_milliseconds, bytes_per_second,
+                       first_difference_index, expected_byte, actual_byte, error
+                FROM loopback_results
+                ORDER BY id;
+                """;
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            var results = new List<LoopbackHistoryEntry>();
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                var request = new LoopbackRequest(
+                    Guid.Parse(reader.GetString(1)),
+                    reader.GetInt32(2),
+                    reader.GetInt32(3),
+                    reader.GetInt32(4),
+                    Enum.Parse<LoopbackPattern>(reader.GetString(5)),
+                    reader.GetInt32(6));
+                var result = new LoopbackResult(
+                    reader.GetInt32(7) != 0,
+                    request.Iterations,
+                    reader.GetInt64(8),
+                    reader.GetInt64(9),
+                    TimeSpan.FromMilliseconds(reader.GetDouble(10)),
+                    reader.GetDouble(11),
+                    reader.IsDBNull(12) ? null : reader.GetInt32(12),
+                    reader.IsDBNull(13) ? null : (byte)reader.GetInt32(13),
+                    reader.IsDBNull(14) ? null : (byte)reader.GetInt32(14),
+                    reader.IsDBNull(15) ? null : reader.GetString(15));
+                results.Add(new LoopbackHistoryEntry(
+                    DateTimeOffset.Parse(reader.GetString(0), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+                    request.ConnectionId,
+                    request,
+                    result));
+            }
+
+            return results;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
     public async Task<string> ExportCsvAsync(Guid sessionId, CancellationToken cancellationToken)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -295,6 +399,25 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
                     data BLOB NOT NULL
                 );
                 CREATE INDEX events_connection_sequence ON events(connection_id, sequence);
+                CREATE TABLE loopback_results(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    utc TEXT NOT NULL,
+                    connection_id TEXT NOT NULL,
+                    payload_length INTEGER NOT NULL,
+                    iterations INTEGER NOT NULL,
+                    timeout_milliseconds INTEGER NOT NULL,
+                    pattern TEXT NOT NULL,
+                    seed INTEGER NOT NULL,
+                    passed INTEGER NOT NULL,
+                    sent_bytes INTEGER NOT NULL,
+                    received_bytes INTEGER NOT NULL,
+                    duration_milliseconds REAL NOT NULL,
+                    bytes_per_second REAL NOT NULL,
+                    first_difference_index INTEGER NULL,
+                    expected_byte INTEGER NULL,
+                    actual_byte INTEGER NULL,
+                    error TEXT NULL
+                );
                 """;
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
