@@ -42,6 +42,7 @@ public sealed partial class MainWindow : Window
     private LoopbackPage? loopbackPage;
     private SettingsPage? settingsPage;
     private SessionsPage? sessionsPage;
+    private TerminalPage? terminalPage;
     private ModbusPage? modbusPage;
     private readonly SerialPreference serialPreference = SerialPreferenceStore.Load();
     private readonly string? preferredWorkspace = WorkspacePreferenceStore.Load();
@@ -275,7 +276,9 @@ public sealed partial class MainWindow : Window
             foreach (var item in events)
             {
                 lastSequence = Math.Max(lastSequence, item.Sequence);
-                TrafficRows.Add(TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, workbenchPage?.SelectedEncoding ?? Encoding.UTF8, workbenchPage?.ShowTimestamp ?? true));
+                var row = TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, workbenchPage?.SelectedEncoding ?? Encoding.UTF8, workbenchPage?.ShowTimestamp ?? true);
+                TrafficRows.Add(row);
+                terminalPage?.AppendRow(row);
                 if (item.Direction == SerialDirection.Receive)
                 {
                     workbenchPage?.AppendWaveform(item.Data);
@@ -353,6 +356,7 @@ public sealed partial class MainWindow : Window
 
         var destination = tag switch
         {
+            "Terminal" => (PageType: typeof(TerminalPage), Title: "串口终端", Description: "使用当前串口连接进行文本或 HEX 交互。"),
             "Loopback" => (PageType: typeof(LoopbackPage), Title: "回环检测", Description: "验证串口发送与接收链路是否正常。"),
             "Modbus" => (PageType: typeof(ModbusPage), Title: "Modbus RTU", Description: "构造读写请求帧发送到当前串口，并解析寄存器响应。"),
             "Sessions" => (PageType: typeof(SessionsPage), Title: "会话记录", Description: "浏览和管理已保存的串口工作记录。"),
@@ -412,6 +416,12 @@ public sealed partial class MainWindow : Window
                 loopbackPage = page;
                 page.RunRequested -= LoopbackPage_RunRequested;
                 page.RunRequested += LoopbackPage_RunRequested;
+                break;
+            case TerminalPage page:
+                terminalPage = page;
+                page.BindRows(TrafficRows);
+                page.SendRequested -= TerminalPage_SendRequested;
+                page.SendRequested += TerminalPage_SendRequested;
                 break;
             case ModbusPage page:
                 modbusPage = page;
@@ -638,6 +648,40 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async void TerminalPage_SendRequested(object? sender, EventArgs e)
+    {
+        if (terminalPage is null)
+        {
+            return;
+        }
+
+        if (client is null || connectionId is not { } current)
+        {
+            terminalPage.ShowSendResult("请先连接串口。", InfoBarSeverity.Warning);
+            return;
+        }
+
+        var input = terminalPage.InputText;
+        terminalPage.SetSending(true);
+        try
+        {
+            var data = terminalPage.InputFormatIndex == 1
+                ? Protocols.HexCodec.Parse(input)
+                : (workbenchPage?.SelectedEncoding ?? Encoding.UTF8).GetBytes(input + GetLineEnding(terminalPage.LineEndingIndex));
+            await client.SendAsync(new SendRequest(current, data, "terminal.send"), CancellationToken.None);
+            terminalPage.AddHistory(input);
+            terminalPage.ShowSendResult($"已发送 {data.Length:N0} 字节。", InfoBarSeverity.Success);
+        }
+        catch (Exception ex)
+        {
+            terminalPage.ShowSendResult(ex.Message, InfoBarSeverity.Error);
+        }
+        finally
+        {
+            terminalPage.SetSending(false);
+        }
+    }
+
     private async void LoopSendTimer_Tick(object? sender, object e)
     {
         if (loopSending)
@@ -743,7 +787,9 @@ public sealed partial class MainWindow : Window
 
                 await WaitReplayIfPausedAsync(cancellation.Token);
                 cancellation.Token.ThrowIfCancellationRequested();
-                TrafficRows.Add(TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, workbenchPage?.SelectedEncoding ?? Encoding.UTF8, workbenchPage?.ShowTimestamp ?? true));
+                var row = TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, workbenchPage?.SelectedEncoding ?? Encoding.UTF8, workbenchPage?.ShowTimestamp ?? true);
+                TrafficRows.Add(row);
+                terminalPage?.AppendRow(row);
                 while (TrafficRows.Count > 20_000)
                 {
                     TrafficRows.RemoveAt(0);

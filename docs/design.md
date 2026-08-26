@@ -26,7 +26,7 @@ Modbus RTU 编解码请求和响应，并提供 CRC 校验。会话保存原始�
 
 WinUI 页面使用 Windows App SDK 原生控件和共享样式。NavigationView 负责页面选择，页面主体使用 Frame 缓存和导航过渡。SelectorBar 切换报文与波形，SettingsCard 呈现设置项，VisualState 根据内容宽度调整布局。
 
-ScottPlot.WinUI 承载波形图。报文、波形、Modbus、回环、设置和会话页面共享连接与会话数据。
+ScottPlot.WinUI 承载波形图。报文、波形、Modbus、回环、终端、设置和会话页面共享连接与会话数据。终端页面复用工作台连接和事件流，不创建独立串口通道。
 
 ## CLI
 

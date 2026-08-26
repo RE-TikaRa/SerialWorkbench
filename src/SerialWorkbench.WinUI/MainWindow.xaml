@@ -34,6 +34,7 @@
             <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE88E;" />
           </NavigationViewItem.Icon>
         </NavigationViewItem>
+        <NavigationViewItem Content="终端" Icon="Keyboard" Tag="Terminal" />
         <NavigationViewItem Content="Modbus RTU" Icon="List" Tag="Modbus" />
         <NavigationViewItem Content="回环检测" Icon="RepeatAll" Tag="Loopback" />
         <NavigationViewItem Content="会话记录" Icon="Clock" Tag="Sessions" />
