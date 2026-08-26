@@ -43,6 +43,8 @@ public sealed partial class MainWindow : Window
     private SettingsPage? settingsPage;
     private SessionsPage? sessionsPage;
     private TerminalPage? terminalPage;
+    private AutomationPage? automationPage;
+    private CancellationTokenSource? sequenceCancellation;
     private ModbusPage? modbusPage;
     private readonly SerialPreference serialPreference = SerialPreferenceStore.Load();
     private readonly string? preferredWorkspace = WorkspacePreferenceStore.Load();
@@ -365,6 +367,7 @@ public sealed partial class MainWindow : Window
             "Loopback" => (PageType: typeof(LoopbackPage), Title: "回环检测", Description: "验证串口发送与接收链路是否正常。"),
             "Modbus" => (PageType: typeof(ModbusPage), Title: "Modbus RTU", Description: "构造读写请求帧发送到当前串口，并解析寄存器响应。"),
             "ProtocolInspector" => (PageType: typeof(ProtocolInspectorPage), Title: "协议帧", Description: "使用协议模板查看地址、功能码、长度、CRC 和异常字段。"),
+            "Automation" => (PageType: typeof(AutomationPage), Title: "自动化", Description: "编辑、保存并运行串口发送序列。"),
             "Sessions" => (PageType: typeof(SessionsPage), Title: "会话记录", Description: "浏览和管理已保存的串口工作记录。"),
             "Settings" => (PageType: typeof(SettingsPage), Title: "设置", Description: "配置工作区、外观和应用行为。"),
             _ => (PageType: typeof(WorkbenchPage), Title: "工作台", Description: "连接串口、收发报文并查看实时波形。"),
@@ -428,6 +431,15 @@ public sealed partial class MainWindow : Window
                 page.BindRows(TrafficRows);
                 page.SendRequested -= TerminalPage_SendRequested;
                 page.SendRequested += TerminalPage_SendRequested;
+                break;
+            case AutomationPage page:
+                automationPage = page;
+                page.RunRequested -= AutomationPage_RunRequested;
+                page.RunRequested += AutomationPage_RunRequested;
+                page.SaveRequested -= AutomationPage_SaveRequested;
+                page.SaveRequested += AutomationPage_SaveRequested;
+                page.CancelRequested -= AutomationPage_CancelRequested;
+                page.CancelRequested += AutomationPage_CancelRequested;
                 break;
             case ModbusPage page:
                 modbusPage = page;
@@ -685,6 +697,63 @@ public sealed partial class MainWindow : Window
         finally
         {
             terminalPage.SetSending(false);
+        }
+    }
+
+    private async void AutomationPage_RunRequested(object? sender, EventArgs e)
+    {
+        if (automationPage is null || client is null || connectionId is not { } current)
+        {
+            automationPage?.ShowResult("请先连接串口。", InfoBarSeverity.Warning);
+            return;
+        }
+
+        try
+        {
+            var sequence = automationPage.Parse();
+            sequenceCancellation = new CancellationTokenSource();
+            automationPage.SetRunning(true);
+            var result = await client.RunSequenceAsync(current, sequence, sequenceCancellation.Token);
+            automationPage.ShowResult(result.Completed ? "序列已完成。" : result.Error ?? "序列未完成。", result.Completed ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
+        }
+        catch (OperationCanceledException)
+        {
+            automationPage.ShowResult("序列已取消。", InfoBarSeverity.Warning);
+        }
+        catch (Exception ex)
+        {
+            automationPage.ShowResult(ex.Message, InfoBarSeverity.Error);
+        }
+        finally
+        {
+            sequenceCancellation?.Dispose();
+            sequenceCancellation = null;
+            automationPage.SetRunning(false);
+        }
+    }
+
+    private void AutomationPage_CancelRequested(object? sender, EventArgs e) => sequenceCancellation?.Cancel();
+
+    private void AutomationPage_SaveRequested(object? sender, EventArgs e)
+    {
+        if (automationPage is null || string.IsNullOrWhiteSpace(workspacePath) || workspacePath.StartsWith("全局数据：", StringComparison.Ordinal))
+        {
+            automationPage?.ShowResult("请先选择工作区。", InfoBarSeverity.Warning);
+            return;
+        }
+
+        try
+        {
+            var sequence = automationPage.Parse();
+            var root = workspacePath["工作区：".Length..];
+            var directory = Path.Combine(root, "sequences");
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(Path.Combine(directory, $"{sequence.Name}.json"), automationPage.DefinitionText);
+            automationPage.ShowResult("序列已保存到工作区。", InfoBarSeverity.Success);
+        }
+        catch (Exception ex)
+        {
+            automationPage.ShowResult(ex.Message, InfoBarSeverity.Error);
         }
     }
 

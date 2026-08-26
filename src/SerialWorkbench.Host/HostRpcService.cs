@@ -99,6 +99,9 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
     public Task<IReadOnlyList<LoopbackHistoryEntry>> ReadLoopbackResultsAsync(Guid sessionId, CancellationToken cancellationToken) =>
         runtime.Sessions.ReadLoopbackResultsAsync(sessionId, cancellationToken);
 
+    public Task<SerialSequenceProgress> RunSequenceAsync(Guid connectionId, SerialSequenceDefinition sequence, CancellationToken cancellationToken) =>
+        runtime.Connections.RunSequenceAsync(connectionId, sequence, cancellationToken);
+
     public Task<ModbusTransactionResult> RunModbusAsync(ModbusTransactionRequest request, CancellationToken cancellationToken) =>
         runtime.Connections.RunModbusAsync(request, cancellationToken);
 

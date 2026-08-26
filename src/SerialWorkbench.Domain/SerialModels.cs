@@ -113,6 +113,27 @@ public sealed record LoopbackHistoryEntry(
     LoopbackRequest Request,
     LoopbackResult Result);
 
+public sealed record SerialSequenceStep(
+    byte[] Data,
+    string Format,
+    int DelayMilliseconds,
+    int RepeatCount,
+    int WaitMilliseconds);
+
+public sealed record SerialSequenceDefinition(
+    string Name,
+    IReadOnlyList<SerialSequenceStep> Steps);
+
+public sealed record SerialSequenceProgress(
+    string Name,
+    int StepIndex,
+    int StepCount,
+    int RepeatIndex,
+    int RepeatCount,
+    bool Completed,
+    bool Cancelled,
+    string? Error);
+
 public sealed record ModbusTransactionRequest(
     Guid ConnectionId,
     byte[] Frame,

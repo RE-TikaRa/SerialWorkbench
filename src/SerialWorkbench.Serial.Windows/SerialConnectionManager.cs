@@ -243,6 +243,47 @@ public sealed class SerialConnectionManager(
         }
     }
 
+    public async Task<SerialSequenceProgress> RunSequenceAsync(Guid connectionId, SerialSequenceDefinition sequence, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sequence.Name);
+        if (sequence.Steps.Count == 0)
+        {
+            throw new ArgumentException("Sequence must contain at least one step.", nameof(sequence));
+        }
+
+        var connection = Get(connectionId);
+        await using var lease = leases.Acquire(connectionId, "sequence");
+        for (var stepIndex = 0; stepIndex < sequence.Steps.Count; stepIndex++)
+        {
+            var step = sequence.Steps[stepIndex];
+            if (step.RepeatCount is < 1 or > 10_000)
+            {
+                throw new ArgumentOutOfRangeException(nameof(sequence), step.RepeatCount, "Repeat count must be between 1 and 10000.");
+            }
+
+            if (step.DelayMilliseconds is < 0 or > 600_000 || step.WaitMilliseconds is < 0 or > 600_000)
+            {
+                throw new ArgumentOutOfRangeException(nameof(sequence), "Step delays must be between 0 and 600000 milliseconds.");
+            }
+
+            for (var repeatIndex = 0; repeatIndex < step.RepeatCount; repeatIndex++)
+            {
+                await connection.SendAsync(step.Data, $"sequence:{sequence.Name}", cancellationToken).ConfigureAwait(false);
+                if (step.WaitMilliseconds > 0)
+                {
+                    await Task.Delay(step.WaitMilliseconds, cancellationToken).ConfigureAwait(false);
+                }
+
+                if (step.DelayMilliseconds > 0)
+                {
+                    await Task.Delay(step.DelayMilliseconds, cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+
+        return new SerialSequenceProgress(sequence.Name, sequence.Steps.Count, sequence.Steps.Count, 0, 0, true, false, null);
+    }
+
     public async ValueTask DisposeAsync()
     {
         foreach (var id in connections.Keys)

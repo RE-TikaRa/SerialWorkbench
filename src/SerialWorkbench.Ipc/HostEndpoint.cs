@@ -127,6 +127,9 @@ public sealed class HostRpcClient : IHostRpc, IAsyncDisposable
     public Task<IReadOnlyList<LoopbackHistoryEntry>> ReadLoopbackResultsAsync(Guid sessionId, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<IReadOnlyList<LoopbackHistoryEntry>>(nameof(ReadLoopbackResultsAsync), [sessionId], cancellationToken);
 
+    public Task<SerialSequenceProgress> RunSequenceAsync(Guid connectionId, SerialSequenceDefinition sequence, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<SerialSequenceProgress>(nameof(RunSequenceAsync), [connectionId, sequence], cancellationToken);
+
     public Task<ModbusTransactionResult> RunModbusAsync(ModbusTransactionRequest request, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<ModbusTransactionResult>(nameof(RunModbusAsync), [request], cancellationToken);
 
