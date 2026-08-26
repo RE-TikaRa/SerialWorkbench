@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using Microsoft.Data.Sqlite;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Storage;
@@ -72,6 +73,42 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
             }
 
             return events;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    public async Task<string> ExportCsvAsync(Guid sessionId, CancellationToken cancellationToken)
+    {
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var session = (await ReadDescriptorsAsync(cancellationToken).ConfigureAwait(false)).SingleOrDefault(item => item.Id == sessionId)
+                ?? throw new KeyNotFoundException($"Session {sessionId:D} does not exist.");
+            await using var sessionConnection = CreateReadOnlyConnection(session.Path);
+            await sessionConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            await using var command = sessionConnection.CreateCommand();
+            command.CommandText = """
+                SELECT utc, direction, source, hex(data), length(data)
+                FROM events
+                ORDER BY sequence;
+                """;
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            var csv = new StringBuilder();
+            csv.AppendLine("utc,direction,source,hex,byte_count");
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                csv.Append(CsvField(reader.GetString(0))).Append(',')
+                    .Append(CsvField(reader.GetString(1))).Append(',')
+                    .Append(CsvField(reader.GetString(2))).Append(',')
+                    .Append(reader.GetString(3)).Append(',')
+                    .Append(reader.GetInt64(4))
+                    .AppendLine();
+            }
+
+            return csv.ToString();
         }
         finally
         {
@@ -282,4 +319,9 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
             Cache = SqliteCacheMode.Private,
             Pooling = false,
         }.ConnectionString);
+
+    private static string CsvField(string value) =>
+        value.IndexOfAny([',', '"', '\r', '\n']) >= 0
+            ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\""
+            : value;
 }

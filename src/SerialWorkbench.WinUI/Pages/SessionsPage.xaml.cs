@@ -17,11 +17,15 @@ public sealed partial class SessionsPage : Page
 
     public ObservableCollection<SessionEventRow> Events { get; } = [];
 
+    public SessionRow? SelectedSession => SessionList.SelectedItem as SessionRow;
+
     public event EventHandler? RefreshRequested;
 
     public event EventHandler<Guid>? SessionSelected;
 
     public event EventHandler<string>? RevealRequested;
+
+    public event EventHandler<Guid>? ExportRequested;
 
     public event EventHandler<Guid>? DeleteRequested;
 
@@ -130,6 +134,14 @@ public sealed partial class SessionsPage : Page
         }
     }
 
+    private void ExportSessionButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedSession is { } session)
+        {
+            ExportRequested?.Invoke(this, session.Id);
+        }
+    }
+
     private async void DeleteSessionButton_Click(object sender, RoutedEventArgs e)
     {
         if (SessionList.SelectedItem is not SessionRow { IsActive: false } session)
@@ -170,6 +182,7 @@ public sealed partial class SessionsPage : Page
     private void UpdateSelection(SessionRow? session)
     {
         RevealSessionButton.IsEnabled = session is not null;
+        ExportSessionButton.IsEnabled = session is not null;
         DeleteSessionButton.IsEnabled = session is { IsActive: false };
         Events.Clear();
         EventTitle.Text = session is null ? "选择会话以查看报文" : session.Title;

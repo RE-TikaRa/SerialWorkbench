@@ -53,6 +53,8 @@ public interface IHostRpc
 
     Task<IReadOnlyList<SerialTrafficEvent>> ReadSessionEventsAsync(SessionEventQuery query, CancellationToken cancellationToken);
 
+    Task<string> ExportSessionCsvAsync(Guid sessionId, CancellationToken cancellationToken);
+
     Task<RpcResult> DeleteSessionAsync(Guid sessionId, CancellationToken cancellationToken);
 
     Task<LoopbackResult> RunLoopbackAsync(LoopbackRequest request, CancellationToken cancellationToken);

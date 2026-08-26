@@ -112,6 +112,9 @@ public sealed class HostRpcClient : IHostRpc, IAsyncDisposable
     public Task<IReadOnlyList<SerialTrafficEvent>> ReadSessionEventsAsync(SessionEventQuery query, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<IReadOnlyList<SerialTrafficEvent>>(nameof(ReadSessionEventsAsync), [query], cancellationToken);
 
+    public Task<string> ExportSessionCsvAsync(Guid sessionId, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<string>(nameof(ExportSessionCsvAsync), [sessionId], cancellationToken);
+
     public Task<RpcResult> DeleteSessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<RpcResult>(nameof(DeleteSessionAsync), [sessionId], cancellationToken);
 

@@ -71,6 +71,92 @@ public sealed class StorageAndSessionTests
     }
 
     [Fact]
+    public async Task SessionCsvExportPreservesUtcSourceAndRawBytes()
+    {
+        var applicationRoot = CreateArtifactDirectory("session-export-app");
+        var paths = new ApplicationPaths(applicationRoot);
+        paths.EnsureWritable();
+        var connectionId = Guid.NewGuid();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var store = new SessionStore(paths);
+
+        await store.AppendAsync(
+            new SerialTrafficEvent(
+                1,
+                new DateTimeOffset(2026, 8, 26, 1, 2, 3, TimeSpan.Zero),
+                10,
+                connectionId,
+                SerialDirection.Transmit,
+                [0x10, 0x20],
+                "cli.send"),
+            cancellationToken);
+        await store.AppendAsync(
+            new SerialTrafficEvent(
+                2,
+                new DateTimeOffset(2026, 8, 26, 1, 2, 4, TimeSpan.Zero),
+                20,
+                connectionId,
+                SerialDirection.Receive,
+                [0x00, 0xFF],
+                "设备,通道\"A\""),
+            cancellationToken);
+
+        var sessionId = Assert.IsType<Guid>(store.ActiveSession?.Id);
+        var csv = await store.ExportCsvAsync(sessionId, cancellationToken);
+
+        Assert.StartsWith("utc,direction,source,hex,byte_count\r\n", csv, StringComparison.Ordinal);
+        Assert.Contains("2026-08-26T01:02:03.0000000+00:00,Transmit,cli.send,1020,2\r\n", csv, StringComparison.Ordinal);
+        Assert.Contains("2026-08-26T01:02:04.0000000+00:00,Receive,\"设备,通道\"\"A\"\"\",00FF,2\r\n", csv, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task EmptySessionCsvExportContainsHeaderOnly()
+    {
+        var applicationRoot = CreateArtifactDirectory("empty-session-export-app");
+        var paths = new ApplicationPaths(applicationRoot);
+        paths.EnsureWritable();
+        var sessionId = Guid.NewGuid();
+        var sessionPath = Path.Combine(paths.SessionsRoot, "empty.swbsession");
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using (var connection = new SqliteConnection($"Data Source={sessionPath};Mode=ReadWriteCreate;Pooling=False"))
+        {
+            await connection.OpenAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                CREATE TABLE session(
+                    id TEXT PRIMARY KEY,
+                    started_utc TEXT NOT NULL,
+                    ended_utc TEXT NULL,
+                    event_count INTEGER NOT NULL DEFAULT 0,
+                    raw_byte_count INTEGER NOT NULL DEFAULT 0,
+                    schema_version INTEGER NOT NULL
+                );
+                CREATE TABLE events(
+                    sequence INTEGER PRIMARY KEY,
+                    utc TEXT NOT NULL,
+                    monotonic_ticks INTEGER NOT NULL,
+                    connection_id TEXT NOT NULL,
+                    direction TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    message TEXT NULL,
+                    data BLOB NOT NULL
+                );
+                INSERT INTO session(id, started_utc, schema_version)
+                VALUES ($id, $startedUtc, 1);
+                """;
+            command.Parameters.AddWithValue("$id", sessionId.ToString("D"));
+            command.Parameters.AddWithValue("$startedUtc", "2026-08-26T01:02:03.0000000+00:00");
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await using var store = new SessionStore(paths);
+        var csv = await store.ExportCsvAsync(sessionId, cancellationToken);
+
+        Assert.Equal("utc,direction,source,hex,byte_count\r\n", csv);
+    }
+
+    [Fact]
     public async Task HostSwitchesSessionStorageToTheSelectedWorkspace()
     {
         var applicationRoot = CreateArtifactDirectory("host-app");

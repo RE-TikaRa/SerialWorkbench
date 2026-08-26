@@ -108,9 +108,13 @@
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="EventTitle" Text="选择会话以查看报文" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-            <Button x:Name="DeleteSessionButton" Grid.Column="1" IsEnabled="False" Click="DeleteSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="删除会话">
+            <Button x:Name="ExportSessionButton" Grid.Column="1" IsEnabled="False" Click="ExportSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="导出 CSV">
+              <SymbolIcon Symbol="Save" />
+            </Button>
+            <Button x:Name="DeleteSessionButton" Grid.Column="2" IsEnabled="False" Click="DeleteSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="删除会话">
               <SymbolIcon Symbol="Delete" />
             </Button>
           </Grid>

@@ -418,6 +418,8 @@ public sealed partial class MainWindow : Window
                 page.SessionSelected += SessionsPage_SessionSelected;
                 page.RevealRequested -= SessionsPage_RevealRequested;
                 page.RevealRequested += SessionsPage_RevealRequested;
+                page.ExportRequested -= SessionsPage_ExportRequested;
+                page.ExportRequested += SessionsPage_ExportRequested;
                 page.DeleteRequested -= SessionsPage_DeleteRequested;
                 page.DeleteRequested += SessionsPage_DeleteRequested;
                 page.SetWorkspace(workspacePath);
@@ -563,6 +565,45 @@ public sealed partial class MainWindow : Window
         {
             var argument = $"/select,\"{path}\"";
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", argument) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private async void SessionsPage_ExportRequested(object? sender, Guid sessionId)
+    {
+        if (client is null || sessionsPage?.SelectedSession is not { } session || session.Id != sessionId)
+        {
+            return;
+        }
+
+        try
+        {
+            var picker = new Windows.Storage.Pickers.FileSavePicker
+            {
+                SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary,
+                SuggestedFileName = $"{Path.GetFileNameWithoutExtension(session.Path)}.csv",
+            };
+            picker.FileTypeChoices.Add("CSV 文件", [".csv"]);
+            var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, windowHandle);
+            var file = await picker.PickSaveFileAsync();
+            if (file is null)
+            {
+                return;
+            }
+
+            if (string.Equals(Path.GetFullPath(file.Path), Path.GetFullPath(session.Path), StringComparison.OrdinalIgnoreCase))
+            {
+                ShowError("导出文件不能覆盖原会话。");
+                return;
+            }
+
+            var csv = await client.ExportSessionCsvAsync(sessionId, CancellationToken.None);
+            await Windows.Storage.FileIO.WriteTextAsync(file, csv, Windows.Storage.Streams.UnicodeEncoding.Utf8);
+            ShowMessage("导出完成", $"已导出 {Path.GetFileName(file.Path)}。", InfoBarSeverity.Success);
         }
         catch (Exception ex)
         {
@@ -841,9 +882,14 @@ public sealed partial class MainWindow : Window
 
     private void ShowError(string message)
     {
-        ErrorInfoBar.Title = "操作失败";
+        ShowMessage("操作失败", message, InfoBarSeverity.Error);
+    }
+
+    private void ShowMessage(string title, string message, InfoBarSeverity severity)
+    {
+        ErrorInfoBar.Title = title;
         ErrorInfoBar.Message = message;
-        ErrorInfoBar.Severity = InfoBarSeverity.Error;
+        ErrorInfoBar.Severity = severity;
         ErrorInfoBar.IsOpen = true;
     }
 
