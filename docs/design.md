@@ -30,4 +30,4 @@ ScottPlot.WinUI 承载波形图。报文、波形、Modbus、回环、终端、�
 
 ## CLI
 
-CLI 提供端口枚举、连接、发送、监视、回环、工作区和会话操作。终端输出使用适合阅读的文本格式，结构化结果使用 JSON 或 JSON Lines；字段契约位于 `schemas/`。
+CLI 提供端口枚举、连接、发送、监视、回环、Modbus 事务、工作区和会话操作。终端输出使用适合阅读的文本格式，结构化结果使用 JSON 或 JSON Lines；字段契约位于 `schemas/`。

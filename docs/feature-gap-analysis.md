@@ -31,6 +31,7 @@ WinUI / CLI
 - 会话浏览、预览、完整 CSV 导出、按原始时间间隔回放、删除和资源管理器定位。
 - 命名串口连接配置的新建、重命名、删除和应用。
 - 交互式串口终端，支持文本、HEX、行尾、历史和响应复制。
+- CLI Modbus 读写事务和结构化结果输出。
 - CLI 端口枚举、Host 状态、工作区、发送、监视和回环。
 - 跟随系统、浅色、深色、高对比度和响应式布局。
 - self-contained WinUI 便携发布。
@@ -406,13 +407,15 @@ workspace clear
 send
 monitor
 loopback run
+modbus read
+modbus write
 ```
 
 缺少：
 
 - 会话列表、详情、读取、导出和删除。
 - 会话回放。
-- Modbus 请求和轮询。
+- Modbus 轮询。
 - 连接配置管理。
 - 发送队列。
 - 自动化测试。

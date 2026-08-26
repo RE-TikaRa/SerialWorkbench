@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Ipc;
+using SerialWorkbench.Modbus;
 using SerialWorkbench.Protocols;
 using StreamJsonRpc;
 
@@ -85,6 +86,10 @@ static async Task<int> RunAsync(IHostRpc client, Arguments arguments, string out
             return await MonitorAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "loopback run":
             return await LoopbackAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
+        case "modbus read":
+            return await ModbusReadAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
+        case "modbus write":
+            return await ModbusWriteAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         default:
             WriteError(output, "SWB-ARGUMENT", $"Unknown command: {string.Join(' ', arguments.Positionals)}");
             return 2;
@@ -177,6 +182,154 @@ static async Task<int> LoopbackAsync(IHostRpc client, Arguments arguments, strin
     }
 }
 
+static async Task<int> ModbusReadAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+{
+    var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
+    try
+    {
+        var slave = GetByte(arguments, "--slave", 1);
+        var function = GetByte(arguments, "--function", 3);
+        if (function is not (3 or 4))
+        {
+            throw new ArgumentException("--function must be 3 or 4.");
+        }
+
+        var address = GetUShort(arguments, "--address");
+        var quantity = ValidateReadQuantity(GetUShort(arguments, "--quantity"));
+
+        var frame = ModbusRtuCodec.BuildReadRequest(slave, function, address, quantity);
+        return await RunModbusAsync(client, connection, arguments, output, cancellationToken, "modbus.read", frame, slave, function).ConfigureAwait(false);
+    }
+    finally
+    {
+        await client.CloseConnectionAsync(connection.Id, CancellationToken.None).ConfigureAwait(false);
+    }
+}
+
+static async Task<int> ModbusWriteAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+{
+    var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
+    try
+    {
+        var slave = GetByte(arguments, "--slave", 1);
+        var address = GetUShort(arguments, "--address");
+        var value = GetUShort(arguments, "--value");
+        var frame = ModbusRtuCodec.BuildWriteSingleRegister(slave, address, value);
+        return await RunModbusAsync(client, connection, arguments, output, cancellationToken, "modbus.write", frame, slave, 6).ConfigureAwait(false);
+    }
+    finally
+    {
+        await client.CloseConnectionAsync(connection.Id, CancellationToken.None).ConfigureAwait(false);
+    }
+}
+
+static async Task<int> RunModbusAsync(
+    IHostRpc client,
+    ConnectionSnapshot connection,
+    Arguments arguments,
+    string output,
+    CancellationToken cancellationToken,
+    string command,
+    byte[] requestFrame,
+    byte slave,
+    byte function)
+{
+    var request = new ModbusTransactionRequest(
+        connection.Id,
+        requestFrame,
+        slave,
+        function,
+        arguments.GetInt("--timeout", 2000));
+    var result = await client.RunModbusAsync(request, cancellationToken).ConfigureAwait(false);
+    var value = new
+    {
+        success = result.Success,
+        requestFrame = Convert.ToHexString(requestFrame),
+        responseFrame = Convert.ToHexString(result.ResponseFrame),
+        functionCode = result.FunctionCode,
+        registers = result.Registers,
+        address = result.Address,
+        registerValue = result.Value,
+        exceptionCode = result.ExceptionCode,
+        durationMilliseconds = result.Duration.TotalMilliseconds,
+        error = result.Error,
+    };
+
+    if (output is "json" or "jsonl")
+    {
+        WriteResult(output, command, value);
+    }
+    else
+    {
+        Console.WriteLine($"Request: {value.requestFrame}");
+        Console.WriteLine($"Response: {(string.IsNullOrEmpty(value.responseFrame) ? "(none)" : value.responseFrame)}");
+        Console.WriteLine($"Result: {(value.success ? "success" : "failed")}");
+        Console.WriteLine($"Duration: {value.durationMilliseconds:N0} ms");
+        if (value.registers.Length > 0)
+        {
+            Console.WriteLine($"Registers: {string.Join(' ', value.registers.Select(static item => $"0x{item:X4}"))}");
+        }
+
+        if (value.address is { } address && value.registerValue is { } registerValue)
+        {
+            Console.WriteLine($"Address: 0x{address:X4}");
+            Console.WriteLine($"Value: 0x{registerValue:X4}");
+        }
+
+        if (value.exceptionCode is { } exceptionCode)
+        {
+            Console.WriteLine($"Exception: 0x{exceptionCode:X2}");
+        }
+
+        if (value.error is { } error)
+        {
+            Console.WriteLine($"Error: {error}");
+        }
+    }
+
+    return ModbusExitCode(result);
+}
+
+static int ModbusExitCode(ModbusTransactionResult result)
+{
+    if (result.Success)
+    {
+        return 0;
+    }
+
+    if (result.ExceptionCode is not null)
+    {
+        return 1;
+    }
+
+    if (result.Error?.Contains("Timed out", StringComparison.OrdinalIgnoreCase) == true)
+    {
+        return 4;
+    }
+
+    return 3;
+}
+
+static byte GetByte(Arguments arguments, string name, int defaultValue)
+{
+    var value = arguments.GetInt(name, defaultValue);
+    return value is >= byte.MinValue and <= byte.MaxValue
+        ? (byte)value
+        : throw new ArgumentOutOfRangeException(name, value, $"{name} must be between {byte.MinValue} and {byte.MaxValue}.");
+}
+
+static ushort GetUShort(Arguments arguments, string name)
+{
+    var value = arguments.GetInt(name, -1);
+    return value is >= ushort.MinValue and <= ushort.MaxValue
+        ? (ushort)value
+        : throw new ArgumentException($"{name} is required and must be between {ushort.MinValue} and {ushort.MaxValue}.");
+}
+
+static ushort ValidateReadQuantity(ushort quantity) => quantity is >= 1 and <= 125
+    ? quantity
+    : throw new ArgumentOutOfRangeException(nameof(quantity), quantity, "Read quantity must be between 1 and 125.");
+
 static Task<ConnectionSnapshot> OpenAsync(IHostRpc client, Arguments arguments, CancellationToken cancellationToken)
 {
     var port = arguments.Get("--port") ?? throw new ArgumentException("--port is required.");
@@ -238,6 +391,8 @@ static void PrintHelp()
         serial-workbench send --port <port> (--text TEXT | --hex HEX) [--baud 115200]
         serial-workbench monitor --port <port> [--seconds 10] [--output text|jsonl]
         serial-workbench loopback run --port <port> [--baud 115200] [--length 4096] [--iterations 1]
+        serial-workbench modbus read --port <port> --slave 1 --address 0 --quantity 1 [--function 3]
+        serial-workbench modbus write --port <port> --slave 1 --address 0 --value 0
         """);
 }
 

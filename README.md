@@ -29,6 +29,7 @@ SerialWorkbench 是面向 Windows 11 的串口调试、通信记录和回环检�
 .\serial-workbench.exe send --port COM3 --baud 115200 --hex "55 AA 01 02"
 .\serial-workbench.exe monitor --port COM3 --baud 115200 --seconds 10 --output jsonl
 .\serial-workbench.exe loopback run --port COM3 --baud 115200 --pattern Incrementing --length 4096 --iterations 4
+.\serial-workbench.exe modbus read --port COM3 --baud 115200 --slave 1 --address 0 --quantity 1
 ```
 
 CLI 退出码：
