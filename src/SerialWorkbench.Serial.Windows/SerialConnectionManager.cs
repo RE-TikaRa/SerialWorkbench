@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using SerialWorkbench.Application;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Modbus;
+using SerialWorkbench.Protocols;
 
 namespace SerialWorkbench.Serial.Windows;
 
@@ -152,6 +153,8 @@ public sealed class SerialConnectionManager(
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(request.TimeoutMilliseconds);
         var buffer = new List<byte>(256);
+        var received = new List<byte>(256);
+        byte[]? lastInvalidFrame = null;
         string? lastError = null;
         try
         {
@@ -159,6 +162,7 @@ public sealed class SerialConnectionManager(
             {
                 var block = await subscription.Reader.ReadAsync(timeout.Token).ConfigureAwait(false);
                 buffer.AddRange(block);
+                received.AddRange(block);
                 while (buffer.Count >= 2)
                 {
                     var start = buffer.FindIndex(value => value == request.SlaveAddress);
@@ -171,6 +175,14 @@ public sealed class SerialConnectionManager(
                     if (start > 0)
                     {
                         buffer.RemoveRange(0, start);
+                    }
+
+                    if (buffer.Count >= request.Frame.Length && buffer.Take(request.Frame.Length).SequenceEqual(request.Frame))
+                    {
+                        lastInvalidFrame = request.Frame.ToArray();
+                        lastError = "Detected TX echo; waiting for slave response.";
+                        buffer.RemoveRange(0, request.Frame.Length);
+                        continue;
                     }
 
                     var function = buffer[1];
@@ -212,6 +224,7 @@ public sealed class SerialConnectionManager(
                     }
                     catch (InvalidDataException exception)
                     {
+                        lastInvalidFrame = frame;
                         lastError = exception.Message;
                         buffer.RemoveAt(0);
                     }
@@ -221,7 +234,12 @@ public sealed class SerialConnectionManager(
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             stopwatch.Stop();
-            return new ModbusTransactionResult(false, buffer.ToArray(), request.FunctionCode, [], null, null, null, stopwatch.Elapsed, lastError ?? "Timed out waiting for Modbus response.");
+            var response = lastInvalidFrame ?? received.ToArray();
+            var receivedHex = response.Length == 0 ? "(none)" : HexCodec.Format(response);
+            var error = lastError is null
+                ? $"Timed out waiting for Modbus response. Received: {receivedHex}"
+                : $"{lastError} Received: {receivedHex}";
+            return new ModbusTransactionResult(false, response, request.FunctionCode, [], null, null, null, stopwatch.Elapsed, error);
         }
     }
 

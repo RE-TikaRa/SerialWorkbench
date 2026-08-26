@@ -59,6 +59,7 @@ public sealed class ProtocolTests
         var exception = Assert.Throws<ModbusException>(() => ModbusRtuCodec.ParseRegisterResponse(frame, 1, 3));
 
         Assert.Equal((byte)0x02, exception.ExceptionCode);
+        Assert.Contains("Illegal data address", exception.Message, StringComparison.Ordinal);
     }
 
     [Theory]

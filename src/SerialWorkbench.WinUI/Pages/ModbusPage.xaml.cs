@@ -52,6 +52,12 @@ public sealed partial class ModbusPage : Page
         }
 
         RegisterList.ItemsSource = null;
+        if (response.Error?.StartsWith("Detected TX echo; waiting for slave response.", StringComparison.Ordinal) == true)
+        {
+            ShowResult("检测到 TX 回显，等待从站响应。", InfoBarSeverity.Warning);
+            return;
+        }
+
         ShowResult(response.Error ?? "Modbus 请求失败。", InfoBarSeverity.Error);
     }
 

@@ -126,7 +126,21 @@ public static class ModbusRtuCodec
     }
 }
 
-public sealed class ModbusException(byte exceptionCode) : Exception($"Modbus exception 0x{exceptionCode:X2}.")
+public sealed class ModbusException(byte exceptionCode) : Exception($"Modbus exception 0x{exceptionCode:X2}: {GetDescription(exceptionCode)}.")
 {
     public byte ExceptionCode { get; } = exceptionCode;
+
+    private static string GetDescription(byte code) => code switch
+    {
+        0x01 => "Illegal function",
+        0x02 => "Illegal data address",
+        0x03 => "Illegal data value",
+        0x04 => "Server device failure",
+        0x05 => "Acknowledge",
+        0x06 => "Server device busy",
+        0x08 => "Memory parity error",
+        0x0A => "Gateway path unavailable",
+        0x0B => "Gateway target device failed to respond",
+        _ => "Unknown exception",
+    };
 }
