@@ -151,6 +151,20 @@
       <Border Grid.Row="0" Style="{StaticResource SurfaceCardStyle}">
         <StackPanel Spacing="{StaticResource CardContentSpacing}">
           <TextBlock Text="串口连接" Style="{StaticResource BodyStrongTextBlockStyle}" />
+          <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ComboBox x:Name="ProfileComboBox" Header="连接配置" DisplayMemberPath="Name" PlaceholderText="选择配置" SelectionChanged="ProfileComboBox_SelectionChanged" HorizontalAlignment="Stretch" />
+            <Button x:Name="ApplyProfileButton" Grid.Column="1" Content="应用" Click="ApplyProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
+            <Button x:Name="NewProfileButton" Grid.Column="2" Content="新建" Click="NewProfileButton_Click" VerticalAlignment="Bottom" />
+            <Button x:Name="RenameProfileButton" Grid.Column="3" Content="重命名" Click="RenameProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
+            <Button x:Name="DeleteProfileButton" Grid.Column="4" Content="删除" Click="DeleteProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
+          </Grid>
           <Grid ColumnSpacing="12" RowSpacing="14">
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto" />

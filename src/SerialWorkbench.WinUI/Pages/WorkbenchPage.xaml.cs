@@ -18,10 +18,13 @@ public sealed partial class WorkbenchPage : Page
     private readonly List<List<double>> channelData = [];
     private ThemeSettings? themeSettings;
     private bool viewSelectionInitialized;
+    private readonly ObservableCollection<SerialProfile> profiles = new(SerialProfileStore.Load());
 
     public WorkbenchPage()
     {
         InitializeComponent();
+        ProfileComboBox.ItemsSource = profiles;
+        UpdateProfileActions();
         ViewSelector.SelectedItem = MonitorSelectorItem;
         Loaded += WorkbenchPage_Loaded;
         ActualThemeChanged += WorkbenchPage_ActualThemeChanged;
@@ -37,12 +40,20 @@ public sealed partial class WorkbenchPage : Page
     public event EventHandler? RefreshPortsRequested;
     public event EventHandler? LoopSendStarted;
     public event EventHandler? LoopSendStopped;
+    public event EventHandler? ProfileNewRequested;
+    public event EventHandler? ProfileRenameRequested;
+    public event EventHandler? ProfileDeleteRequested;
+    public event EventHandler? ProfileApplyRequested;
 
     public void BindRows(ObservableCollection<TrafficRow> rows)
     {
         TrafficListView.ItemsSource = rows;
         SendHistory.ItemsSource = sendHistory;
     }
+
+    public IReadOnlyList<SerialProfile> Profiles => profiles;
+
+    public SerialProfile? SelectedProfile => ProfileComboBox.SelectedItem as SerialProfile;
 
     public SerialPortDescriptor? SelectedPort => PortComboBox.SelectedItem as SerialPortDescriptor;
     public double BaudRate =>
@@ -94,6 +105,72 @@ public sealed partial class WorkbenchPage : Page
         PlotSampleType.SelectedIndex = preference.PlotSampleTypeIndex;
     }
 
+    public void ApplySerialProfile(SerialProfile profile)
+    {
+        BaudRateComboBox.Text = profile.BaudRate.ToString(CultureInfo.InvariantCulture);
+        DataBitsNumberBox.Value = profile.DataBits;
+        ParityComboBox.SelectedIndex = (int)profile.Parity;
+        StopBitsComboBox.SelectedIndex = (int)profile.StopBits;
+        HandshakeComboBox.SelectedIndex = (int)profile.Handshake;
+        EncodingComboBox.SelectedIndex = profile.EncodingName.ToLowerInvariant() switch
+        {
+            "us-ascii" => 1,
+            "gb2312" => 2,
+            "gbk" => 3,
+            "utf-16" or "unicode" => 4,
+            _ => 0,
+        };
+        DtrCheckBox.IsChecked = profile.DtrEnable;
+        RtsCheckBox.IsChecked = profile.RtsEnable;
+        if (profile.PortName is not null && PortComboBox.ItemsSource is IReadOnlyList<SerialPortDescriptor> ports)
+        {
+            PortComboBox.SelectedItem = ports.FirstOrDefault(item => item.PortName.Equals(profile.PortName, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    public SerialProfile ReadSerialProfile(string name) => new(
+        name,
+        SelectedPort?.PortName,
+        checked((int)BaudRate),
+        DataBits,
+        Parity,
+        StopBits,
+        Handshake,
+        SelectedEncoding.WebName,
+        DtrEnable,
+        RtsEnable);
+
+    public void AddProfile(SerialProfile profile)
+    {
+        profiles.Add(profile);
+        ProfileComboBox.SelectedItem = profile;
+    }
+
+    public void ReplaceProfile(SerialProfile profile)
+    {
+        if (SelectedProfile is not { } current)
+        {
+            return;
+        }
+
+        var index = profiles.IndexOf(current);
+        if (index < 0)
+        {
+            return;
+        }
+
+        profiles[index] = profile;
+        ProfileComboBox.SelectedItem = profile;
+    }
+
+    public void RemoveSelectedProfile()
+    {
+        if (SelectedProfile is { } profile)
+        {
+            profiles.Remove(profile);
+        }
+    }
+
     public SerialPreference ReadSerialPreference(string? portName) => new(
         portName,
         checked((int)BaudRate),
@@ -121,6 +198,24 @@ public sealed partial class WorkbenchPage : Page
     private void SendButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => SendRequested?.Invoke(this, EventArgs.Empty);
     private void LoopSendToggle_Checked(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => LoopSendStarted?.Invoke(this, EventArgs.Empty);
     private void LoopSendToggle_Unchecked(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => LoopSendStopped?.Invoke(this, EventArgs.Empty);
+
+    private void ProfileComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateProfileActions();
+
+    private void ApplyProfileButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ProfileApplyRequested?.Invoke(this, EventArgs.Empty);
+
+    private void NewProfileButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ProfileNewRequested?.Invoke(this, EventArgs.Empty);
+
+    private void RenameProfileButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ProfileRenameRequested?.Invoke(this, EventArgs.Empty);
+
+    private void DeleteProfileButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ProfileDeleteRequested?.Invoke(this, EventArgs.Empty);
+
+    private void UpdateProfileActions()
+    {
+        var selected = SelectedProfile is not null;
+        ApplyProfileButton.IsEnabled = selected;
+        RenameProfileButton.IsEnabled = selected;
+        DeleteProfileButton.IsEnabled = selected;
+    }
 
     private void SendHistory_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {

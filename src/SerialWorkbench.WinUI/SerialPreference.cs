@@ -22,6 +22,18 @@ public sealed record SerialPreference(
     int PlotFrameLength,
     int PlotSampleTypeIndex);
 
+public sealed record SerialProfile(
+    string Name,
+    string? PortName,
+    int BaudRate,
+    int DataBits,
+    SerialParity Parity,
+    SerialStopBits StopBits,
+    SerialHandshake Handshake,
+    string EncodingName,
+    bool DtrEnable,
+    bool RtsEnable);
+
 public static class SerialPreferenceStore
 {
     private static readonly string FilePath = Path.Combine(AppContext.BaseDirectory, "data", "settings", "serial-preferences.json");
@@ -89,4 +101,29 @@ public static class WorkspacePreferenceStore
     }
 
     private sealed record Document(string? Path);
+}
+
+public static class SerialProfileStore
+{
+    private static readonly string FilePath = Path.Combine(AppContext.BaseDirectory, "data", "settings", "serial-profiles.json");
+
+    public static IReadOnlyList<SerialProfile> Load()
+    {
+        try
+        {
+            return File.Exists(FilePath)
+                ? JsonSerializer.Deserialize<List<SerialProfile>>(File.ReadAllText(FilePath)) ?? []
+                : [];
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
+    public static void Save(IReadOnlyList<SerialProfile> profiles)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+        File.WriteAllText(FilePath, JsonSerializer.Serialize(profiles));
+    }
 }

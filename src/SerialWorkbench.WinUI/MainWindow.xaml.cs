@@ -143,6 +143,7 @@ public sealed partial class MainWindow : Window
                 throw new InvalidOperationException("请选择串口。");
             }
 
+            var encodingName = workbenchPage?.SelectedEncoding.WebName ?? "utf-8";
             var options = new SerialConnectionOptions(
                 port.PortName,
                 checked((int)(workbenchPage?.BaudRate ?? 115200)),
@@ -151,7 +152,8 @@ public sealed partial class MainWindow : Window
                 workbenchPage?.StopBits ?? SerialStopBits.One,
                 workbenchPage?.Handshake ?? SerialHandshake.None,
                 workbenchPage?.DtrEnable ?? false,
-                workbenchPage?.RtsEnable ?? false);
+                workbenchPage?.RtsEnable ?? false,
+                encodingName);
             SerialPreferenceStore.Save(workbenchPage!.ReadSerialPreference(port.PortName));
             var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(options), CancellationToken.None);
             connectionId = connection.Id;
@@ -397,6 +399,14 @@ public sealed partial class MainWindow : Window
                 page.LoopSendStarted += WorkbenchPage_LoopSendStarted;
                 page.LoopSendStopped -= WorkbenchPage_LoopSendStopped;
                 page.LoopSendStopped += WorkbenchPage_LoopSendStopped;
+                page.ProfileNewRequested -= WorkbenchPage_ProfileNewRequested;
+                page.ProfileNewRequested += WorkbenchPage_ProfileNewRequested;
+                page.ProfileRenameRequested -= WorkbenchPage_ProfileRenameRequested;
+                page.ProfileRenameRequested += WorkbenchPage_ProfileRenameRequested;
+                page.ProfileDeleteRequested -= WorkbenchPage_ProfileDeleteRequested;
+                page.ProfileDeleteRequested += WorkbenchPage_ProfileDeleteRequested;
+                page.ProfileApplyRequested -= WorkbenchPage_ProfileApplyRequested;
+                page.ProfileApplyRequested += WorkbenchPage_ProfileApplyRequested;
                 break;
             case LoopbackPage page:
                 loopbackPage = page;
@@ -543,6 +553,90 @@ public sealed partial class MainWindow : Window
     }
 
     private void WorkbenchPage_LoopSendStopped(object? sender, EventArgs e) => loopSendTimer.Stop();
+
+    private async void WorkbenchPage_ProfileNewRequested(object? sender, EventArgs e)
+    {
+        if (workbenchPage is not { } page)
+        {
+            return;
+        }
+
+        var name = await PromptProfileNameAsync("新建连接配置", "");
+        if (name is null)
+        {
+            return;
+        }
+
+        if (page.Profiles.Any(item => item.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        {
+            ShowError($"连接配置“{name}”已经存在。");
+            return;
+        }
+
+        var profile = page.ReadSerialProfile(name);
+        var profiles = page.Profiles.Append(profile).ToArray();
+        SerialProfileStore.Save(profiles);
+        page.AddProfile(profile);
+    }
+
+    private async void WorkbenchPage_ProfileRenameRequested(object? sender, EventArgs e)
+    {
+        if (workbenchPage is not { } page || page.SelectedProfile is not { } current)
+        {
+            return;
+        }
+
+        var name = await PromptProfileNameAsync("重命名连接配置", current.Name);
+        if (name is null || name.Equals(current.Name, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (page.Profiles.Any(item => item != current && item.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        {
+            ShowError($"连接配置“{name}”已经存在。");
+            return;
+        }
+
+        var renamed = current with { Name = name };
+        var profiles = page.Profiles.Select(item => item == current ? renamed : item).ToArray();
+        SerialProfileStore.Save(profiles);
+        page.ReplaceProfile(renamed);
+    }
+
+    private async void WorkbenchPage_ProfileDeleteRequested(object? sender, EventArgs e)
+    {
+        if (workbenchPage is not { } page || page.SelectedProfile is not { } profile)
+        {
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = page.XamlRoot,
+            Title = "删除连接配置",
+            Content = $"将删除连接配置“{profile.Name}”。当前串口连接不会断开。",
+            PrimaryButtonText = "删除",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        var profiles = page.Profiles.Where(item => item != profile).ToArray();
+        SerialProfileStore.Save(profiles);
+        page.RemoveSelectedProfile();
+    }
+
+    private void WorkbenchPage_ProfileApplyRequested(object? sender, EventArgs e)
+    {
+        if (workbenchPage?.SelectedProfile is { } profile)
+        {
+            workbenchPage.ApplySerialProfile(profile);
+        }
+    }
 
     private async void LoopSendTimer_Tick(object? sender, object e)
     {
@@ -951,6 +1045,43 @@ public sealed partial class MainWindow : Window
         }
 
         await ChangeWorkspaceAsync(folder.Path);
+    }
+
+    private async Task<string?> PromptProfileNameAsync(string title, string initialName)
+    {
+        if (workbenchPage is null)
+        {
+            return null;
+        }
+
+        var editor = new TextBox
+        {
+            Text = initialName,
+            PlaceholderText = "配置名称",
+            MinWidth = 320,
+        };
+        var dialog = new ContentDialog
+        {
+            XamlRoot = workbenchPage.XamlRoot,
+            Title = title,
+            Content = editor,
+            PrimaryButtonText = "确定",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return null;
+        }
+
+        var name = editor.Text.Trim();
+        if (name.Length == 0)
+        {
+            ShowError("配置名称不能为空。");
+            return null;
+        }
+
+        return name;
     }
 
     private async Task ChangeWorkspaceAsync(string? path)
