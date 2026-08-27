@@ -47,6 +47,12 @@ public interface IHostRpc
 
     Task<RpcResult> SendAsync(SendRequest request, CancellationToken cancellationToken);
 
+    Task<RpcResult> SetControlLinesAsync(Guid connectionId, SerialControlLines lines, CancellationToken cancellationToken);
+
+    Task<RpcResult> ClearBuffersAsync(Guid connectionId, bool receive, bool transmit, CancellationToken cancellationToken);
+
+    Task<RpcResult> SendBreakAsync(Guid connectionId, int durationMilliseconds, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<SerialTrafficEvent>> ReadEventsAsync(EventQuery query, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<SessionDescriptor>> ListSessionsAsync(CancellationToken cancellationToken);

@@ -437,6 +437,14 @@ public sealed partial class MainWindow : Window
                 page.ProfileDeleteRequested += WorkbenchPage_ProfileDeleteRequested;
                 page.ProfileApplyRequested -= WorkbenchPage_ProfileApplyRequested;
                 page.ProfileApplyRequested += WorkbenchPage_ProfileApplyRequested;
+                page.ControlLinesChangedRequested -= WorkbenchPage_ControlLinesChangedRequested;
+                page.ControlLinesChangedRequested += WorkbenchPage_ControlLinesChangedRequested;
+                page.ClearReceiveRequested -= WorkbenchPage_ClearReceiveRequested;
+                page.ClearReceiveRequested += WorkbenchPage_ClearReceiveRequested;
+                page.ClearTransmitRequested -= WorkbenchPage_ClearTransmitRequested;
+                page.ClearTransmitRequested += WorkbenchPage_ClearTransmitRequested;
+                page.BreakRequested -= WorkbenchPage_BreakRequested;
+                page.BreakRequested += WorkbenchPage_BreakRequested;
                 break;
             case LoopbackPage page:
                 loopbackPage = page;
@@ -607,6 +615,64 @@ public sealed partial class MainWindow : Window
     }
 
     private void WorkbenchPage_LoopSendStopped(object? sender, EventArgs e) => loopSendTimer.Stop();
+
+    private async void WorkbenchPage_ControlLinesChangedRequested(object? sender, EventArgs e)
+    {
+        if (client is null || connectionId is not { } current || workbenchPage is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await client.SetControlLinesAsync(current, new SerialControlLines(workbenchPage.DtrEnable, workbenchPage.RtsEnable), CancellationToken.None);
+            workbenchPage.ShowSendResult("DTR/RTS 已更新。", InfoBarSeverity.Success);
+        }
+        catch (Exception ex)
+        {
+            workbenchPage.ShowSendResult(ex.Message, InfoBarSeverity.Error);
+        }
+    }
+
+    private async void WorkbenchPage_ClearReceiveRequested(object? sender, EventArgs e) => await ClearSerialBuffersAsync(receive: true, transmit: false);
+
+    private async void WorkbenchPage_ClearTransmitRequested(object? sender, EventArgs e) => await ClearSerialBuffersAsync(receive: false, transmit: true);
+
+    private async void WorkbenchPage_BreakRequested(object? sender, EventArgs e)
+    {
+        if (client is null || connectionId is not { } current || workbenchPage is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await client.SendBreakAsync(current, 100, CancellationToken.None);
+            workbenchPage.ShowSendResult("BREAK 已发送 100 ms。", InfoBarSeverity.Success);
+        }
+        catch (Exception ex)
+        {
+            workbenchPage.ShowSendResult(ex.Message, InfoBarSeverity.Error);
+        }
+    }
+
+    private async Task ClearSerialBuffersAsync(bool receive, bool transmit)
+    {
+        if (client is null || connectionId is not { } current || workbenchPage is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await client.ClearBuffersAsync(current, receive, transmit, CancellationToken.None);
+            workbenchPage.ShowSendResult(receive ? "RX 缓冲区已清空。" : "TX 缓冲区已清空。", InfoBarSeverity.Success);
+        }
+        catch (Exception ex)
+        {
+            workbenchPage.ShowSendResult(ex.Message, InfoBarSeverity.Error);
+        }
+    }
 
     private async void WorkbenchPage_ProfileNewRequested(object? sender, EventArgs e)
     {
@@ -1373,6 +1439,7 @@ public sealed partial class MainWindow : Window
             workbenchPage.BaudRateComboBox.IsEnabled = enabled;
             workbenchPage.MonitorFormat.IsEnabled = enabled;
             workbenchPage.AdvancedExpander.IsEnabled = enabled;
+            workbenchPage.SetControlActionsEnabled(!enabled);
         }
 
         if (client is null)

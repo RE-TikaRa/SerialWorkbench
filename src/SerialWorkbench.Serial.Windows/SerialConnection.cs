@@ -101,6 +101,60 @@ public sealed class SerialConnection : IAsyncDisposable
         }
     }
 
+    public void SetControlLines(SerialControlLines lines)
+    {
+        if (State != ConnectionState.Open)
+        {
+            throw new InvalidOperationException($"Connection {Id} is {State}: {error ?? "no device error was reported"}.");
+        }
+
+        port.DtrEnable = lines.DtrEnable;
+        port.RtsEnable = lines.RtsEnable;
+    }
+
+    public void ClearBuffers(bool receive, bool transmit)
+    {
+        if (State != ConnectionState.Open)
+        {
+            throw new InvalidOperationException($"Connection {Id} is {State}: {error ?? "no device error was reported"}.");
+        }
+
+        if (receive)
+        {
+            port.DiscardInBuffer();
+        }
+
+        if (transmit)
+        {
+            port.DiscardOutBuffer();
+        }
+    }
+
+    public async Task SendBreakAsync(int durationMilliseconds, CancellationToken cancellationToken)
+    {
+        if (durationMilliseconds is < 1 or > 10_000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(durationMilliseconds));
+        }
+
+        if (State != ConnectionState.Open)
+        {
+            throw new InvalidOperationException($"Connection {Id} is {State}: {error ?? "no device error was reported"}.");
+        }
+
+        await writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            port.BreakState = true;
+            await Task.Delay(durationMilliseconds, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            port.BreakState = false;
+            writeGate.Release();
+        }
+    }
+
     public Subscription Subscribe()
     {
         var id = Guid.NewGuid();

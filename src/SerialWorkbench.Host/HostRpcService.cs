@@ -76,6 +76,24 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
         return new RpcResult(true);
     }
 
+    public async Task<RpcResult> SetControlLinesAsync(Guid connectionId, SerialControlLines lines, CancellationToken cancellationToken)
+    {
+        await runtime.Connections.SetControlLinesAsync(connectionId, lines, cancellationToken).ConfigureAwait(false);
+        return new RpcResult(true);
+    }
+
+    public async Task<RpcResult> ClearBuffersAsync(Guid connectionId, bool receive, bool transmit, CancellationToken cancellationToken)
+    {
+        await runtime.Connections.ClearBuffersAsync(connectionId, receive, transmit, cancellationToken).ConfigureAwait(false);
+        return new RpcResult(true);
+    }
+
+    public async Task<RpcResult> SendBreakAsync(Guid connectionId, int durationMilliseconds, CancellationToken cancellationToken)
+    {
+        await runtime.Connections.SendBreakAsync(connectionId, durationMilliseconds, cancellationToken).ConfigureAwait(false);
+        return new RpcResult(true);
+    }
+
     public Task<IReadOnlyList<SerialTrafficEvent>> ReadEventsAsync(EventQuery query, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

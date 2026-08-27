@@ -103,6 +103,15 @@ public sealed class HostRpcClient : IHostRpc, IAsyncDisposable
     public Task<RpcResult> SendAsync(SendRequest request, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<RpcResult>(nameof(SendAsync), [request], cancellationToken);
 
+    public Task<RpcResult> SetControlLinesAsync(Guid connectionId, SerialControlLines lines, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<RpcResult>(nameof(SetControlLinesAsync), [connectionId, lines], cancellationToken);
+
+    public Task<RpcResult> ClearBuffersAsync(Guid connectionId, bool receive, bool transmit, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<RpcResult>(nameof(ClearBuffersAsync), [connectionId, receive, transmit], cancellationToken);
+
+    public Task<RpcResult> SendBreakAsync(Guid connectionId, int durationMilliseconds, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<RpcResult>(nameof(SendBreakAsync), [connectionId, durationMilliseconds], cancellationToken);
+
     public Task<IReadOnlyList<SerialTrafficEvent>> ReadEventsAsync(EventQuery query, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<IReadOnlyList<SerialTrafficEvent>>(nameof(ReadEventsAsync), [query], cancellationToken);
 

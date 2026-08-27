@@ -70,6 +70,8 @@ public sealed record ConnectionSnapshot(
     DateTimeOffset? LastActivityUtc,
     string? Error);
 
+public sealed record SerialControlLines(bool DtrEnable, bool RtsEnable);
+
 public sealed record SerialTrafficEvent(
     long Sequence,
     DateTimeOffset Utc,

@@ -59,6 +59,29 @@ public sealed class SerialConnectionManager(
         await connection.SendAsync(data, source, cancellationToken).ConfigureAwait(false);
     }
 
+    public Task SetControlLinesAsync(Guid id, SerialControlLines lines, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var connection = Get(id);
+        connection.SetControlLines(lines);
+        return Task.CompletedTask;
+    }
+
+    public Task ClearBuffersAsync(Guid id, bool receive, bool transmit, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var connection = Get(id);
+        connection.ClearBuffers(receive, transmit);
+        return Task.CompletedTask;
+    }
+
+    public async Task SendBreakAsync(Guid id, int durationMilliseconds, CancellationToken cancellationToken)
+    {
+        var connection = Get(id);
+        await using var lease = leases.Acquire(id, "break");
+        await connection.SendBreakAsync(durationMilliseconds, cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<LoopbackResult> RunLoopbackAsync(LoopbackRequest request, CancellationToken cancellationToken)
     {
         if (request.PayloadLength is < 1 or > 16 * 1024 * 1024)

@@ -44,6 +44,10 @@ public sealed partial class WorkbenchPage : Page
     public event EventHandler? ProfileRenameRequested;
     public event EventHandler? ProfileDeleteRequested;
     public event EventHandler? ProfileApplyRequested;
+    public event EventHandler? ControlLinesChangedRequested;
+    public event EventHandler? ClearReceiveRequested;
+    public event EventHandler? ClearTransmitRequested;
+    public event EventHandler? BreakRequested;
 
     public void BindRows(ObservableCollection<TrafficRow> rows)
     {
@@ -208,6 +212,10 @@ public sealed partial class WorkbenchPage : Page
     private void RenameProfileButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ProfileRenameRequested?.Invoke(this, EventArgs.Empty);
 
     private void DeleteProfileButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ProfileDeleteRequested?.Invoke(this, EventArgs.Empty);
+    private void ControlLineCheckBox_Changed(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ControlLinesChangedRequested?.Invoke(this, EventArgs.Empty);
+    private void ClearReceiveButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ClearReceiveRequested?.Invoke(this, EventArgs.Empty);
+    private void ClearTransmitButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ClearTransmitRequested?.Invoke(this, EventArgs.Empty);
+    private void BreakButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => BreakRequested?.Invoke(this, EventArgs.Empty);
 
     private void UpdateProfileActions()
     {
@@ -250,6 +258,14 @@ public sealed partial class WorkbenchPage : Page
     public bool IsLoopSending => LoopSendToggle.IsChecked == true;
     public void StopLoopSend() => LoopSendToggle.IsChecked = false;
     public void SetConnectionBusy(bool busy) => ConnectButton.IsEnabled = !busy;
+    public void SetControlActionsEnabled(bool enabled)
+    {
+        DtrCheckBox.IsEnabled = enabled;
+        RtsCheckBox.IsEnabled = enabled;
+        ClearReceiveButton.IsEnabled = enabled;
+        ClearTransmitButton.IsEnabled = enabled;
+        BreakButton.IsEnabled = enabled;
+    }
     public void SetConnectionStatus(string status) => ConnectionStatusText.Text = status;
     public void SetTrafficCounts(long received, long transmitted) => CountersText.Text = $"RX {received:N0} · TX {transmitted:N0}";
     public void SetSending(bool sending) => SendButton.IsEnabled = !sending;
