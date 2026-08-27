@@ -19,7 +19,7 @@ SerialWorkbench 是面向 Windows 11 的串口调试工作台。它把串口连�
 - 编辑、保存、运行和取消多步骤自动化发送序列。
 - 使用 XMODEM-CRC 发送和接收文件，显示块数、重试次数、速度和错误。
 - 保存独立的 SQLite 会话文件，查看完整事件、导出 CSV 和按原始时间间隔回放。
-- 通过 CLI 执行端口枚举、工作区管理、发送、监视、回环和 Modbus 操作。
+- 通过 CLI 执行端口枚举、工作区管理、会话查询与导出、发送、监视、回环、Modbus 和 XMODEM 操作。
 
 所有功能共享 Host 的串口连接和写入租约。原始字节先写入事件和会话，再派生为文本、HEX、波形或协议结果。
 
@@ -275,6 +275,40 @@ HEX 发送：
 ```
 
 Modbus JSON 结果包含请求帧、响应帧、功能码、寄存器、地址、寄存器值、异常码、耗时和错误信息。
+
+### 会话
+
+列出会话：
+
+```powershell
+.\serial-workbench.exe sessions list --output json
+```
+
+查看会话的完整事件和回环统计：
+
+```powershell
+.\serial-workbench.exe sessions show --id SESSION_ID --output json
+```
+
+导出会话 CSV：
+
+```powershell
+.\serial-workbench.exe sessions export --id SESSION_ID --file E:\Exports\session.csv --output json
+```
+
+### XMODEM
+
+发送文件和接收文件需要两个独立串口端点。两端应使用相同的串口参数，并交叉连接 TX、RX 和 GND：
+
+```powershell
+# 终端 1：先启动发送端，使其等待接收端的 C
+.\serial-workbench.exe xmodem send --port COM19 --baud 115200 --file E:\Transfers\payload.bin --output json
+
+# 终端 2：再启动接收端
+.\serial-workbench.exe xmodem receive --port COM18 --baud 115200 --file E:\Transfers\received.bin --output json
+```
+
+测试时先启动发送任务，再启动接收任务，使发送端先进入等待 `C` 的状态。XMODEM 发送和接收使用独占连接写入租约，不会与同一连接上的普通发送并行执行。
 
 ## CLI 输出和退出码
 
