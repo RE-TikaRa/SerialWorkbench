@@ -14,9 +14,22 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
     private long eventCount;
     private long rawByteCount;
 
-    public SessionDescriptor? ActiveSession => descriptor is null
+    public SessionDescriptor? ActiveSession => connection is null || descriptor is null
         ? null
         : descriptor with { EventCount = eventCount, RawByteCount = rawByteCount };
+
+    public async Task EnsureSessionAsync(CancellationToken cancellationToken)
+    {
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await EnsureOpenAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
 
     public async Task<IReadOnlyList<SessionDescriptor>> ListAsync(CancellationToken cancellationToken)
     {

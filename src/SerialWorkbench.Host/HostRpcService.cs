@@ -43,13 +43,30 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
     public Task<IReadOnlyList<SerialPortDescriptor>> ListPortsAsync(CancellationToken cancellationToken) =>
         SerialPortCatalog.GetPortsAsync(cancellationToken);
 
-    public Task<ConnectionSnapshot> OpenConnectionAsync(OpenConnectionRequest request, CancellationToken cancellationToken) =>
-        runtime.Connections.OpenAsync(request.Options, cancellationToken);
+    public async Task<ConnectionSnapshot> OpenConnectionAsync(OpenConnectionRequest request, CancellationToken cancellationToken)
+    {
+        var connection = await runtime.Connections.OpenAsync(request.Options, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await runtime.Sessions.EnsureSessionAsync(cancellationToken).ConfigureAwait(false);
+            return connection;
+        }
+        catch
+        {
+            await runtime.Connections.CloseAsync(connection.Id).ConfigureAwait(false);
+            throw;
+        }
+    }
 
     public async Task<RpcResult> CloseConnectionAsync(Guid connectionId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         await runtime.Connections.CloseAsync(connectionId).ConfigureAwait(false);
+        if (runtime.Connections.GetSnapshots().Count == 0)
+        {
+            await runtime.Sessions.CompleteAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         return new RpcResult(true);
     }
 

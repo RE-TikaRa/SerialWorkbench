@@ -80,6 +80,28 @@ public sealed class StorageAndSessionTests
     }
 
     [Fact]
+    public async Task EmptySessionIsVisibleOnlyWhileOpen()
+    {
+        var applicationRoot = CreateArtifactDirectory("empty-session-lifecycle-app");
+        var paths = new ApplicationPaths(applicationRoot);
+        paths.EnsureWritable();
+        await using var store = new SessionStore(paths);
+
+        await store.EnsureSessionAsync(TestContext.Current.CancellationToken);
+
+        Assert.NotNull(store.ActiveSession);
+        var sessionId = store.ActiveSession!.Id;
+        await store.CompleteAsync(TestContext.Current.CancellationToken);
+
+        Assert.Null(store.ActiveSession);
+        var session = Assert.Single(await store.ListAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(sessionId, session.Id);
+        Assert.Equal(0, session.EventCount);
+        Assert.Equal(0, session.RawByteCount);
+        Assert.NotNull(session.EndedUtc);
+    }
+
+    [Fact]
     public async Task SessionCsvExportPreservesUtcSourceAndRawBytes()
     {
         var applicationRoot = CreateArtifactDirectory("session-export-app");
