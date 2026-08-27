@@ -85,6 +85,17 @@ public sealed class ProtocolTests
     }
 
     [Fact]
+    public void ModbusWriteSingleRegisterResponseAcceptsFullValueRange()
+    {
+        var frame = WithModbusCrc([0x01, 0x06, 0xFF, 0xFF, 0xFF, 0xFF]);
+
+        var result = ModbusRtuCodec.ParseWriteSingleRegisterResponse(frame, 1);
+
+        Assert.Equal(ushort.MaxValue, result.Address);
+        Assert.Equal(ushort.MaxValue, result.Value);
+    }
+
+    [Fact]
     public void ModbusFrameInspectionReportsFieldsAndCrc()
     {
         var frame = WithModbusCrc([0x01, 0x03, 0x02, 0x00, 0x0A]);

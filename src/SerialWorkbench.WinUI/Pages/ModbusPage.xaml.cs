@@ -74,6 +74,16 @@ public sealed partial class ModbusPage : Page
         if (Quantity is not null)
         {
             Quantity.Header = FunctionValue == 6 ? "寄存器值" : "数量";
+            Quantity.Minimum = FunctionValue == 6 ? 0 : 1;
+            Quantity.Maximum = FunctionValue == 6 ? ushort.MaxValue : 125;
+            if (FunctionValue == 6 && Quantity.Value is < 0)
+            {
+                Quantity.Value = 0;
+            }
+            else if (FunctionValue != 6 && Quantity.Value is > 125)
+            {
+                Quantity.Value = 125;
+            }
         }
 
         UpdatePreview();
@@ -141,7 +151,15 @@ public sealed partial class ModbusPage : Page
         try
         {
             var frame = HexCodec.Parse(ResponseInput.Text);
-            var registers = ModbusRtuCodec.ParseRegisterResponse(frame, (byte)SlaveAddress.Value, FunctionValue == 6 ? (byte)6 : FunctionValue);
+            if (FunctionValue == 6)
+            {
+                var result = ModbusRtuCodec.ParseWriteSingleRegisterResponse(frame, (byte)SlaveAddress.Value);
+                RegisterList.ItemsSource = new[] { new RegisterRow($"0x{result.Address:X4}", $"0x{result.Value:X4}", result.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)) };
+                ShowResult("已解析写单寄存器响应。", InfoBarSeverity.Success);
+                return;
+            }
+
+            var registers = ModbusRtuCodec.ParseRegisterResponse(frame, (byte)SlaveAddress.Value, FunctionValue);
             RegisterList.ItemsSource = registers
                 .Select((value, index) => new RegisterRow($"[{index}]", $"0x{value:X4}", value.ToString(System.Globalization.CultureInfo.InvariantCulture)))
                 .ToArray();
