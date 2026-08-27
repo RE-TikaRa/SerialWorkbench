@@ -23,6 +23,8 @@ public sealed class SerialConnection : IAsyncDisposable
     private long errorCount;
     private long lastActivityUnixMilliseconds;
     private string? error;
+    private bool dtrEnable;
+    private bool rtsEnable;
 
     public SerialConnection(
         Guid id,
@@ -34,6 +36,8 @@ public sealed class SerialConnection : IAsyncDisposable
         Options = options;
         this.journal = journal;
         this.persist = persist;
+        dtrEnable = options.DtrEnable;
+        rtsEnable = options.RtsEnable;
         port = new SerialPort(options.PortName, options.BaudRate, Convert(options.Parity), options.DataBits, Convert(options.StopBits))
         {
             Handshake = Convert(options.Handshake),
@@ -110,6 +114,8 @@ public sealed class SerialConnection : IAsyncDisposable
 
         port.DtrEnable = lines.DtrEnable;
         port.RtsEnable = lines.RtsEnable;
+        dtrEnable = lines.DtrEnable;
+        rtsEnable = lines.RtsEnable;
     }
 
     public void ClearBuffers(bool receive, bool transmit)
@@ -173,7 +179,7 @@ public sealed class SerialConnection : IAsyncDisposable
         var milliseconds = Interlocked.Read(ref lastActivityUnixMilliseconds);
         return new ConnectionSnapshot(
             Id,
-            Options,
+            Options with { DtrEnable = dtrEnable, RtsEnable = rtsEnable },
             State,
             Interlocked.Read(ref receivedBytes),
             Interlocked.Read(ref transmittedBytes),
