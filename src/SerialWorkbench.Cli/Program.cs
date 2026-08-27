@@ -78,6 +78,12 @@ static async Task<int> RunAsync(IHostRpc client, Arguments arguments, string out
         case "workspace clear":
             WriteResult(output, "workspace.clear", await client.SetWorkspaceAsync(new SetWorkspaceRequest(null), cancellationToken).ConfigureAwait(false));
             return 0;
+        case "sessions list":
+            return await ListSessionsAsync(client, output, cancellationToken).ConfigureAwait(false);
+        case "sessions show":
+            return await ShowSessionAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
+        case "sessions export":
+            return await ExportSessionAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "send":
         case "send ":
             return await SendAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
@@ -90,11 +96,122 @@ static async Task<int> RunAsync(IHostRpc client, Arguments arguments, string out
             return await ModbusReadAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "modbus write":
             return await ModbusWriteAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
+        case "xmodem send":
+            return await XmodemSendAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
+        case "xmodem receive":
+            return await XmodemReceiveAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         default:
             WriteError(output, "SWB-ARGUMENT", $"Unknown command: {string.Join(' ', arguments.Positionals)}");
             return 2;
     }
 }
+
+static async Task<int> ListSessionsAsync(IHostRpc client, string output, CancellationToken cancellationToken)
+{
+    var sessions = await client.ListSessionsAsync(cancellationToken).ConfigureAwait(false);
+    WriteResult(output, "sessions.list", sessions);
+    return 0;
+}
+
+static async Task<int> ShowSessionAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+{
+    var sessionId = ParseGuid(arguments.Get("--id"), "--id");
+    var sessions = await client.ListSessionsAsync(cancellationToken).ConfigureAwait(false);
+    var session = sessions.SingleOrDefault(item => item.Id == sessionId)
+        ?? throw new KeyNotFoundException($"Session {sessionId:D} does not exist.");
+    var events = await client.ReadAllSessionEventsAsync(sessionId, cancellationToken).ConfigureAwait(false);
+    var loopbacks = await client.ReadLoopbackResultsAsync(sessionId, cancellationToken).ConfigureAwait(false);
+    WriteResult(output, "sessions.show", new { session, events, loopbacks });
+    return 0;
+}
+
+static async Task<int> ExportSessionAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+{
+    var sessionId = ParseGuid(arguments.Get("--id"), "--id");
+    var path = arguments.Get("--file") ?? throw new ArgumentException("sessions export requires --file.");
+    var csv = await client.ExportSessionCsvAsync(sessionId, cancellationToken).ConfigureAwait(false);
+    await File.WriteAllTextAsync(path, csv, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), cancellationToken).ConfigureAwait(false);
+    WriteResult(output, "sessions.export", new { sessionId, path, bytes = Encoding.UTF8.GetByteCount(csv) });
+    return 0;
+}
+
+static async Task<int> XmodemSendAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+{
+    var path = arguments.Get("--file") ?? throw new ArgumentException("xmodem send requires --file.");
+    var data = await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
+    var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
+    try
+    {
+        var result = await client.SendXmodemAsync(connection.Id, data, cancellationToken).ConfigureAwait(false);
+        WriteTransferResult(output, "xmodem.send", path, result);
+        return TransferExitCode(result);
+    }
+    finally
+    {
+        await client.CloseConnectionAsync(connection.Id, CancellationToken.None).ConfigureAwait(false);
+    }
+}
+
+static async Task<int> XmodemReceiveAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+{
+    var path = arguments.Get("--file") ?? throw new ArgumentException("xmodem receive requires --file.");
+    var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
+    try
+    {
+        var result = await client.ReceiveXmodemAsync(connection.Id, cancellationToken).ConfigureAwait(false);
+        if (result.Result.Success)
+        {
+            await File.WriteAllBytesAsync(path, result.Data, cancellationToken).ConfigureAwait(false);
+        }
+
+        WriteTransferResult(output, "xmodem.receive", path, result.Result, result.Data.Length);
+        return TransferExitCode(result.Result);
+    }
+    finally
+    {
+        await client.CloseConnectionAsync(connection.Id, CancellationToken.None).ConfigureAwait(false);
+    }
+}
+
+static void WriteTransferResult(string output, string command, string path, XmodemTransferResult result, int? receivedBytes = null)
+{
+    var value = new
+    {
+        path,
+        success = result.Success,
+        bytesTransferred = result.BytesTransferred,
+        receivedBytes,
+        blocks = result.Blocks,
+        retries = result.Retries,
+        durationMilliseconds = result.Duration.TotalMilliseconds,
+        error = result.Error,
+    };
+
+    if (output is "json" or "jsonl")
+    {
+        WriteResult(output, command, value);
+        return;
+    }
+
+    Console.WriteLine($"File: {path}");
+    Console.WriteLine($"Result: {(result.Success ? "success" : "failed")}");
+    Console.WriteLine($"Bytes: {result.BytesTransferred:N0}");
+    Console.WriteLine($"Blocks: {result.Blocks:N0}");
+    Console.WriteLine($"Retries: {result.Retries:N0}");
+    Console.WriteLine($"Duration: {result.Duration.TotalMilliseconds:N0} ms");
+    if (result.Error is { } error)
+    {
+        Console.WriteLine($"Error: {error}");
+    }
+}
+
+static int TransferExitCode(XmodemTransferResult result) => result.Success
+    ? 0
+    : result.Error?.Contains("timed out", StringComparison.OrdinalIgnoreCase) == true ? 4 : 3;
+
+static Guid ParseGuid(string? value, string name) => Guid.TryParse(value, out var result)
+    ? result
+    : throw new ArgumentException($"{name} is required and must be a valid GUID.");
 
 static async Task<int> SendAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
 {
@@ -388,11 +505,16 @@ static void PrintHelp()
         serial-workbench host status|stop
         serial-workbench workspace show|clear
         serial-workbench workspace set --path PATH
+        serial-workbench sessions list|show|export
+        serial-workbench sessions show --id SESSION_ID [--output json]
+        serial-workbench sessions export --id SESSION_ID --file PATH
         serial-workbench send --port <port> (--text TEXT | --hex HEX) [--baud 115200]
         serial-workbench monitor --port <port> [--seconds 10] [--output text|jsonl]
         serial-workbench loopback run --port <port> [--baud 115200] [--length 4096] [--iterations 1]
         serial-workbench modbus read --port <port> --slave 1 --address 0 --quantity 1 [--function 3]
         serial-workbench modbus write --port <port> --slave 1 --address 0 --value 0
+        serial-workbench xmodem send --port <port> --file PATH [--baud 115200]
+        serial-workbench xmodem receive --port <port> --file PATH [--baud 115200]
         """);
 }
 

@@ -116,7 +116,7 @@ internal static class XmodemCrc
                 }
 
                 var frame = await ReadBytesWithTimeoutAsync(reader, 132, TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
-                if (frame[0] == MetadataBlock && frame[1] == 0xFF && TryReadMetadata(frame.AsSpan(2, 128), out var length))
+                if (frame[0] == MetadataBlock && frame[1] == 0xFF && IsValidFrame(frame) && TryReadMetadata(frame.AsSpan(2, 128), out var length))
                 {
                     expectedLength = length;
                     await connection.SendAsync(new byte[] { Ack }, "xmodem.receive", cancellationToken).ConfigureAwait(false);
