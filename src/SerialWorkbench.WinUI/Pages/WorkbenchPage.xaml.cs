@@ -268,6 +268,12 @@ public sealed partial class WorkbenchPage : Page
     }
     public void SetConnectionStatus(string status) => ConnectionStatusText.Text = status;
     public void SetTrafficCounts(long received, long transmitted) => CountersText.Text = $"RX {received:N0} · TX {transmitted:N0}";
+    public void SetPauseState(bool paused, long pendingBytes)
+    {
+        PauseButton.Content = paused
+            ? pendingBytes > 0 ? $"继续 · {FormatBytes(pendingBytes)}" : "继续"
+            : "暂停";
+    }
     public void SetSending(bool sending) => SendButton.IsEnabled = !sending;
     public void ShowSendResult(string message, InfoBarSeverity severity)
     {
@@ -276,6 +282,13 @@ public sealed partial class WorkbenchPage : Page
         SendStatus.Severity = severity;
         SendStatus.IsOpen = true;
     }
+
+    private static string FormatBytes(long value) => value switch
+    {
+        >= 1024 * 1024 => $"{value / 1024d / 1024d:N1} MiB",
+        >= 1024 => $"{value / 1024d:N1} KiB",
+        _ => $"{value:N0} B",
+    };
 
     public void AppendWaveform(byte[] data)
     {

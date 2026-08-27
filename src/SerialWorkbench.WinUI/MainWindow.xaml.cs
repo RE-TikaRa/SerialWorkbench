@@ -25,6 +25,8 @@ public sealed partial class MainWindow : Window
     private Guid? connectionId;
     private long lastSequence;
     private bool paused;
+    private long pauseBaselineBytes;
+    private long currentTrafficBytes;
     private bool polling;
     private bool portRefreshing;
     private Decoder? textDecoder;
@@ -341,7 +343,15 @@ public sealed partial class MainWindow : Window
 
         var status = await client.GetStatusAsync(CancellationToken.None);
         var connection = status.Connections.FirstOrDefault(item => item.Id == connectionId);
+        if (connectionId is { } current && (connection is null || connection.State is ConnectionState.Faulted or ConnectionState.Closed))
+        {
+            await HandleConnectionFaultAsync(current, connection?.Error).ConfigureAwait(true);
+            connection = null;
+        }
+
         workbenchPage?.SetTrafficCounts(connection?.ReceivedBytes ?? 0, connection?.TransmittedBytes ?? 0);
+        currentTrafficBytes = (connection?.ReceivedBytes ?? 0) + (connection?.TransmittedBytes ?? 0);
+        workbenchPage?.SetPauseState(paused, paused ? Math.Max(0, currentTrafficBytes - pauseBaselineBytes) : 0);
         activeSessionId = status.ActiveSession?.Id;
         workspaceSelected = status.WorkspaceRoot is not null;
         workspacePath = status.WorkspaceRoot is null ? $"全局数据：{status.DataRoot}" : $"工作区：{status.WorkspaceRoot}";
@@ -351,10 +361,43 @@ public sealed partial class MainWindow : Window
     private void PauseButton_Click(object sender, RoutedEventArgs e)
     {
         paused = !paused;
+        if (paused)
+        {
+            pauseBaselineBytes = currentTrafficBytes;
+        }
+
+        workbenchPage?.SetPauseState(paused, 0);
+    }
+
+    private async Task HandleConnectionFaultAsync(Guid current, string? error)
+    {
+        loopbackCancel?.Invoke();
+        sequenceCancel?.Invoke();
+        workbenchPage?.StopLoopSend();
+        try
+        {
+            await client!.CloseConnectionAsync(current, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex);
+        }
+
+        connectionId = null;
+        textDecoder = null;
+        currentTrafficBytes = 0;
+        pauseBaselineBytes = 0;
+        paused = false;
         if (workbenchPage is not null)
         {
-            workbenchPage.PauseButton.Content = paused ? "继续" : "暂停";
+            workbenchPage.ConnectButton.Content = "连接";
+            workbenchPage.SetConnectionStatus("串口已断开");
+            workbenchPage.SetTrafficCounts(0, 0);
+            workbenchPage.SetPauseState(false, 0);
         }
+
+        SetSerialConfigurationEnabled(true);
+        ShowMessage("串口已断开", error ?? "设备连接已经结束。", InfoBarSeverity.Warning);
     }
 
     private void ClearButton_Click(object sender, RoutedEventArgs e)
@@ -525,6 +568,7 @@ public sealed partial class MainWindow : Window
         }
 
         await RefreshPortsAsync();
+        await RefreshStatusAsync();
     }
 
     private async Task RefreshPortsAsync()
@@ -1447,14 +1491,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        if (enabled)
-        {
-            portRefreshTimer.Start();
-        }
-        else
-        {
-            portRefreshTimer.Stop();
-        }
+        portRefreshTimer.Start();
     }
 
     private void UpdateTrafficPresentation()
