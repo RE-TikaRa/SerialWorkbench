@@ -112,6 +112,8 @@ static async Task<int> RunAsync(IHostRpc client, Arguments arguments, string out
             return await XmodemSendAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "xmodem receive":
             return await XmodemReceiveAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
+        case "protocol inspect":
+            return InspectProtocol(arguments, output);
         default:
             WriteError(output, "SWB-ARGUMENT", $"Unknown command: {string.Join(' ', arguments.Positionals)}");
             return 2;
@@ -192,6 +194,57 @@ static async Task<int> XmodemReceiveAsync(IHostRpc client, Arguments arguments, 
         await client.CloseConnectionAsync(connection.Id, CancellationToken.None).ConfigureAwait(false);
     }
 }
+
+static int InspectProtocol(Arguments arguments, string output)
+{
+    var frame = HexCodec.Parse(arguments.Get("--hex") ?? throw new ArgumentException("protocol inspect requires --hex."));
+    var inspection = ModbusRtuCodec.Inspect(frame);
+    var value = new
+    {
+        valid = inspection.IsValid,
+        kind = inspection.Kind,
+        address = inspection.Address,
+        functionCode = inspection.FunctionCode,
+        exceptionCode = inspection.ExceptionCode,
+        frameLength = inspection.FrameLength,
+        expectedLength = inspection.ExpectedLength,
+        byteCount = inspection.ByteCount,
+        dataAddress = inspection.DataAddress,
+        registerValue = inspection.Value,
+        calculatedCrc = inspection.CalculatedCrc,
+        actualCrc = inspection.ActualCrc,
+        error = inspection.Error,
+    };
+
+    if (output is "json" or "jsonl")
+    {
+        WriteResult(output, "protocol.inspect", value);
+    }
+    else
+    {
+        Console.WriteLine($"Kind: {value.kind}");
+        Console.WriteLine($"Valid: {value.valid}");
+        Console.WriteLine($"Address: {FormatByte(value.address)}");
+        Console.WriteLine($"Function: {FormatByte(value.functionCode)}");
+        Console.WriteLine($"Length: {value.frameLength} / {value.expectedLength?.ToString(CultureInfo.InvariantCulture) ?? "?"}");
+        Console.WriteLine($"CRC: {FormatUShort(value.calculatedCrc)} / {FormatUShort(value.actualCrc)}");
+        if (value.exceptionCode is { } exceptionCode)
+        {
+            Console.WriteLine($"Exception: 0x{exceptionCode:X2}");
+        }
+
+        if (value.error is { } error)
+        {
+            Console.WriteLine($"Error: {error}");
+        }
+    }
+
+    return value.valid ? 0 : 1;
+}
+
+static string FormatByte(byte? value) => value is { } item ? $"0x{item:X2}" : "(none)";
+
+static string FormatUShort(ushort? value) => value is { } item ? $"0x{item:X4}" : "(none)";
 
 static void WriteTransferResult(string output, string command, string path, XmodemTransferResult result, int? receivedBytes = null)
 {
@@ -536,6 +589,7 @@ static void PrintHelp()
         serial-workbench modbus write --port <port> --slave 1 --address 0 --value 0
         serial-workbench xmodem send --port <port> --file PATH [--baud 115200]
         serial-workbench xmodem receive --port <port> --file PATH [--baud 115200]
+        serial-workbench protocol inspect --hex HEX [--output text|json]
         """);
 }
 

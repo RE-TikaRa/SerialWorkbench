@@ -277,6 +277,16 @@ HEX 发送：
 
 Modbus JSON 结果包含请求帧、响应帧、功能码、寄存器、地址、寄存器值、异常码、耗时和错误信息。
 
+### 协议解析
+
+使用与 WinUI 协议帧查看器相同的 Modbus RTU 解析器：
+
+```powershell
+.\serial-workbench.exe protocol inspect --hex "01 03 02 00 0A 38 43" --output json
+```
+
+命令会返回地址、功能码、帧长、CRC、异常码和解析失败原因。解析失败时退出码为 `1`，原始 HEX 不会被修改。
+
 ### 会话
 
 列出会话：
