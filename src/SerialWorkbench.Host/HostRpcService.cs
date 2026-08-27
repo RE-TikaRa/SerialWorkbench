@@ -64,6 +64,7 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
         await runtime.Connections.CloseAsync(connectionId).ConfigureAwait(false);
         if (runtime.Connections.GetSnapshots().Count == 0)
         {
+            await runtime.FlushSessionEventsAsync(cancellationToken).ConfigureAwait(false);
             await runtime.Sessions.CompleteAsync(cancellationToken).ConfigureAwait(false);
         }
 

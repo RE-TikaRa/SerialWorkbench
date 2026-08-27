@@ -293,26 +293,43 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
 
     public async ValueTask AppendAsync(SerialTrafficEvent item, CancellationToken cancellationToken)
     {
+        await AppendManyAsync([item], cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask AppendManyAsync(IReadOnlyList<SerialTrafficEvent> items, CancellationToken cancellationToken)
+    {
+        if (items.Count == 0)
+        {
+            return;
+        }
+
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             await EnsureOpenAsync(cancellationToken).ConfigureAwait(false);
-            await using var command = connection!.CreateCommand();
-            command.CommandText = """
-                INSERT INTO events(sequence, utc, monotonic_ticks, connection_id, direction, source, message, data)
-                VALUES ($sequence, $utc, $monotonicTicks, $connectionId, $direction, $source, $message, $data);
-                """;
-            command.Parameters.AddWithValue("$sequence", item.Sequence);
-            command.Parameters.AddWithValue("$utc", item.Utc.ToString("O"));
-            command.Parameters.AddWithValue("$monotonicTicks", item.MonotonicTicks);
-            command.Parameters.AddWithValue("$connectionId", item.ConnectionId.ToString("D"));
-            command.Parameters.AddWithValue("$direction", item.Direction.ToString());
-            command.Parameters.AddWithValue("$source", item.Source);
-            command.Parameters.AddWithValue("$message", (object?)item.Message ?? DBNull.Value);
-            command.Parameters.Add("$data", SqliteType.Blob).Value = item.Data;
-            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            eventCount++;
-            rawByteCount += item.Data.LongLength;
+            await using var transaction = (SqliteTransaction)await connection!.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var item in items)
+            {
+                await using var command = connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = """
+                    INSERT INTO events(sequence, utc, monotonic_ticks, connection_id, direction, source, message, data)
+                    VALUES ($sequence, $utc, $monotonicTicks, $connectionId, $direction, $source, $message, $data);
+                    """;
+                command.Parameters.AddWithValue("$sequence", item.Sequence);
+                command.Parameters.AddWithValue("$utc", item.Utc.ToString("O"));
+                command.Parameters.AddWithValue("$monotonicTicks", item.MonotonicTicks);
+                command.Parameters.AddWithValue("$connectionId", item.ConnectionId.ToString("D"));
+                command.Parameters.AddWithValue("$direction", item.Direction.ToString());
+                command.Parameters.AddWithValue("$source", item.Source);
+                command.Parameters.AddWithValue("$message", (object?)item.Message ?? DBNull.Value);
+                command.Parameters.Add("$data", SqliteType.Blob).Value = item.Data;
+                await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            eventCount += items.Count;
+            rawByteCount += items.Sum(static item => item.Data.LongLength);
         }
         finally
         {

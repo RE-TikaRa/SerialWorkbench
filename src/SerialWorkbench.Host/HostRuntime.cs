@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using SerialWorkbench.Application;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Ipc;
@@ -10,6 +11,12 @@ namespace SerialWorkbench.Host;
 public sealed class HostRuntime : IAsyncDisposable
 {
     private readonly CancellationTokenSource stopping = new();
+    private readonly Channel<SerialTrafficEvent> sessionEvents = Channel.CreateUnbounded<SerialTrafficEvent>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
+    private readonly Task sessionWriter;
+    private readonly object sessionQueueGate = new();
+    private TaskCompletionSource<bool> sessionFlushed = CompletedSignal();
+    private long pendingSessionEvents;
+    private Exception? sessionWriterError;
     private int clientCount;
     private long idleSinceUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
@@ -20,6 +27,7 @@ public sealed class HostRuntime : IAsyncDisposable
         Leases = new WriteLeaseManager();
         Sessions = new SessionStore(paths);
         Connections = new SerialConnectionManager(Journal, Leases, PersistAsync);
+        sessionWriter = Task.Run(WriteSessionEventsAsync);
     }
 
     public ApplicationPaths Paths { get; private set; }
@@ -35,6 +43,8 @@ public sealed class HostRuntime : IAsyncDisposable
     public CancellationToken Stopping => stopping.Token;
 
     public int ClientCount => Volatile.Read(ref clientCount);
+
+    public long PendingSessionEvents => Interlocked.Read(ref pendingSessionEvents);
 
     public void ClientConnected()
     {
@@ -73,6 +83,7 @@ public sealed class HostRuntime : IAsyncDisposable
 
         var nextPaths = Paths.WithWorkspace(workspaceRoot);
         nextPaths.EnsureWritable();
+        await FlushSessionEventsAsync(cancellationToken).ConfigureAwait(false);
         await Sessions.DisposeAsync().ConfigureAwait(false);
         Paths = nextPaths;
         Sessions = new SessionStore(nextPaths);
@@ -82,9 +93,109 @@ public sealed class HostRuntime : IAsyncDisposable
     {
         stopping.Cancel();
         await Connections.DisposeAsync().ConfigureAwait(false);
+        await FlushSessionEventsAsync(CancellationToken.None).ConfigureAwait(false);
+        sessionEvents.Writer.TryComplete();
+        await sessionWriter.ConfigureAwait(false);
         await Sessions.DisposeAsync().ConfigureAwait(false);
         stopping.Dispose();
     }
 
-    private ValueTask PersistAsync(SerialTrafficEvent item, CancellationToken cancellationToken) => Sessions.AppendAsync(item, cancellationToken);
+    public async Task FlushSessionEventsAsync(CancellationToken cancellationToken)
+    {
+        Task flushTask;
+        lock (sessionQueueGate)
+        {
+            flushTask = sessionFlushed.Task;
+        }
+
+        await flushTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+        Exception? persistenceError;
+        lock (sessionQueueGate)
+        {
+            persistenceError = sessionWriterError;
+        }
+
+        if (persistenceError is { } error)
+        {
+            throw new InvalidOperationException("Session event persistence failed.", error);
+        }
+    }
+
+    private ValueTask PersistAsync(SerialTrafficEvent item, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (sessionQueueGate)
+        {
+            if (sessionWriterError is { } error)
+            {
+                throw new InvalidOperationException("Session event persistence failed.", error);
+            }
+
+            if (pendingSessionEvents++ == 0)
+            {
+                sessionFlushed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+        }
+
+        if (!sessionEvents.Writer.TryWrite(item))
+        {
+            CompletePersistedEvent();
+            throw new InvalidOperationException("The session event writer is closed.");
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
+    private async Task WriteSessionEventsAsync()
+    {
+        var batch = new List<SerialTrafficEvent>(256);
+        await foreach (var item in sessionEvents.Reader.ReadAllAsync().ConfigureAwait(false))
+        {
+            batch.Add(item);
+            while (batch.Count < 256 && sessionEvents.Reader.TryRead(out var next))
+            {
+                batch.Add(next);
+            }
+
+            try
+            {
+                await Sessions.AppendManyAsync(batch, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                lock (sessionQueueGate)
+                {
+                    sessionWriterError ??= ex;
+                }
+            }
+            finally
+            {
+                for (var index = 0; index < batch.Count; index++)
+                {
+                    CompletePersistedEvent();
+                }
+
+                batch.Clear();
+            }
+        }
+    }
+
+    private void CompletePersistedEvent()
+    {
+        lock (sessionQueueGate)
+        {
+            pendingSessionEvents--;
+            if (pendingSessionEvents == 0)
+            {
+                sessionFlushed.TrySetResult(true);
+            }
+        }
+    }
+
+    private static TaskCompletionSource<bool> CompletedSignal()
+    {
+        var signal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        signal.SetResult(true);
+        return signal;
+    }
 }

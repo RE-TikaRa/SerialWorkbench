@@ -141,6 +141,27 @@ public sealed class StorageAndSessionTests
     }
 
     [Fact]
+    public async Task SessionBatchPreservesOrderAndCounters()
+    {
+        var applicationRoot = CreateArtifactDirectory("session-batch-app");
+        var paths = new ApplicationPaths(applicationRoot);
+        paths.EnsureWritable();
+        var connectionId = Guid.NewGuid();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var store = new SessionStore(paths);
+        var events = Enumerable.Range(1, 300)
+            .Select(index => CreateEvent(index, connectionId, index % 2 == 0 ? SerialDirection.Receive : SerialDirection.Transmit, [(byte)index]))
+            .ToArray();
+
+        await store.AppendManyAsync(events, cancellationToken);
+
+        Assert.Equal(300, store.ActiveSession?.EventCount);
+        Assert.Equal(300, store.ActiveSession?.RawByteCount);
+        var recorded = await store.ReadAllEventsAsync(store.ActiveSession!.Id, cancellationToken);
+        Assert.Equal(Enumerable.Range(1, 300).Select(static value => (long)value), recorded.Select(static item => item.Sequence));
+    }
+
+    [Fact]
     public async Task EmptySessionCsvExportContainsHeaderOnly()
     {
         var applicationRoot = CreateArtifactDirectory("empty-session-export-app");
