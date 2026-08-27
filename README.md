@@ -296,6 +296,12 @@ Modbus JSON 结果包含请求帧、响应帧、功能码、寄存器、地址�
 .\serial-workbench.exe sessions export --id SESSION_ID --file E:\Exports\session.csv --output json
 ```
 
+删除已经结束的会话：
+
+```powershell
+.\serial-workbench.exe sessions delete --id SESSION_ID --output json
+```
+
 ### XMODEM
 
 发送文件和接收文件需要两个独立串口端点。两端应使用相同的串口参数，并交叉连接 TX、RX 和 GND：

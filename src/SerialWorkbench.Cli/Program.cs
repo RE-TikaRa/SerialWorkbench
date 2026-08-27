@@ -89,6 +89,8 @@ static async Task<int> RunAsync(IHostRpc client, Arguments arguments, string out
             return await ShowSessionAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "sessions export":
             return await ExportSessionAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
+        case "sessions delete":
+            return await DeleteSessionAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "send":
         case "send ":
             return await SendAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
@@ -138,6 +140,14 @@ static async Task<int> ExportSessionAsync(IHostRpc client, Arguments arguments, 
     await File.WriteAllTextAsync(path, csv, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), cancellationToken).ConfigureAwait(false);
     WriteResult(output, "sessions.export", new { sessionId, path, bytes = Encoding.UTF8.GetByteCount(csv) });
     return 0;
+}
+
+static async Task<int> DeleteSessionAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+{
+    var sessionId = ParseGuid(arguments.Get("--id"), "--id");
+    var result = await client.DeleteSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
+    WriteResult(output, "sessions.delete", new { sessionId, result.Success, result.Error });
+    return result.Success ? 0 : 3;
 }
 
 static async Task<int> XmodemSendAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
@@ -510,9 +520,10 @@ static void PrintHelp()
         serial-workbench host status|stop
         serial-workbench workspace show|clear
         serial-workbench workspace set --path PATH
-        serial-workbench sessions list|show|export
+        serial-workbench sessions list|show|export|delete
         serial-workbench sessions show --id SESSION_ID [--output json]
         serial-workbench sessions export --id SESSION_ID --file PATH
+        serial-workbench sessions delete --id SESSION_ID
         serial-workbench send --port <port> (--text TEXT | --hex HEX) [--baud 115200]
         serial-workbench monitor --port <port> [--seconds 10] [--output text|jsonl]
         serial-workbench loopback run --port <port> [--baud 115200] [--length 4096] [--iterations 1]
