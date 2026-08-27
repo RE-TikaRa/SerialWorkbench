@@ -33,7 +33,7 @@ public sealed class EventJournal(int capacity = 100_000)
         return item;
     }
 
-    public IReadOnlyList<SerialTrafficEvent> ReadAfter(long sequence, int maximumCount)
+    public IReadOnlyList<SerialTrafficEvent> ReadAfter(long sequence, int maximumCount, Guid? connectionId = null)
     {
         if (maximumCount is < 1 or > 10_000)
         {
@@ -42,7 +42,10 @@ public sealed class EventJournal(int capacity = 100_000)
 
         lock (gate)
         {
-            return events.Where(item => item.Sequence > sequence).Take(maximumCount).ToArray();
+            return events
+                .Where(item => item.Sequence > sequence && (connectionId is null || item.ConnectionId == connectionId))
+                .Take(maximumCount)
+                .ToArray();
         }
     }
 

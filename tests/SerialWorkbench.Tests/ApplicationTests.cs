@@ -44,6 +44,25 @@ public sealed class ApplicationTests
     }
 
     [Fact]
+    public void EventJournalFiltersBeforeApplyingMaximumCount()
+    {
+        var journal = new EventJournal();
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+
+        journal.Append(first, SerialDirection.Receive, [1], "first");
+        journal.Append(second, SerialDirection.Receive, [2], "second");
+        journal.Append(second, SerialDirection.Receive, [3], "second");
+        journal.Append(first, SerialDirection.Receive, [4], "first");
+
+        var events = journal.ReadAfter(0, 1, first);
+
+        var item = Assert.Single(events);
+        Assert.Equal(1, item.Sequence);
+        Assert.Equal(first, item.ConnectionId);
+    }
+
+    [Fact]
     public void PipeNameIsStableForEquivalentApplicationPaths()
     {
         var first = HostEndpoint.GetPipeName(@"C:\Apps\SerialWorkbench");

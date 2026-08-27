@@ -106,7 +106,7 @@ public sealed class SerialConnection : IAsyncDisposable
         var id = Guid.NewGuid();
         var channel = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(1024)
         {
-            FullMode = BoundedChannelFullMode.Wait,
+            FullMode = BoundedChannelFullMode.DropOldest,
             SingleReader = true,
             SingleWriter = true,
         });
@@ -203,7 +203,7 @@ public sealed class SerialConnection : IAsyncDisposable
 
                 foreach (var channel in subscriptions.Values)
                 {
-                    await channel.Writer.WriteAsync(data, cancellationToken).ConfigureAwait(false);
+                    channel.Writer.TryWrite(data);
                 }
             }
         }

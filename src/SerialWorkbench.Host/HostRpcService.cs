@@ -62,13 +62,7 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
     public Task<IReadOnlyList<SerialTrafficEvent>> ReadEventsAsync(EventQuery query, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        IReadOnlyList<SerialTrafficEvent> events = runtime.Journal.ReadAfter(query.AfterSequence, query.MaximumCount);
-        if (query.ConnectionId is not null)
-        {
-            events = events.Where(item => item.ConnectionId == query.ConnectionId).ToArray();
-        }
-
-        return Task.FromResult(events);
+        return Task.FromResult(runtime.Journal.ReadAfter(query.AfterSequence, query.MaximumCount, query.ConnectionId));
     }
 
     public Task<IReadOnlyList<SessionDescriptor>> ListSessionsAsync(CancellationToken cancellationToken) =>

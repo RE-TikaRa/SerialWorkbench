@@ -82,6 +82,7 @@ public sealed class SerialConnectionManager(
         var stopwatch = Stopwatch.StartNew();
         long sent = 0;
         long received = 0;
+        var pending = new List<byte>();
 
         for (var iteration = 0; iteration < request.Iterations; iteration++)
         {
@@ -97,9 +98,18 @@ public sealed class SerialConnectionManager(
             {
                 while (offset < actual.Length)
                 {
-                    var block = await subscription.Reader.ReadAsync(timeout.Token).ConfigureAwait(false);
-                    var count = Math.Min(block.Length, actual.Length - offset);
-                    block.AsSpan(0, count).CopyTo(actual.AsSpan(offset));
+                    if (pending.Count == 0)
+                    {
+                        pending.AddRange(await subscription.Reader.ReadAsync(timeout.Token).ConfigureAwait(false));
+                    }
+
+                    var count = Math.Min(pending.Count, actual.Length - offset);
+                    for (var index = 0; index < count; index++)
+                    {
+                        actual[offset + index] = pending[index];
+                    }
+
+                    pending.RemoveRange(0, count);
                     offset += count;
                 }
             }
