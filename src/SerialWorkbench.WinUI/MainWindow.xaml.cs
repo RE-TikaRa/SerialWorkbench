@@ -48,6 +48,7 @@ public sealed partial class MainWindow : Window
     private AutomationPage? automationPage;
     private XmodemPage? xmodemPage;
     private Action? sequenceCancel;
+    private Action? loopbackCancel;
     private ModbusPage? modbusPage;
     private readonly SerialPreference serialPreference = SerialPreferenceStore.Load();
     private readonly string? preferredWorkspace = WorkspacePreferenceStore.Load();
@@ -130,6 +131,7 @@ public sealed partial class MainWindow : Window
         {
             if (connectionId is { } current)
             {
+                loopbackCancel?.Invoke();
                 await client.CloseConnectionAsync(current, CancellationToken.None);
                 connectionId = null;
                 textDecoder = null;
@@ -252,7 +254,9 @@ public sealed partial class MainWindow : Window
                     _ => LoopbackPattern.Incrementing,
                 } : LoopbackPattern.Incrementing,
                 0x534257);
-            var result = await client.RunLoopbackAsync(request, CancellationToken.None);
+            using var cancellation = new CancellationTokenSource();
+            loopbackCancel = cancellation.Cancel;
+            var result = await client.RunLoopbackAsync(request, cancellation.Token);
             var message = result.Passed
                 ? $"通过 · {result.ReceivedBytes:N0} 字节 · {result.BytesPerSecond / 1024:N1} KiB/s · {result.Duration.TotalMilliseconds:N0} ms"
                 : $"失败 · {result.Error} · 首个差异 {result.FirstDifferenceIndex}";
@@ -264,12 +268,17 @@ public sealed partial class MainWindow : Window
                 await ReadLoopbackResultsAsync(sessionId, sessionsPage);
             }
         }
+        catch (OperationCanceledException)
+        {
+            loopbackPage?.ShowResult("回环检测已停止。", InfoBarSeverity.Warning);
+        }
         catch (Exception ex)
         {
             loopbackPage?.ShowResult(ex.Message, InfoBarSeverity.Error);
         }
         finally
         {
+            loopbackCancel = null;
             loopbackPage?.SetRunning(false);
         }
     }
@@ -433,6 +442,8 @@ public sealed partial class MainWindow : Window
                 loopbackPage = page;
                 page.RunRequested -= LoopbackPage_RunRequested;
                 page.RunRequested += LoopbackPage_RunRequested;
+                page.CancelRequested -= LoopbackPage_CancelRequested;
+                page.CancelRequested += LoopbackPage_CancelRequested;
                 break;
             case TerminalPage page:
                 terminalPage = page;
@@ -1188,6 +1199,8 @@ public sealed partial class MainWindow : Window
         LoopbackButton_Click(this, new RoutedEventArgs());
     }
 
+    private void LoopbackPage_CancelRequested(object? sender, EventArgs e) => loopbackCancel?.Invoke();
+
     private async void ModbusPage_SendRequested(object? sender, EventArgs e)
     {
         if (modbusPage?.RequestFrame is not { } frame)
@@ -1316,6 +1329,7 @@ public sealed partial class MainWindow : Window
         eventTimer.Stop();
         portRefreshTimer.Stop();
         loopSendTimer.Stop();
+        loopbackCancel = null;
         if (workbenchPage is not null)
         {
             SerialPreferenceStore.Save(workbenchPage.ReadSerialPreference(workbenchPage.SelectedPort?.PortName));
@@ -1330,6 +1344,7 @@ public sealed partial class MainWindow : Window
         {
             try
             {
+                loopbackCancel?.Invoke();
                 await client.CloseConnectionAsync(current, CancellationToken.None);
             }
             catch (Exception ex)

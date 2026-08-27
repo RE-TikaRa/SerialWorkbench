@@ -81,7 +81,10 @@
               <x:String>随机</x:String>
             </ComboBox>
           </Grid>
-          <Button x:Name="RunButton" x:FieldModifier="public" Content="运行检测" Click="RunButton_Click" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Left" />
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+            <Button x:Name="RunButton" x:FieldModifier="public" Content="运行检测" Click="RunButton_Click" Style="{StaticResource AccentButtonStyle}" />
+            <Button x:Name="CancelButton" x:FieldModifier="public" Content="停止" Click="CancelButton_Click" IsEnabled="False" />
+          </StackPanel>
         </StackPanel>
       </Border>
       <Border x:Name="ResultCard" Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource SurfaceCardStyle}">
