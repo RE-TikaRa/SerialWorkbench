@@ -1329,7 +1329,7 @@ public sealed partial class MainWindow : Window
         eventTimer.Stop();
         portRefreshTimer.Stop();
         loopSendTimer.Stop();
-        loopbackCancel = null;
+        loopbackCancel?.Invoke();
         if (workbenchPage is not null)
         {
             SerialPreferenceStore.Save(workbenchPage.ReadSerialPreference(workbenchPage.SelectedPort?.PortName));
@@ -1344,7 +1344,6 @@ public sealed partial class MainWindow : Window
         {
             try
             {
-                loopbackCancel?.Invoke();
                 await client.CloseConnectionAsync(current, CancellationToken.None);
             }
             catch (Exception ex)
@@ -1354,6 +1353,7 @@ public sealed partial class MainWindow : Window
         }
 
         await client.DisposeAsync();
+        loopbackCancel = null;
         textDecoder = null;
         replayCancellation?.Dispose();
         sequenceCancel = null;

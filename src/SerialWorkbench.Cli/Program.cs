@@ -17,6 +17,11 @@ if (parsed.Positionals.Count == 0 || parsed.Has("--help") || parsed.Has("-h"))
 }
 
 var output = parsed.Get("--output") ?? "text";
+if (output is not ("text" or "json" or "jsonl"))
+{
+    WriteError(output, "SWB-ARGUMENT", "--output must be text, json, or jsonl.");
+    return 2;
+}
 var culture = parsed.Get("--culture") ?? CultureInfo.CurrentUICulture.Name;
 var applicationRoot = parsed.Get("--app-root") ?? AppContext.BaseDirectory;
 
@@ -49,7 +54,7 @@ catch (TimeoutException ex)
     WriteError(output, "SWB-TIMEOUT", ex.Message);
     return 4;
 }
-catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or KeyNotFoundException or RemoteInvocationException)
+catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or KeyNotFoundException or FormatException or OverflowException or RemoteInvocationException)
 {
     WriteError(output, "SWB-RUNTIME", ex.Message);
     return 3;
