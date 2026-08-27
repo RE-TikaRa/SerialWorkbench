@@ -409,7 +409,8 @@ public sealed partial class MainWindow : Window
     private void CopyHexButton_Click(object sender, RoutedEventArgs e)
     {
         var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-        package.SetText(string.Join(Environment.NewLine, TrafficRows.Select(static item => item.Hex)));
+        var rows = workbenchPage?.VisibleRows ?? TrafficRows;
+        package.SetText(string.Join(Environment.NewLine, rows.Select(static item => item.Hex)));
         Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
     }
 
@@ -1496,12 +1497,7 @@ public sealed partial class MainWindow : Window
 
     private void UpdateTrafficPresentation()
     {
-        var empty = TrafficRows.Count == 0;
-        if (workbenchPage is not null)
-        {
-            workbenchPage.MonitorEmptyState.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
-            workbenchPage.CopyHexButton.IsEnabled = !empty;
-        }
+        workbenchPage?.RefreshTrafficFilter();
     }
 
     private static string GetLineEnding(int index) => index switch
@@ -1553,6 +1549,8 @@ public sealed class TrafficRow(
     string time,
     string display,
     string hex,
+    string source,
+    bool isReceive,
     Visibility receiveVisibility,
     Visibility transmitVisibility,
     Visibility timeVisibility)
@@ -1562,6 +1560,10 @@ public sealed class TrafficRow(
     public string Display { get; } = display;
 
     public string Hex { get; } = hex;
+
+    public string Source { get; } = source;
+
+    public bool IsReceive { get; } = isReceive;
 
     public Visibility ReceiveVisibility { get; } = receiveVisibility;
 
@@ -1580,6 +1582,8 @@ public sealed class TrafficRow(
             item.Utc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
             display,
             hex,
+            item.Source,
+            receive,
             receive ? Visibility.Visible : Visibility.Collapsed,
             receive ? Visibility.Collapsed : Visibility.Visible,
             showTime ? Visibility.Visible : Visibility.Collapsed);

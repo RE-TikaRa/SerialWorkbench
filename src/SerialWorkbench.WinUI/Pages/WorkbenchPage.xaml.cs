@@ -19,6 +19,8 @@ public sealed partial class WorkbenchPage : Page
     private ThemeSettings? themeSettings;
     private bool viewSelectionInitialized;
     private readonly ObservableCollection<SerialProfile> profiles = new(SerialProfileStore.Load());
+    private readonly ObservableCollection<TrafficRow> visibleRows = [];
+    private ObservableCollection<TrafficRow>? sourceRows;
 
     public WorkbenchPage()
     {
@@ -51,8 +53,46 @@ public sealed partial class WorkbenchPage : Page
 
     public void BindRows(ObservableCollection<TrafficRow> rows)
     {
-        TrafficListView.ItemsSource = rows;
+        sourceRows = rows;
+        TrafficListView.ItemsSource = visibleRows;
         SendHistory.ItemsSource = sendHistory;
+        RefreshTrafficFilter();
+    }
+
+    public IReadOnlyList<TrafficRow> VisibleRows => visibleRows;
+
+    public void RefreshTrafficFilter()
+    {
+        var query = TrafficSearch?.Text.Trim();
+        var direction = TrafficDirection?.SelectedIndex ?? 0;
+        visibleRows.Clear();
+        if (sourceRows is not null)
+        {
+            foreach (var row in sourceRows)
+            {
+                if (direction == 1 && !row.IsReceive || direction == 2 && row.IsReceive)
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(query)
+                    && !row.Display.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                    && !row.Hex.Contains(query.Replace(" ", "", StringComparison.Ordinal), StringComparison.OrdinalIgnoreCase)
+                    && !row.Source.Contains(query, StringComparison.CurrentCultureIgnoreCase))
+                {
+                    continue;
+                }
+
+                visibleRows.Add(row);
+            }
+        }
+
+        var hasSourceRows = sourceRows?.Count > 0;
+        var empty = visibleRows.Count == 0;
+        MonitorEmptyTitle.Text = hasSourceRows ? "没有匹配的报文" : "等待串口数据";
+        MonitorEmptyDescription.Text = hasSourceRows ? "调整方向或搜索条件以查看其他报文。" : "连接设备后，收发报文会显示在这里。";
+        MonitorEmptyState.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
+        CopyHexButton.IsEnabled = !empty;
     }
 
     public IReadOnlyList<SerialProfile> Profiles => profiles;
@@ -199,6 +239,8 @@ public sealed partial class WorkbenchPage : Page
     private void PauseButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => PauseRequested?.Invoke(this, EventArgs.Empty);
     private void ClearButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ClearRequested?.Invoke(this, EventArgs.Empty);
     private void CopyHexButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => CopyHexRequested?.Invoke(this, EventArgs.Empty);
+    private void TrafficFilter_Changed(object sender, SelectionChangedEventArgs e) => RefreshTrafficFilter();
+    private void TrafficSearch_TextChanged(object sender, TextChangedEventArgs e) => RefreshTrafficFilter();
     private void SendButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => SendRequested?.Invoke(this, EventArgs.Empty);
     private void LoopSendToggle_Checked(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => LoopSendStarted?.Invoke(this, EventArgs.Empty);
     private void LoopSendToggle_Unchecked(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => LoopSendStopped?.Invoke(this, EventArgs.Empty);

@@ -300,13 +300,19 @@
                 <Button x:Name="CopyHexButton" x:FieldModifier="public" Grid.Column="3" Click="CopyHexButton_Click" Style="{StaticResource IconButtonStyle}" IsEnabled="False" ToolTipService.ToolTip="复制全部 HEX">
                   <SymbolIcon Symbol="Copy" />
                 </Button>
+                <ComboBox x:Name="TrafficDirection" Grid.Row="1" SelectedIndex="0" SelectionChanged="TrafficFilter_Changed" MinWidth="110">
+                  <x:String>全部方向</x:String>
+                  <x:String>仅 RX</x:String>
+                  <x:String>仅 TX</x:String>
+                </ComboBox>
+                <TextBox x:Name="TrafficSearch" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" PlaceholderText="搜索文本、HEX 或来源" TextChanged="TrafficSearch_TextChanged" MinWidth="260" />
               </Grid>
             </Grid>
             <Grid Grid.Row="1" MinHeight="320">
               <ListView x:Name="TrafficListView" x:FieldModifier="public" ItemTemplate="{StaticResource TrafficRowTemplate}" ItemContainerStyle="{StaticResource TrafficListViewItemStyle}" />
               <StackPanel x:Name="MonitorEmptyState" x:FieldModifier="public" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-                <TextBlock Text="等待串口数据" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                <TextBlock Text="连接设备后，收发报文会显示在这里。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock x:Name="MonitorEmptyTitle" Text="等待串口数据" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                <TextBlock x:Name="MonitorEmptyDescription" Text="连接设备后，收发报文会显示在这里。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               </StackPanel>
             </Grid>
           </Grid>
