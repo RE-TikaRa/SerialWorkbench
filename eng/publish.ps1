@@ -44,7 +44,9 @@ try {
 
     Copy-Item -LiteralPath (Join-Path $RepositoryRoot "LICENSE") -Destination $outputRoot
     Copy-Item -LiteralPath (Join-Path $RepositoryRoot "README.md") -Destination $outputRoot
-    Copy-Item -LiteralPath (Join-Path $RepositoryRoot "schemas") -Destination $outputRoot -Recurse
+    $schemaDirectory = Join-Path $outputRoot "schemas"
+    New-Item -ItemType Directory -Path $schemaDirectory -Force | Out-Null
+    Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot "schemas") -Force | Copy-Item -Destination $schemaDirectory -Recurse -Force
 
     $requiredFiles = @(
         "SerialWorkbench.exe",
