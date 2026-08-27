@@ -54,7 +54,12 @@ catch (TimeoutException ex)
     WriteError(output, "SWB-TIMEOUT", ex.Message);
     return 4;
 }
-catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or KeyNotFoundException or FormatException or OverflowException or RemoteInvocationException)
+catch (Exception ex) when (ex is FormatException or OverflowException)
+{
+    WriteError(output, "SWB-ARGUMENT", ex.Message);
+    return 2;
+}
+catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or KeyNotFoundException or RemoteInvocationException)
 {
     WriteError(output, "SWB-RUNTIME", ex.Message);
     return 3;
