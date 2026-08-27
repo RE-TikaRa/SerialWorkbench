@@ -30,7 +30,7 @@ public sealed partial class WorkbenchPage : Page
         ActualThemeChanged += WorkbenchPage_ActualThemeChanged;
     }
 
-    private readonly ObservableCollection<string> sendHistory = [];
+    private readonly ObservableCollection<string> sendHistory = new(SendHistoryStore.Load());
 
     public event EventHandler? ConnectRequested;
     public event EventHandler? PauseRequested;
@@ -238,6 +238,8 @@ public sealed partial class WorkbenchPage : Page
         {
             sendHistory.RemoveAt(sendHistory.Count - 1);
         }
+
+        SendHistoryStore.Save(sendHistory);
     }
 
     public string SendText => SendEditor.Text;

@@ -127,3 +127,28 @@ public static class SerialProfileStore
         File.WriteAllText(FilePath, JsonSerializer.Serialize(profiles));
     }
 }
+
+public static class SendHistoryStore
+{
+    private static readonly string FilePath = Path.Combine(AppContext.BaseDirectory, "data", "settings", "send-history.json");
+
+    public static IReadOnlyList<string> Load()
+    {
+        try
+        {
+            return File.Exists(FilePath)
+                ? JsonSerializer.Deserialize<List<string>>(File.ReadAllText(FilePath)) ?? []
+                : [];
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
+    public static void Save(IReadOnlyList<string> history)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+        File.WriteAllText(FilePath, JsonSerializer.Serialize(history));
+    }
+}

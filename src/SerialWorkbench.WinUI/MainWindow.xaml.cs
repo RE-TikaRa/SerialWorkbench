@@ -27,6 +27,7 @@ public sealed partial class MainWindow : Window
     private bool paused;
     private bool polling;
     private bool portRefreshing;
+    private Decoder? textDecoder;
     private ElementTheme currentTheme;
     private bool workspaceSelected;
     private string workspacePath = "尚未选择工作区";
@@ -131,6 +132,7 @@ public sealed partial class MainWindow : Window
             {
                 await client.CloseConnectionAsync(current, CancellationToken.None);
                 connectionId = null;
+                textDecoder = null;
                 workbenchPage?.StopLoopSend();
                 if (workbenchPage is not null)
                 {
@@ -162,6 +164,7 @@ public sealed partial class MainWindow : Window
             SerialPreferenceStore.Save(workbenchPage!.ReadSerialPreference(port.PortName));
             var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(options), CancellationToken.None);
             connectionId = connection.Id;
+            textDecoder = Encoding.GetEncoding(options.EncodingName).GetDecoder();
             if (workbenchPage is not null)
             {
                 workbenchPage.ConnectButton.Content = "断开";
@@ -285,7 +288,7 @@ public sealed partial class MainWindow : Window
             foreach (var item in events)
             {
                 lastSequence = Math.Max(lastSequence, item.Sequence);
-                var row = TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, workbenchPage?.SelectedEncoding ?? Encoding.UTF8, workbenchPage?.ShowTimestamp ?? true);
+                var row = TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, workbenchPage?.SelectedEncoding ?? Encoding.UTF8, workbenchPage?.ShowTimestamp ?? true, textDecoder);
                 TrafficRows.Add(row);
                 terminalPage?.AppendRow(row);
                 if (item.Direction == SerialDirection.Receive)
@@ -1336,6 +1339,7 @@ public sealed partial class MainWindow : Window
         }
 
         await client.DisposeAsync();
+        textDecoder = null;
         replayCancellation?.Dispose();
         sequenceCancel = null;
     }
@@ -1446,10 +1450,12 @@ public sealed class TrafficRow(
 
     public Visibility TimeVisibility { get; } = timeVisibility;
 
-    public static TrafficRow From(SerialTrafficEvent item, bool text, Encoding encoding, bool showTime)
+    public static TrafficRow From(SerialTrafficEvent item, bool text, Encoding encoding, bool showTime, Decoder? decoder = null)
     {
         var hex = Convert.ToHexString(item.Data);
-        var display = text ? encoding.GetString(item.Data) : Protocols.HexCodec.Format(item.Data);
+        var display = text
+            ? DecodeText(item.Data, encoding, item.Direction == SerialDirection.Receive ? decoder : null)
+            : Protocols.HexCodec.Format(item.Data);
         var receive = item.Direction == SerialDirection.Receive;
         return new TrafficRow(
             item.Utc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
@@ -1458,5 +1464,18 @@ public sealed class TrafficRow(
             receive ? Visibility.Visible : Visibility.Collapsed,
             receive ? Visibility.Collapsed : Visibility.Visible,
             showTime ? Visibility.Visible : Visibility.Collapsed);
+    }
+
+    private static string DecodeText(byte[] data, Encoding encoding, Decoder? decoder)
+    {
+        if (decoder is null)
+        {
+            return encoding.GetString(data);
+        }
+
+        var charCount = decoder.GetCharCount(data, 0, data.Length, false);
+        var chars = new char[charCount];
+        decoder.GetChars(data, 0, data.Length, chars, 0, false);
+        return new string(chars);
     }
 }
