@@ -81,7 +81,7 @@ internal static class XmodemCrc
             stopwatch.Stop();
             return new XmodemTransferResult(true, data.Length, blocks, retries, stopwatch.Elapsed, null);
         }
-        catch (Exception ex) when (ex is IOException or TimeoutException or OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or TimeoutException)
         {
             stopwatch.Stop();
             return new XmodemTransferResult(false, Math.Min(data.Length, blocks * 128L), blocks, retries, stopwatch.Elapsed, ex.Message);
@@ -159,7 +159,7 @@ internal static class XmodemCrc
             stopwatch.Stop();
             return (new XmodemTransferResult(true, output.Count, blocks, retries, stopwatch.Elapsed, null), [.. output]);
         }
-        catch (Exception ex) when (ex is IOException or TimeoutException or OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or TimeoutException)
         {
             stopwatch.Stop();
             return (new XmodemTransferResult(false, output.Count, blocks, retries, stopwatch.Elapsed, ex.Message), [.. output]);

@@ -51,6 +51,7 @@ public sealed partial class MainWindow : Window
     private XmodemPage? xmodemPage;
     private Action? sequenceCancel;
     private Action? loopbackCancel;
+    private Action? xmodemCancel;
     private ModbusPage? modbusPage;
     private readonly SerialPreference serialPreference = SerialPreferenceStore.Load();
     private readonly string? preferredWorkspace = WorkspacePreferenceStore.Load();
@@ -134,6 +135,7 @@ public sealed partial class MainWindow : Window
             if (connectionId is { } current)
             {
                 loopbackCancel?.Invoke();
+                xmodemCancel?.Invoke();
                 await client.CloseConnectionAsync(current, CancellationToken.None);
                 connectionId = null;
                 textDecoder = null;
@@ -518,6 +520,8 @@ public sealed partial class MainWindow : Window
                 page.SendRequested += XmodemPage_SendRequested;
                 page.ReceiveRequested -= XmodemPage_ReceiveRequested;
                 page.ReceiveRequested += XmodemPage_ReceiveRequested;
+                page.CancelRequested -= XmodemPage_CancelRequested;
+                page.CancelRequested += XmodemPage_CancelRequested;
                 break;
             case ModbusPage page:
                 modbusPage = page;
@@ -908,14 +912,19 @@ public sealed partial class MainWindow : Window
         var file = await picker.PickSingleFileAsync();
         if (file is null) return;
         xmodemPage.SetPath(file.Path);
+        xmodemPage.SetRunning(true);
         try
         {
             var buffer = await Windows.Storage.FileIO.ReadBufferAsync(file);
-            var result = await client.SendXmodemAsync(current, buffer.ToArray(), CancellationToken.None);
+            using var cancellation = new CancellationTokenSource();
+            xmodemCancel = cancellation.Cancel;
+            var result = await client.SendXmodemAsync(current, buffer.ToArray(), cancellation.Token);
             xmodemPage.SetProgress($"{result.Blocks:N0} blocks · {result.Retries:N0} retries · {result.BytesTransferred:N0} bytes");
             xmodemPage.ShowResult(result.Success ? "文件发送完成。" : result.Error ?? "文件发送失败。", result.Success ? InfoBarSeverity.Success : InfoBarSeverity.Error);
         }
+        catch (OperationCanceledException) { xmodemPage.ShowResult("传输已停止。", InfoBarSeverity.Warning); }
         catch (Exception ex) { xmodemPage.ShowResult(ex.Message, InfoBarSeverity.Error); }
+        finally { xmodemCancel = null; xmodemPage.SetRunning(false); }
     }
 
     private async void XmodemPage_ReceiveRequested(object? sender, EventArgs e)
@@ -932,15 +941,22 @@ public sealed partial class MainWindow : Window
         var file = await picker.PickSaveFileAsync();
         if (file is null) return;
         xmodemPage.SetPath(file.Path);
+        xmodemPage.SetRunning(true);
         try
         {
-            var result = await client.ReceiveXmodemAsync(current, CancellationToken.None);
+            using var cancellation = new CancellationTokenSource();
+            xmodemCancel = cancellation.Cancel;
+            var result = await client.ReceiveXmodemAsync(current, cancellation.Token);
             await Windows.Storage.FileIO.WriteBytesAsync(file, result.Data);
             xmodemPage.SetProgress($"{result.Result.Blocks:N0} blocks · {result.Result.Retries:N0} retries · {result.Result.BytesTransferred:N0} bytes");
             xmodemPage.ShowResult(result.Result.Success ? "文件接收完成。" : result.Result.Error ?? "文件接收失败。", result.Result.Success ? InfoBarSeverity.Success : InfoBarSeverity.Error);
         }
+        catch (OperationCanceledException) { xmodemPage.ShowResult("传输已停止。", InfoBarSeverity.Warning); }
         catch (Exception ex) { xmodemPage.ShowResult(ex.Message, InfoBarSeverity.Error); }
+        finally { xmodemCancel = null; xmodemPage.SetRunning(false); }
     }
+
+    private void XmodemPage_CancelRequested(object? sender, EventArgs e) => xmodemCancel?.Invoke();
 
     private async void LoopSendTimer_Tick(object? sender, object e)
     {
@@ -1441,6 +1457,7 @@ public sealed partial class MainWindow : Window
         portRefreshTimer.Stop();
         loopSendTimer.Stop();
         loopbackCancel?.Invoke();
+        xmodemCancel?.Invoke();
         if (workbenchPage is not null)
         {
             SerialPreferenceStore.Save(workbenchPage.ReadSerialPreference(workbenchPage.SelectedPort?.PortName));

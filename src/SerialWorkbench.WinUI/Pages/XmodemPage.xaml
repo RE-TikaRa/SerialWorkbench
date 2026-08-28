@@ -6,7 +6,7 @@
         <TextBlock Text="XMODEM-CRC 文件传输" Style="{StaticResource BodyStrongTextBlockStyle}" />
         <TextBlock Text="使用当前串口连接传输文件，传输过程与普通发送互斥。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         <TextBox x:Name="FilePath" Header="文件" IsReadOnly="True" />
-        <Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><InfoBar x:Name="Result" IsOpen="False" IsClosable="True" /><Button Grid.Column="1" Content="发送文件" Click="SendButton_Click" /><Button Grid.Column="2" Content="接收文件" Click="ReceiveButton_Click" /></Grid>
+        <Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><InfoBar x:Name="Result" IsOpen="False" IsClosable="True" /><Button x:Name="SendButton" x:FieldModifier="public" Grid.Column="1" Content="发送文件" Click="SendButton_Click" /><Button x:Name="ReceiveButton" x:FieldModifier="public" Grid.Column="2" Content="接收文件" Click="ReceiveButton_Click" /><Button x:Name="CancelButton" x:FieldModifier="public" Grid.Column="3" Content="停止" Click="CancelButton_Click" IsEnabled="False" /></Grid>
       </StackPanel>
     </Border>
     <TextBlock Grid.Row="1" x:Name="ProgressText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
