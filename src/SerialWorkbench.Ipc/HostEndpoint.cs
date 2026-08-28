@@ -32,39 +32,61 @@ public static class HostEndpoint
 
     private static async Task EnsureHostStartedAsync(string applicationRoot, string pipeName, CancellationToken cancellationToken)
     {
-        await using var probe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-        try
-        {
-            await probe.ConnectAsync(100, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-        catch (TimeoutException)
-        {
-        }
-
         var hostPath = Path.Combine(applicationRoot, "SerialWorkbench.Host.exe");
         if (!File.Exists(hostPath))
         {
             throw new FileNotFoundException("SerialWorkbench.Host.exe was not found beside the client executable.", hostPath);
         }
 
-        using var process = HostProcessLauncher.Start(hostPath, applicationRoot);
-
+        using var startupSemaphore = new Semaphore(1, 1, $"Local\\{pipeName}-startup");
         var deadline = DateTime.UtcNow.AddSeconds(10);
         while (DateTime.UtcNow < deadline)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await using var retry = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+            var acquired = false;
             try
             {
-                await retry.ConnectAsync(200, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-            catch (TimeoutException)
-            {
-                if (process.HasExited)
+                acquired = startupSemaphore.WaitOne(0);
+
+                if (!acquired)
                 {
-                    throw new InvalidOperationException($"SerialWorkbench.Host exited with code {process.ExitCode}.");
+                    await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                await using var probe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                try
+                {
+                    await probe.ConnectAsync(100, cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+                catch (TimeoutException)
+                {
+                }
+
+                using (HostProcessLauncher.Start(hostPath, applicationRoot))
+                {
+                    while (DateTime.UtcNow < deadline)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        await using var retry = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                        try
+                        {
+                            await retry.ConnectAsync(200, cancellationToken).ConfigureAwait(false);
+                            return;
+                        }
+                        catch (TimeoutException)
+                        {
+                            continue;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                if (acquired)
+                {
+                    startupSemaphore.Release();
                 }
             }
         }

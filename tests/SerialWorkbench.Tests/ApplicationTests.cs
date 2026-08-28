@@ -71,4 +71,34 @@ public sealed class ApplicationTests
         Assert.Equal(first, second);
         Assert.StartsWith("SerialWorkbench-", first, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task HostColdStartAcceptsConcurrentClients()
+    {
+        var clients = Enumerable.Range(0, 16)
+            .Select(_ => HostEndpoint.ConnectAsync(AppContext.BaseDirectory, true, TestContext.Current.CancellationToken))
+            .ToArray();
+
+        try
+        {
+            await Task.WhenAll(clients);
+            Assert.All(clients, static client => Assert.True(client.IsCompletedSuccessfully));
+        }
+        finally
+        {
+            var connected = clients
+                .Where(static client => client.IsCompletedSuccessfully)
+                .Select(static client => client.Result)
+                .ToArray();
+            if (connected.Length > 0)
+            {
+                await connected[0].StopHostAsync(CancellationToken.None);
+            }
+
+            foreach (var client in connected)
+            {
+                await client.DisposeAsync();
+            }
+        }
+    }
 }
