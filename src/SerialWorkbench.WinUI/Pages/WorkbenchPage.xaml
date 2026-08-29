@@ -165,6 +165,12 @@
             <Button x:Name="RenameProfileButton" Grid.Column="3" Content="重命名" Click="RenameProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
             <Button x:Name="DeleteProfileButton" Grid.Column="4" Content="删除" Click="DeleteProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
           </Grid>
+          <ComboBox x:Name="RoleComboBox" x:FieldModifier="public" Header="逻辑角色" SelectedIndex="0" HorizontalAlignment="Stretch">
+            <x:String>DUT</x:String>
+            <x:String>DEBUG</x:String>
+            <x:String>CONTROLLER</x:String>
+            <x:String>LOOPBACK</x:String>
+          </ComboBox>
           <Grid ColumnSpacing="12" RowSpacing="14">
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto" />

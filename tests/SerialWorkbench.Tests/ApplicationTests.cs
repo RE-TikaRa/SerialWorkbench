@@ -73,6 +73,16 @@ public sealed class ApplicationTests
     }
 
     [Fact]
+    public void ConnectionRoleIsPartOfSerialOptions()
+    {
+        var defaultOptions = new SerialConnectionOptions("COM1");
+        var controllerOptions = defaultOptions with { Role = SerialConnectionRole.Controller };
+
+        Assert.Equal(SerialConnectionRole.Dut, defaultOptions.Role);
+        Assert.Equal(SerialConnectionRole.Controller, controllerOptions.Role);
+    }
+
+    [Fact]
     public async Task HostColdStartAcceptsConcurrentClients()
     {
         var clients = Enumerable.Range(0, 16)

@@ -108,6 +108,7 @@ public sealed partial class WorkbenchPage : Page
     public SerialParity Parity => (SerialParity)ParityComboBox.SelectedIndex;
     public SerialStopBits StopBits => (SerialStopBits)StopBitsComboBox.SelectedIndex;
     public SerialHandshake Handshake => (SerialHandshake)HandshakeComboBox.SelectedIndex;
+    public SerialConnectionRole Role => (SerialConnectionRole)RoleComboBox.SelectedIndex;
     public bool DtrEnable => DtrCheckBox.IsChecked == true;
     public bool RtsEnable => RtsCheckBox.IsChecked == true;
     public int MonitorFormatIndex => MonitorFormat.SelectedIndex;
@@ -129,6 +130,7 @@ public sealed partial class WorkbenchPage : Page
         ParityComboBox.SelectedIndex = (int)preference.Parity;
         StopBitsComboBox.SelectedIndex = (int)preference.StopBits;
         HandshakeComboBox.SelectedIndex = (int)preference.Handshake;
+        RoleComboBox.SelectedIndex = (int)preference.Role;
         EncodingComboBox.SelectedIndex = preference.EncodingName.ToLowerInvariant() switch
         {
             "us-ascii" => 1,
@@ -156,6 +158,7 @@ public sealed partial class WorkbenchPage : Page
         ParityComboBox.SelectedIndex = (int)profile.Parity;
         StopBitsComboBox.SelectedIndex = (int)profile.StopBits;
         HandshakeComboBox.SelectedIndex = (int)profile.Handshake;
+        RoleComboBox.SelectedIndex = (int)profile.Role;
         EncodingComboBox.SelectedIndex = profile.EncodingName.ToLowerInvariant() switch
         {
             "us-ascii" => 1,
@@ -182,7 +185,8 @@ public sealed partial class WorkbenchPage : Page
         Handshake,
         SelectedEncoding.WebName,
         DtrEnable,
-        RtsEnable);
+        RtsEnable,
+        Role);
 
     public void AddProfile(SerialProfile profile)
     {
@@ -232,7 +236,8 @@ public sealed partial class WorkbenchPage : Page
         LoopIntervalMs,
         PlotMode.SelectedIndex,
         (int)PlotFrameLength.Value,
-        PlotSampleType.SelectedIndex);
+        PlotSampleType.SelectedIndex,
+        Role);
 
     private void ConnectButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ConnectRequested?.Invoke(this, EventArgs.Empty);
     private void RefreshPortsButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => RefreshPortsRequested?.Invoke(this, EventArgs.Empty);

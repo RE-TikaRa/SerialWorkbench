@@ -20,7 +20,8 @@ public sealed record SerialPreference(
     int LoopIntervalMilliseconds,
     int PlotModeIndex,
     int PlotFrameLength,
-    int PlotSampleTypeIndex);
+    int PlotSampleTypeIndex,
+    SerialConnectionRole Role = SerialConnectionRole.Dut);
 
 public sealed record SerialProfile(
     string Name,
@@ -32,7 +33,8 @@ public sealed record SerialProfile(
     SerialHandshake Handshake,
     string EncodingName,
     bool DtrEnable,
-    bool RtsEnable);
+    bool RtsEnable,
+    SerialConnectionRole Role = SerialConnectionRole.Dut);
 
 public static class SerialPreferenceStore
 {
@@ -55,7 +57,8 @@ public static class SerialPreferenceStore
         1000,
         0,
         8,
-        0);
+        0,
+        SerialConnectionRole.Dut);
 
     public static void Save(SerialPreference preference)
     {

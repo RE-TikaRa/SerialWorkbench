@@ -166,7 +166,8 @@ public sealed partial class MainWindow : Window
                 workbenchPage?.Handshake ?? SerialHandshake.None,
                 workbenchPage?.DtrEnable ?? false,
                 workbenchPage?.RtsEnable ?? false,
-                encodingName);
+                encodingName,
+                workbenchPage?.Role ?? SerialConnectionRole.Dut);
             SerialPreferenceStore.Save(workbenchPage!.ReadSerialPreference(port.PortName));
             var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(options), CancellationToken.None);
             connectionId = connection.Id;
@@ -1500,6 +1501,7 @@ public sealed partial class MainWindow : Window
             workbenchPage.RefreshPortsButton.IsEnabled = enabled;
             workbenchPage.BaudRateComboBox.IsEnabled = enabled;
             workbenchPage.MonitorFormat.IsEnabled = enabled;
+            workbenchPage.RoleComboBox.IsEnabled = enabled;
             workbenchPage.AdvancedExpander.IsEnabled = enabled;
             workbenchPage.SetControlActionsEnabled(!enabled);
         }

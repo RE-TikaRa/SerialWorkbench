@@ -7,6 +7,7 @@ SerialWorkbench 是面向 Windows 11 的串口调试工作台。它把串口连�
 - 枚举 Windows 串口，并显示端口描述、VID、PID 和设备实例标识。
 - 配置端口、波特率、数据位、校验、停止位、流控、DTR 和 RTS。
 - 保存、重命名、删除和应用命名串口连接配置。
+- 为连接配置 `DUT`、`DEBUG`、`CONTROLLER` 或 `LOOPBACK` 逻辑角色。
 - 发送文本或 HEX 数据，设置文本编码、CR、LF、CRLF 和校验追加。
 - 按固定间隔循环发送，并在同一报文流中查看 TX 和 RX。
 - 使用文本或 HEX 监视报文，查看时间戳、完整原始字节和实时计数。
@@ -59,6 +60,7 @@ publish/win-x64/
 
 - 端口和串口参数。
 - 命名连接配置。
+- 连接逻辑角色。
 - 文本或 HEX 报文监视。
 - 时间戳、暂停显示、清空和复制 HEX。
 - CSV 文本或固定二进制帧波形。
@@ -276,6 +278,7 @@ HEX 发送：
 --parity None|Odd|Even|Mark|Space
 --stop-bits One|OnePointFive|Two
 --handshake None|XOnXOff|RequestToSend|RequestToSendXOnXOff
+--role Dut|Debug|Controller|Loopback
 --dtr
 --rts
 ```

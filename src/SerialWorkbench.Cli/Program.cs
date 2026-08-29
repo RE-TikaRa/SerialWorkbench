@@ -532,7 +532,8 @@ static Task<ConnectionSnapshot> OpenAsync(IHostRpc client, Arguments arguments, 
         Enum.Parse<SerialHandshake>(arguments.Get("--handshake") ?? "None", true),
         arguments.Has("--dtr"),
         arguments.Has("--rts"),
-        arguments.Get("--encoding") ?? "utf-8");
+        arguments.Get("--encoding") ?? "utf-8",
+        Enum.Parse<SerialConnectionRole>(arguments.Get("--role") ?? "Dut", true));
     return client.OpenConnectionAsync(new OpenConnectionRequest(options), cancellationToken);
 }
 

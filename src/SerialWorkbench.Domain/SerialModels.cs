@@ -24,6 +24,14 @@ public enum SerialHandshake
     RequestToSendXOnXOff,
 }
 
+public enum SerialConnectionRole
+{
+    Dut,
+    Debug,
+    Controller,
+    Loopback,
+}
+
 public enum SerialDirection
 {
     Receive,
@@ -48,7 +56,8 @@ public sealed record SerialConnectionOptions(
     SerialHandshake Handshake = SerialHandshake.None,
     bool DtrEnable = false,
     bool RtsEnable = false,
-    string EncodingName = "utf-8");
+    string EncodingName = "utf-8",
+    SerialConnectionRole Role = SerialConnectionRole.Dut);
 
 public sealed record SerialPortDescriptor(
     string PortName,
