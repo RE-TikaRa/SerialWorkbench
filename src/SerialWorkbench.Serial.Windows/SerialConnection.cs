@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO.Ports;
 using System.Threading.Channels;
 using SerialWorkbench.Application;
@@ -23,6 +24,7 @@ public sealed class SerialConnection : IAsyncDisposable
     private long transmitOperations;
     private long errorCount;
     private long lastActivityUnixMilliseconds;
+    private long openedTimestamp;
     private string? error;
     private bool dtrEnable;
     private bool rtsEnable;
@@ -64,6 +66,7 @@ public sealed class SerialConnection : IAsyncDisposable
         try
         {
             port.Open();
+            Interlocked.Exchange(ref openedTimestamp, Stopwatch.GetTimestamp());
             State = ConnectionState.Open;
             readerTask = Task.Run(() => ReadLoopAsync(lifetime.Token), CancellationToken.None);
             return Task.CompletedTask;
@@ -210,19 +213,26 @@ public sealed class SerialConnection : IAsyncDisposable
             }
         }
 
+        var received = Interlocked.Read(ref receivedBytes);
+        var transmitted = Interlocked.Read(ref transmittedBytes);
+        var started = Interlocked.Read(ref openedTimestamp);
+        var elapsed = started == 0 ? TimeSpan.Zero : Stopwatch.GetElapsedTime(started);
+        var elapsedSeconds = elapsed.TotalSeconds;
         return new ConnectionSnapshot(
             Id,
             Options with { DtrEnable = dtrEnable, RtsEnable = rtsEnable },
             State,
-            Interlocked.Read(ref receivedBytes),
-            Interlocked.Read(ref transmittedBytes),
+            received,
+            transmitted,
             Interlocked.Read(ref receiveBlocks),
             Interlocked.Read(ref transmitOperations),
             Interlocked.Read(ref errorCount),
             milliseconds == 0 ? null : DateTimeOffset.FromUnixTimeMilliseconds(milliseconds),
             error,
             controlLines,
-            subscriptions.Values.Sum(static subscription => subscription.DroppedBlocks));
+            subscriptions.Values.Sum(static subscription => subscription.DroppedBlocks),
+            elapsedSeconds > 0 ? received / elapsedSeconds : 0,
+            elapsedSeconds > 0 ? transmitted / elapsedSeconds : 0);
     }
 
     public async ValueTask DisposeAsync()

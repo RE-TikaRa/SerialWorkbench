@@ -95,6 +95,7 @@ public sealed class ConnectionRow
     public string Status { get; private init; } = "";
     public string Counters { get; private init; } = "";
     public string ControlLines { get; private init; } = "";
+    public string Rates { get; private init; } = "";
     public string Diagnostics { get; private init; } = "";
 
     public static ConnectionRow From(ConnectionSnapshot snapshot, bool selected)
@@ -108,6 +109,7 @@ public sealed class ConnectionRow
         var lines = snapshot.ControlLines is { } controlLines
             ? $"CTS {(controlLines.CtsHolding ? 1 : 0)} · DSR {(controlLines.DsrHolding ? 1 : 0)} · DCD {(controlLines.CarrierDetect ? 1 : 0)} · RI {(controlLines.RingIndicator is { } ring ? ring ? "1" : "0" : "-")}"
             : "CTS - · DSR - · DCD - · RI -";
+        var rates = $"RX {FormatRate(snapshot.ReceivedBytesPerSecond)} · TX {FormatRate(snapshot.TransmittedBytesPerSecond)}";
         var diagnostics = $"丢弃 {snapshot.ObserverDroppedBlocks:N0} 块";
         return new ConnectionRow
         {
@@ -117,7 +119,15 @@ public sealed class ConnectionRow
             Status = status,
             Counters = counters,
             ControlLines = lines,
+            Rates = rates,
             Diagnostics = diagnostics,
         };
     }
+
+    private static string FormatRate(double value) => value switch
+    {
+        >= 1024 * 1024 => $"{value / 1024d / 1024d:N1} MiB/s",
+        >= 1024 => $"{value / 1024d:N1} KiB/s",
+        _ => $"{value:N0} B/s",
+    };
 }
