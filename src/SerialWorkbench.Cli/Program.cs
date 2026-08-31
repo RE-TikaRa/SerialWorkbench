@@ -183,11 +183,47 @@ static async Task<int> ExportSessionAsync(IHostRpc client, Arguments arguments, 
         return 0;
     }
 
-    var csv = await client.ExportSessionCsvAsync(query, cancellationToken).ConfigureAwait(false);
-    await File.WriteAllTextAsync(path, csv, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), cancellationToken).ConfigureAwait(false);
-    WriteResult(output, "sessions.export", new { sessionId, path, format, bytes = Encoding.UTF8.GetByteCount(csv) });
+    long bytesWritten = 0;
+    long afterCsvSequence = 0;
+    await using (var writer = new StreamWriter(path, false, new UTF8Encoding(false)))
+    {
+        bytesWritten += await WriteExportLineAsync(writer, "utc,direction,source,hex,byte_count").ConfigureAwait(false);
+        while (true)
+        {
+            var events = await client.ReadSessionEventsAsync(query with { AfterSequence = afterCsvSequence }, cancellationToken).ConfigureAwait(false);
+            if (events.Count == 0)
+            {
+                break;
+            }
+
+            foreach (var item in events)
+            {
+                var line = string.Join(',',
+                    CsvField(item.Utc.ToString("O", CultureInfo.InvariantCulture)),
+                    item.Direction,
+                    CsvField(item.Source),
+                    Convert.ToHexString(item.Data),
+                    item.Data.LongLength.ToString(CultureInfo.InvariantCulture));
+                bytesWritten += await WriteExportLineAsync(writer, line).ConfigureAwait(false);
+                afterCsvSequence = item.Sequence;
+            }
+        }
+    }
+
+    WriteResult(output, "sessions.export", new { sessionId, path, format, bytes = bytesWritten });
     return 0;
 }
+
+static async Task<long> WriteExportLineAsync(StreamWriter writer, string line)
+{
+    await writer.WriteLineAsync(line).ConfigureAwait(false);
+    return Encoding.UTF8.GetByteCount(line) + Environment.NewLine.Length;
+}
+
+static string CsvField(string value) =>
+    value.IndexOfAny([',', '"', '\r', '\n']) >= 0
+        ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\""
+        : value;
 
 static SessionEventQuery CreateSessionEventQuery(Arguments arguments, Guid sessionId) =>
     new(
