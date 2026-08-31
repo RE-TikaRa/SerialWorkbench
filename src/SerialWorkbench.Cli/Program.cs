@@ -148,12 +148,39 @@ static async Task<int> ExportSessionAsync(IHostRpc client, Arguments arguments, 
     var sessionId = ParseGuid(arguments.Get("--id"), "--id");
     var path = arguments.Get("--file") ?? throw new ArgumentException("sessions export requires --file.");
     var format = arguments.Get("--format")?.ToLowerInvariant() ?? "csv";
-    if (format is not ("csv" or "jsonl"))
+    if (format is not ("csv" or "jsonl" or "binary"))
     {
-        throw new ArgumentException("--format must be csv or jsonl.");
+        throw new ArgumentException("--format must be csv, jsonl, or binary.");
     }
 
     var query = CreateSessionEventQuery(arguments, sessionId);
+
+    if (format == "binary")
+    {
+        long binaryBytes = 0;
+        long afterBinarySequence = 0;
+        await using (var stream = File.Create(path))
+        {
+            while (true)
+            {
+                var events = await client.ReadSessionEventsAsync(query with { AfterSequence = afterBinarySequence }, cancellationToken).ConfigureAwait(false);
+                if (events.Count == 0)
+                {
+                    break;
+                }
+
+                foreach (var item in events)
+                {
+                    await stream.WriteAsync(item.Data, cancellationToken).ConfigureAwait(false);
+                    binaryBytes += item.Data.LongLength;
+                    afterBinarySequence = item.Sequence;
+                }
+            }
+        }
+
+        WriteResult(output, "sessions.export", new { sessionId, path, format, bytes = binaryBytes });
+        return 0;
+    }
 
     if (format == "jsonl")
     {
@@ -942,7 +969,7 @@ static void PrintHelp()
         serial-workbench workspace set --path PATH
         serial-workbench sessions list|show|export|delete
         serial-workbench sessions show --id SESSION_ID [--output json]
-        serial-workbench sessions export --id SESSION_ID --file PATH [--format csv|jsonl] [--direction all|rx|tx] [--source SOURCE] [--hex HEX]
+        serial-workbench sessions export --id SESSION_ID --file PATH [--format csv|jsonl|binary] [--direction all|rx|tx] [--source SOURCE] [--hex HEX]
         serial-workbench sessions delete --id SESSION_ID
         serial-workbench send --port <port> (--text TEXT | --hex HEX) [--baud 115200]
         serial-workbench monitor --port <port> [--seconds 10] [--direction all|rx|tx] [--source SOURCE] [--output text|jsonl]

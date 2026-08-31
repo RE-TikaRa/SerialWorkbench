@@ -425,6 +425,14 @@ HEX 发送：
 
 `--direction` 可使用 `all`、`rx` 或 `tx`；`--source` 不区分大小写匹配来源；`--hex` 匹配报文中的连续字节。CSV 和 `jsonl` 都按会话事件序号分页写入，适合大型会话处理。
 
+导出筛选后的原始二进制：
+
+```powershell
+.\serial-workbench.exe sessions export --id SESSION_ID --file E:\Exports\payload.bin --format binary --direction rx --output json
+```
+
+`binary` 按事件序号拼接原始报文字节，不添加时间戳或分隔符。
+
 删除已经结束的会话：
 
 ```powershell
