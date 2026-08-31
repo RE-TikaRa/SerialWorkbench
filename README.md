@@ -350,6 +350,14 @@ HEX 发送：
 
 扫描使用功能码 `03` 读取一个保持寄存器。正常响应和 Modbus 异常响应都会列入结果，超时从站不会列入响应列表。
 
+周期轮询：
+
+```powershell
+.\serial-workbench.exe modbus poll --port COM15 --baud 115200 --slave 1 --address 0 --quantity 4 --function 3 --count 20 --interval 1000 --output jsonl
+```
+
+每次轮询都是独立的 Host Modbus 事务，输出包含采样序号、UTC 时间、原始响应、寄存器或位数组、耗时和错误信息。
+
 ### 协议解析
 
 使用与 WinUI 协议帧查看器相同的 Modbus RTU 解析器：

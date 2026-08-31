@@ -110,6 +110,8 @@ static async Task<int> RunAsync(IHostRpc client, Arguments arguments, string out
             return await ModbusWriteAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "modbus scan":
             return await ModbusScanAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
+        case "modbus poll":
+            return await ModbusPollAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "xmodem send":
             return await XmodemSendAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "xmodem receive":
@@ -527,6 +529,89 @@ static async Task<int> ModbusScanAsync(IHostRpc client, Arguments arguments, str
     }
 }
 
+static async Task<int> ModbusPollAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+{
+    var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
+    try
+    {
+        var slave = GetByte(arguments, "--slave", 1);
+        var function = GetByte(arguments, "--function", 3);
+        if (function is not (1 or 2 or 3 or 4))
+        {
+            throw new ArgumentException("--function must be 1, 2, 3, or 4.");
+        }
+
+        var address = GetUShort(arguments, "--address");
+        var quantity = ValidateReadQuantity(GetUShort(arguments, "--quantity"), function);
+        var count = arguments.GetInt("--count", 10);
+        if (count is < 1 or > 100_000)
+        {
+            throw new ArgumentException("--count must be between 1 and 100000.");
+        }
+
+        var interval = arguments.GetInt("--interval", 1000);
+        if (interval is < 0 or > 600_000)
+        {
+            throw new ArgumentException("--interval must be between 0 and 600000 milliseconds.");
+        }
+
+        var timeout = arguments.GetInt("--timeout", 2000);
+        if (timeout is < 1 or > 600_000)
+        {
+            throw new ArgumentException("--timeout must be between 1 and 600000 milliseconds.");
+        }
+
+        var failed = false;
+        for (var sample = 0; sample < count; sample++)
+        {
+            var frame = ModbusRtuCodec.BuildReadRequest(slave, function, address, quantity);
+            var result = await client.RunModbusAsync(new ModbusTransactionRequest(connection.Id, frame, slave, function, timeout), cancellationToken).ConfigureAwait(false);
+            failed |= !result.Success;
+            var value = new
+            {
+                sample = sample + 1,
+                utc = DateTimeOffset.UtcNow,
+                success = result.Success,
+                responseFrame = Convert.ToHexString(result.ResponseFrame),
+                registers = result.Registers,
+                bits = result.Bits,
+                durationMilliseconds = result.Duration.TotalMilliseconds,
+                exceptionCode = result.ExceptionCode,
+                error = result.Error,
+            };
+
+            if (output is "json" or "jsonl")
+            {
+                WriteResult(output, "modbus.poll", value);
+            }
+            else
+            {
+                Console.WriteLine($"{value.utc:O} #{value.sample} {(value.success ? "success" : "failed")} {value.durationMilliseconds:N0} ms");
+                if (value.registers.Length > 0)
+                {
+                    Console.WriteLine($"Registers: {string.Join(' ', value.registers.Select(static item => $"0x{item:X4}"))}");
+                }
+
+                if (value.bits is { Length: > 0 } bits)
+                {
+                    Console.WriteLine($"Bits: {string.Join(' ', bits.Select(static item => item ? '1' : '0'))}");
+                }
+            }
+
+            if (sample + 1 < count && interval > 0)
+            {
+                await Task.Delay(interval, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        return failed ? 1 : 0;
+    }
+    finally
+    {
+        await client.CloseConnectionAsync(connection.Id, CancellationToken.None).ConfigureAwait(false);
+    }
+}
+
 static async Task<int> RunModbusAsync(
     IHostRpc client,
     ConnectionSnapshot connection,
@@ -760,6 +845,7 @@ static void PrintHelp()
         serial-workbench modbus read --port <port> --slave 1 --address 0 --quantity 1 [--function 1|2|3|4|17]
         serial-workbench modbus write --port <port> --slave 1 --address 0 (--value VALUE | --values VALUES) [--function 5|6|15|16]
         serial-workbench modbus scan --port <port> [--from 1] [--to 247] [--address 0] [--timeout 200]
+        serial-workbench modbus poll --port <port> --slave 1 --address 0 --quantity 1 [--function 1|2|3|4] [--count 10] [--interval 1000]
         serial-workbench xmodem send --port <port> --file PATH [--baud 115200]
         serial-workbench xmodem receive --port <port> --file PATH [--baud 115200]
         serial-workbench protocol inspect --hex HEX [--template PATH] [--output text|json]
