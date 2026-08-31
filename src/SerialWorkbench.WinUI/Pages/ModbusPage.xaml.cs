@@ -26,6 +26,10 @@ public sealed partial class ModbusPage : Page
 
     public event EventHandler? ScanCancelRequested;
 
+    public event EventHandler? PollRequested;
+
+    public event EventHandler? PollCancelRequested;
+
     public byte[]? RequestFrame { get; private set; }
 
     public byte SlaveAddressValue => (byte)SlaveAddress.Value;
@@ -42,7 +46,30 @@ public sealed partial class ModbusPage : Page
 
     public int ScanIntervalMilliseconds => checked((int)ScanInterval.Value);
 
+    public byte PollSlaveValue => checked((byte)PollSlave.Value);
+
+    public byte PollFunctionValue => PollFunction.SelectedIndex switch
+    {
+        0 => 1,
+        1 => 2,
+        2 => 3,
+        3 => 4,
+        _ => 3,
+    };
+
+    public ushort PollAddressValue => checked((ushort)PollAddress.Value);
+
+    public ushort PollQuantityValue => checked((ushort)PollQuantity.Value);
+
+    public int PollCountValue => checked((int)PollCount.Value);
+
+    public int PollIntervalMilliseconds => checked((int)PollInterval.Value);
+
+    public int PollTimeoutMilliseconds => checked((int)PollTimeout.Value);
+
     public ObservableCollection<ModbusScanRow> ScanResults { get; } = [];
+
+    public ObservableCollection<ModbusPollRow> PollResults { get; } = [];
 
     public void SetSending(bool sending) => SendButton.IsEnabled = !sending;
 
@@ -51,6 +78,7 @@ public sealed partial class ModbusPage : Page
         ScanButton.IsEnabled = !scanning;
         CancelScanButton.IsEnabled = scanning;
         SendButton.IsEnabled = !scanning;
+        PollButton.IsEnabled = !scanning;
     }
 
     public void ClearScanResults()
@@ -63,6 +91,24 @@ public sealed partial class ModbusPage : Page
 
     public void SetScanStatus(string text) => ScanStatusText.Text = text;
 
+    public void SetPolling(bool polling)
+    {
+        PollButton.IsEnabled = !polling;
+        CancelPollButton.IsEnabled = polling;
+        SendButton.IsEnabled = !polling;
+        ScanButton.IsEnabled = !polling;
+    }
+
+    public void ClearPollResults()
+    {
+        PollResults.Clear();
+        PollStatusText.Text = "";
+    }
+
+    public void AddPollResult(int sample, ModbusTransactionResult result) => PollResults.Add(ModbusPollRow.From(sample, result));
+
+    public void SetPollStatus(string text) => PollStatusText.Text = text;
+
     public void ShowResult(string message, InfoBarSeverity severity)
     {
         Result.Title = severity == InfoBarSeverity.Success ? "已发送" : "Modbus RTU";
@@ -74,6 +120,14 @@ public sealed partial class ModbusPage : Page
     public void ShowScanResult(string message, InfoBarSeverity severity)
     {
         Result.Title = "从站扫描";
+        Result.Message = message;
+        Result.Severity = severity;
+        Result.IsOpen = true;
+    }
+
+    public void ShowPollResult(string message, InfoBarSeverity severity)
+    {
+        Result.Title = "周期轮询";
         Result.Message = message;
         Result.Severity = severity;
         Result.IsOpen = true;
@@ -249,6 +303,10 @@ public sealed partial class ModbusPage : Page
 
     private void CancelScanButton_Click(object sender, RoutedEventArgs e) => ScanCancelRequested?.Invoke(this, EventArgs.Empty);
 
+    private void PollButton_Click(object sender, RoutedEventArgs e) => PollRequested?.Invoke(this, EventArgs.Empty);
+
+    private void CancelPollButton_Click(object sender, RoutedEventArgs e) => PollCancelRequested?.Invoke(this, EventArgs.Empty);
+
     private void ParseButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         try
@@ -358,6 +416,32 @@ public sealed class ModbusScanRow
         {
             Slave = $"从站 {slave}",
             Status = result.Success ? "响应" : result.ExceptionCode is { } code ? $"异常 0x{code:X2}" : "失败",
+            Duration = $"{result.Duration.TotalMilliseconds:N0} ms",
+            Details = details,
+        };
+    }
+}
+
+public sealed class ModbusPollRow
+{
+    public string Sample { get; private init; } = "";
+    public string Status { get; private init; } = "";
+    public string Duration { get; private init; } = "";
+    public string Details { get; private init; } = "";
+
+    public static ModbusPollRow From(int sample, ModbusTransactionResult result)
+    {
+        var details = result.Success
+            ? result.Registers.Length > 0
+                ? string.Join(" ", result.Registers.Select(static value => $"0x{value:X4}"))
+                : result.Bits is { } bits
+                    ? string.Join(" ", bits.Select(static value => value ? '1' : '0'))
+                    : "响应"
+            : result.Error ?? "Modbus 异常";
+        return new ModbusPollRow
+        {
+            Sample = $"#{sample}",
+            Status = result.Success ? "成功" : result.ExceptionCode is { } code ? $"异常 0x{code:X2}" : "失败",
             Duration = $"{result.Duration.TotalMilliseconds:N0} ms",
             Details = details,
         };

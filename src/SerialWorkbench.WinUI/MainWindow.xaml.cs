@@ -64,6 +64,7 @@ public sealed partial class MainWindow : Window
     private Action? loopbackCancel;
     private Action? xmodemCancel;
     private CancellationTokenSource? modbusScanCancellation;
+    private CancellationTokenSource? modbusPollCancellation;
     private ModbusPage? modbusPage;
     private readonly SerialPreference serialPreference = SerialPreferenceStore.Load();
     private readonly string? preferredWorkspace = WorkspacePreferenceStore.Load();
@@ -724,6 +725,10 @@ public sealed partial class MainWindow : Window
                 page.ScanRequested += ModbusPage_ScanRequested;
                 page.ScanCancelRequested -= ModbusPage_ScanCancelRequested;
                 page.ScanCancelRequested += ModbusPage_ScanCancelRequested;
+                page.PollRequested -= ModbusPage_PollRequested;
+                page.PollRequested += ModbusPage_PollRequested;
+                page.PollCancelRequested -= ModbusPage_PollCancelRequested;
+                page.PollCancelRequested += ModbusPage_PollCancelRequested;
                 break;
             case SettingsPage page:
                 settingsPage = page;
@@ -1730,6 +1735,79 @@ public sealed partial class MainWindow : Window
 
     private void ModbusPage_ScanCancelRequested(object? sender, EventArgs e) => modbusScanCancellation?.Cancel();
 
+    private void ModbusPage_PollCancelRequested(object? sender, EventArgs e) => modbusPollCancellation?.Cancel();
+
+    private async void ModbusPage_PollRequested(object? sender, EventArgs e)
+    {
+        if (modbusPage is null)
+        {
+            return;
+        }
+
+        if (client is null || connectionId is not { } current)
+        {
+            modbusPage.ShowResult("请先连接串口。", InfoBarSeverity.Warning);
+            return;
+        }
+
+        try
+        {
+            var slave = modbusPage.PollSlaveValue;
+            var function = modbusPage.PollFunctionValue;
+            var address = modbusPage.PollAddressValue;
+            var quantity = modbusPage.PollQuantityValue;
+            var maximumQuantity = function is 1 or 2 ? 2000 : 125;
+            if (quantity < 1 || quantity > maximumQuantity)
+            {
+                throw new ArgumentException($"功能码 {function:D2} 的数量必须在 1 到 {maximumQuantity} 之间。");
+            }
+
+            var count = modbusPage.PollCountValue;
+            var interval = modbusPage.PollIntervalMilliseconds;
+            var timeout = modbusPage.PollTimeoutMilliseconds;
+            using var cancellation = new CancellationTokenSource();
+            modbusPollCancellation = cancellation;
+            modbusPage.ClearPollResults();
+            modbusPage.SetPolling(true);
+            var failed = 0;
+            try
+            {
+                for (var sample = 1; sample <= count; sample++)
+                {
+                    cancellation.Token.ThrowIfCancellationRequested();
+                    var frame = SerialWorkbench.Modbus.ModbusRtuCodec.BuildReadRequest(slave, function, address, quantity);
+                    var result = await client.RunModbusAsync(new ModbusTransactionRequest(current, frame, slave, function, timeout), cancellation.Token);
+                    modbusPage.AddPollResult(sample, result);
+                    if (!result.Success)
+                    {
+                        failed++;
+                    }
+
+                    modbusPage.SetPollStatus($"已完成 {sample} / {count} · 失败 {failed}");
+                    if (interval > 0 && sample < count)
+                    {
+                        await Task.Delay(interval, cancellation.Token);
+                    }
+                }
+
+                modbusPage.ShowPollResult($"轮询完成 · 成功 {count - failed} · 失败 {failed}", failed == 0 ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            {
+                modbusPage.ShowPollResult($"轮询已停止 · 已完成 {modbusPage.PollResults.Count} 次 · 失败 {failed}", InfoBarSeverity.Warning);
+            }
+            finally
+            {
+                modbusPage.SetPolling(false);
+                modbusPollCancellation = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            modbusPage.ShowPollResult(ex.Message, InfoBarSeverity.Error);
+        }
+    }
+
     private async void ModbusPage_ScanRequested(object? sender, EventArgs e)
     {
         if (modbusPage is null)
@@ -1929,6 +2007,7 @@ public sealed partial class MainWindow : Window
         loopbackCancel?.Invoke();
         xmodemCancel?.Invoke();
         modbusScanCancellation?.Cancel();
+        modbusPollCancellation?.Cancel();
         if (workbenchPage is not null)
         {
             SerialPreferenceStore.Save(workbenchPage.ReadSerialPreference(workbenchPage.SelectedPort?.PortName));
@@ -1958,6 +2037,7 @@ public sealed partial class MainWindow : Window
         textDecoder = null;
         replayCancellation?.Dispose();
         modbusScanCancellation?.Dispose();
+        modbusPollCancellation?.Dispose();
         sequenceCancel = null;
     }
 

@@ -155,6 +155,57 @@
               </DataTemplate>
             </ListView.ItemTemplate>
           </ListView>
+          <Expander Header="周期轮询" IsExpanded="False">
+            <StackPanel Spacing="{StaticResource CardContentSpacing}">
+              <Grid ColumnSpacing="12" RowSpacing="14">
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <NumberBox x:Name="PollSlave" x:FieldModifier="public" Header="从站地址" Value="1" Minimum="1" Maximum="247" SpinButtonPlacementMode="Compact" />
+                <ComboBox x:Name="PollFunction" x:FieldModifier="public" Grid.Column="1" Header="功能码" SelectedIndex="2" HorizontalAlignment="Stretch">
+                  <x:String>01 读线圈</x:String>
+                  <x:String>02 读离散输入</x:String>
+                  <x:String>03 读保持寄存器</x:String>
+                  <x:String>04 读输入寄存器</x:String>
+                </ComboBox>
+                <NumberBox x:Name="PollAddress" x:FieldModifier="public" Grid.Column="2" Header="起始地址" Value="0" Minimum="0" Maximum="65535" SpinButtonPlacementMode="Compact" />
+                <NumberBox x:Name="PollQuantity" x:FieldModifier="public" Grid.Row="1" Header="数量" Value="1" Minimum="1" Maximum="2000" SpinButtonPlacementMode="Compact" />
+                <NumberBox x:Name="PollCount" x:FieldModifier="public" Grid.Row="1" Grid.Column="1" Header="采样次数" Value="10" Minimum="1" Maximum="100000" SpinButtonPlacementMode="Compact" />
+                <NumberBox x:Name="PollInterval" x:FieldModifier="public" Grid.Row="1" Grid.Column="2" Header="间隔(ms)" Value="1000" Minimum="0" Maximum="600000" SpinButtonPlacementMode="Compact" />
+                <NumberBox x:Name="PollTimeout" x:FieldModifier="public" Grid.Row="2" Grid.ColumnSpan="3" Header="超时(ms)" Value="2000" Minimum="1" Maximum="600000" SpinButtonPlacementMode="Compact" />
+              </Grid>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="PollButton" x:FieldModifier="public" Content="开始轮询" Click="PollButton_Click" Style="{StaticResource AccentButtonStyle}" />
+                <Button x:Name="CancelPollButton" x:FieldModifier="public" Content="停止" Click="CancelPollButton_Click" IsEnabled="False" />
+                <TextBlock x:Name="PollStatusText" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              </StackPanel>
+              <ListView x:Name="PollResultList" ItemsSource="{x:Bind PollResults}" MinHeight="160" SelectionMode="None">
+                <ListView.ItemTemplate>
+                  <DataTemplate>
+                    <Grid Padding="8,4" ColumnSpacing="16">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="70" />
+                        <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding Sample}" FontFamily="{StaticResource MonospaceFontFamily}" />
+                      <TextBlock Grid.Column="1" Text="{Binding Status}" />
+                      <TextBlock Grid.Column="2" Text="{Binding Duration}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                      <TextBlock Grid.Column="3" Text="{Binding Details}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Details}" />
+                    </Grid>
+                  </DataTemplate>
+                </ListView.ItemTemplate>
+              </ListView>
+            </StackPanel>
+          </Expander>
         </StackPanel>
       </Border>
       <Border x:Name="ResponseCard" Grid.Row="2" Grid.ColumnSpan="2" Style="{StaticResource SurfaceCardStyle}">
