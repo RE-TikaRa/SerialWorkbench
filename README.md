@@ -342,6 +342,14 @@ HEX 发送：
 
 功能码可以使用 `1`、`2`、`3` 或 `4`。Modbus JSON 结果包含请求帧、响应帧、功能码、位数组、寄存器、地址、寄存器值、异常码、耗时和错误信息。
 
+扫描从站：
+
+```powershell
+.\serial-workbench.exe modbus scan --port COM15 --baud 115200 --from 1 --to 247 --address 0 --timeout 200 --output json
+```
+
+扫描使用功能码 `03` 读取一个保持寄存器。正常响应和 Modbus 异常响应都会列入结果，超时从站不会列入响应列表。
+
 ### 协议解析
 
 使用与 WinUI 协议帧查看器相同的 Modbus RTU 解析器：
