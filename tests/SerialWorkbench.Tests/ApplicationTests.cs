@@ -63,6 +63,21 @@ public sealed class ApplicationTests
     }
 
     [Fact]
+    public void EventJournalFiltersDirectionAndSource()
+    {
+        var journal = new EventJournal();
+        var connectionId = Guid.NewGuid();
+        journal.Append(connectionId, SerialDirection.Receive, [1], "serial");
+        journal.Append(connectionId, SerialDirection.Transmit, [2], "cli.send");
+
+        var events = journal.ReadAfter(0, 10, connectionId, SerialDirection.Transmit, "cli");
+
+        var item = Assert.Single(events);
+        Assert.Equal(SerialDirection.Transmit, item.Direction);
+        Assert.Equal("cli.send", item.Source);
+    }
+
+    [Fact]
     public void PipeNameIsStableForEquivalentApplicationPaths()
     {
         var first = HostEndpoint.GetPipeName(@"C:\Apps\SerialWorkbench");

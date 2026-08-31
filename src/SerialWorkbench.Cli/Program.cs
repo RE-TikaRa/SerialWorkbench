@@ -401,11 +401,19 @@ static async Task<int> MonitorAsync(IHostRpc client, Arguments arguments, string
     var seconds = arguments.GetInt("--seconds", 10);
     var deadline = DateTime.UtcNow.AddSeconds(seconds);
     long sequence = 0;
+    SerialDirection? direction = arguments.Get("--direction")?.ToLowerInvariant() switch
+    {
+        null or "all" => null,
+        "rx" => SerialDirection.Receive,
+        "tx" => SerialDirection.Transmit,
+        _ => throw new ArgumentException("--direction must be all, rx, or tx."),
+    };
+    var source = arguments.Get("--source");
     try
     {
         while (DateTime.UtcNow < deadline)
         {
-            var events = await client.ReadEventsAsync(new EventQuery(sequence, 1000, connection.Id), cancellationToken).ConfigureAwait(false);
+            var events = await client.ReadEventsAsync(new EventQuery(sequence, 1000, connection.Id, direction, source), cancellationToken).ConfigureAwait(false);
             foreach (var item in events)
             {
                 sequence = Math.Max(sequence, item.Sequence);
@@ -874,7 +882,7 @@ static void PrintHelp()
         serial-workbench sessions export --id SESSION_ID --file PATH [--format csv|jsonl]
         serial-workbench sessions delete --id SESSION_ID
         serial-workbench send --port <port> (--text TEXT | --hex HEX) [--baud 115200]
-        serial-workbench monitor --port <port> [--seconds 10] [--output text|jsonl]
+        serial-workbench monitor --port <port> [--seconds 10] [--direction all|rx|tx] [--source SOURCE] [--output text|jsonl]
         serial-workbench loopback run --port <port> [--baud 115200] [--length 4096] [--iterations 1]
         serial-workbench modbus read --port <port> --slave 1 --address 0 --quantity 1 [--function 1|2|3|4|17]
         serial-workbench modbus write --port <port> --slave 1 --address 0 (--value VALUE | --values VALUES) [--function 5|6|15|16]

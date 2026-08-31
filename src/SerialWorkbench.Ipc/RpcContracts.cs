@@ -27,7 +27,12 @@ public sealed record OpenConnectionRequest(SerialConnectionOptions Options);
 
 public sealed record SendRequest(Guid ConnectionId, byte[] Data, string Source = "manual");
 
-public sealed record EventQuery(long AfterSequence = 0, int MaximumCount = 1000, Guid? ConnectionId = null);
+public sealed record EventQuery(
+    long AfterSequence = 0,
+    int MaximumCount = 1000,
+    Guid? ConnectionId = null,
+    SerialDirection? Direction = null,
+    string? SourceContains = null);
 
 public sealed record SessionEventQuery(Guid SessionId, int MaximumCount = 1000, long AfterSequence = 0, Guid? ConnectionId = null);
 

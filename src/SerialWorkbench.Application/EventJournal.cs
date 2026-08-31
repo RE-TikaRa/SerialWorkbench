@@ -33,7 +33,7 @@ public sealed class EventJournal(int capacity = 100_000)
         return item;
     }
 
-    public IReadOnlyList<SerialTrafficEvent> ReadAfter(long sequence, int maximumCount, Guid? connectionId = null)
+    public IReadOnlyList<SerialTrafficEvent> ReadAfter(long sequence, int maximumCount, Guid? connectionId = null, SerialDirection? direction = null, string? sourceContains = null)
     {
         if (maximumCount is < 1 or > 10_000)
         {
@@ -43,7 +43,10 @@ public sealed class EventJournal(int capacity = 100_000)
         lock (gate)
         {
             return events
-                .Where(item => item.Sequence > sequence && (connectionId is null || item.ConnectionId == connectionId))
+                .Where(item => item.Sequence > sequence
+                    && (connectionId is null || item.ConnectionId == connectionId)
+                    && (direction is null || item.Direction == direction)
+                    && (sourceContains is null || item.Source.Contains(sourceContains, StringComparison.OrdinalIgnoreCase)))
                 .Take(maximumCount)
                 .ToArray();
         }

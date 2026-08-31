@@ -304,7 +304,13 @@ HEX 发送：
 .\serial-workbench.exe monitor --port COM15 --baud 115200 --seconds 10 --output jsonl
 ```
 
-文本输出显示 UTC 时间、方向和 HEX。`jsonl` 每行输出一个带 `schemaVersion` 的结构化事件。
+只看接收或发送事件：
+
+```powershell
+.\serial-workbench.exe monitor --port COM15 --baud 115200 --direction rx --source serial --seconds 10 --output jsonl
+```
+
+`--direction` 可使用 `all`、`rx` 或 `tx`，`--source` 按来源名称不区分大小写匹配。文本输出显示 UTC 时间、方向和 HEX；`jsonl` 每行输出一个带 `schemaVersion` 的结构化事件。
 
 ### 回环
 
