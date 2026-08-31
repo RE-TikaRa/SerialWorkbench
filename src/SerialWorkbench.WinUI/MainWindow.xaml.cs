@@ -47,6 +47,7 @@ public sealed partial class MainWindow : Window
     private int replayTotal;
     private long replaySequence;
     private TaskCompletionSource<bool> replayStateChanged = CreateReplaySignal();
+    private int sessionEventRequestVersion;
     private WorkbenchPage? workbenchPage;
     private ConnectionsPage? connectionsPage;
     private LoopbackPage? loopbackPage;
@@ -732,6 +733,8 @@ public sealed partial class MainWindow : Window
                 page.RefreshRequested += SessionsPage_RefreshRequested;
                 page.SessionSelected -= SessionsPage_SessionSelected;
                 page.SessionSelected += SessionsPage_SessionSelected;
+                page.EventFilterChanged -= SessionsPage_EventFilterChanged;
+                page.EventFilterChanged += SessionsPage_EventFilterChanged;
                 page.RevealRequested -= SessionsPage_RevealRequested;
                 page.RevealRequested += SessionsPage_RevealRequested;
                 page.ExportRequested -= SessionsPage_ExportRequested;
@@ -1325,6 +1328,14 @@ public sealed partial class MainWindow : Window
 
     private async void SessionsPage_SessionSelected(object? sender, Guid sessionId) => await ReadSessionEventsAsync(sessionId);
 
+    private async void SessionsPage_EventFilterChanged(object? sender, SessionEventFilter filter)
+    {
+        if (sessionsPage?.SelectedSession is { } session)
+        {
+            await ReadSessionEventsAsync(session.Id, sessionsPage, filter);
+        }
+    }
+
     private async void SessionsPage_ReplayRequested(object? sender, Guid sessionId) => await ReplaySessionAsync(sessionId);
 
     private void SessionsPage_ReplayPauseRequested(object? sender, Guid sessionId)
@@ -1608,7 +1619,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async Task ReadSessionEventsAsync(Guid sessionId, SessionsPage? page = null)
+    private async Task ReadSessionEventsAsync(Guid sessionId, SessionsPage? page = null, SessionEventFilter? filter = null)
     {
         page ??= sessionsPage;
         if (client is null || page is null)
@@ -1616,10 +1627,21 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        var requestVersion = ++sessionEventRequestVersion;
+        var selectedFilter = filter ?? page.EventFilter;
         page.SetEventsLoading(sessionId);
         try
         {
-            var events = await client.ReadSessionEventsAsync(new SessionEventQuery(sessionId), CancellationToken.None);
+            var events = await client.ReadSessionEventsAsync(new SessionEventQuery(
+                sessionId,
+                Direction: selectedFilter.Direction,
+                SourceContains: selectedFilter.SourceContains,
+                DataContainsHex: selectedFilter.DataContainsHex), CancellationToken.None);
+            if (requestVersion != sessionEventRequestVersion || page.SelectedSession?.Id != sessionId)
+            {
+                return;
+            }
+
             page.SetEvents(sessionId, events);
             await ReadLoopbackResultsAsync(sessionId, page);
         }

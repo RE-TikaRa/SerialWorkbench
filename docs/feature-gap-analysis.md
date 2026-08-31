@@ -43,7 +43,7 @@ Host 持有串口句柄、写入租约、原始事件和 SQLite 会话。WinUI �
 - CLI 支持按地址范围扫描 Modbus RTU 从站。
 - CLI 支持按固定间隔轮询 Modbus 位或寄存器。
 - SQLite 会话、空会话、事件原始字节、CSV 导出、会话筛选、回放和回环历史。
-- 会话事件按序号分页读取，支持连接、方向、来源和 HEX 片段筛选，并可用于 CSV、JSONL 导出。
+- 会话事件按序号分页读取，支持连接、方向、来源和 HEX 片段筛选，并可用于 WinUI 查看及 CSV、JSONL 导出。
 - CLI 端口、Host、工作区、发送、监视、回环、Modbus、会话和 XMODEM 命令。
 - self-contained `win-x64` 便携发布。
 

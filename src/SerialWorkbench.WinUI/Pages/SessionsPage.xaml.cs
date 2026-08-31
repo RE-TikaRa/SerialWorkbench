@@ -26,6 +26,8 @@ public sealed partial class SessionsPage : Page
 
     public event EventHandler<Guid>? SessionSelected;
 
+    public event EventHandler<SessionEventFilter>? EventFilterChanged;
+
     public event EventHandler<string>? RevealRequested;
 
     public event EventHandler<Guid>? ExportRequested;
@@ -39,6 +41,16 @@ public sealed partial class SessionsPage : Page
     public event EventHandler<Guid>? DeleteRequested;
 
     public void SetWorkspace(string path) => WorkspacePath.Text = path;
+
+    public SessionEventFilter EventFilter => new(
+        EventDirectionFilter.SelectedIndex switch
+        {
+            1 => SerialDirection.Receive,
+            2 => SerialDirection.Transmit,
+            _ => null,
+        },
+        EventSourceFilter.Text.Trim() is { Length: > 0 } source ? source : null,
+        EventHexFilter.Text.Trim() is { Length: > 0 } hex ? hex : null);
 
     public Guid? SetSessions(IReadOnlyList<SessionDescriptor> sessions, Guid? activeSessionId)
     {
@@ -150,6 +162,8 @@ public sealed partial class SessionsPage : Page
     private void RefreshSessionsButton_Click(object sender, RoutedEventArgs e) => RefreshRequested?.Invoke(this, EventArgs.Empty);
 
     private void SessionFilter_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilter();
+
+    private void EventFilter_Changed(object sender, object e) => EventFilterChanged?.Invoke(this, EventFilter);
 
     private void ApplyFilter()
     {
@@ -269,6 +283,8 @@ public sealed partial class SessionsPage : Page
         EventsEmptyState.Visibility = Visibility.Visible;
     }
 }
+
+public sealed record SessionEventFilter(SerialDirection? Direction, string? SourceContains, string? DataContainsHex);
 
 public sealed class SessionRow
 {

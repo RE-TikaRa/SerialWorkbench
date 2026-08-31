@@ -105,6 +105,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
           <Grid ColumnSpacing="8">
             <Grid.ColumnDefinitions>
@@ -134,13 +135,27 @@
           </Grid>
           <Grid Grid.Row="1" ColumnSpacing="8">
             <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="120" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <ComboBox x:Name="EventDirectionFilter" SelectedIndex="0" SelectionChanged="EventFilter_Changed" PlaceholderText="方向">
+              <ComboBoxItem Content="全部" />
+              <ComboBoxItem Content="RX" />
+              <ComboBoxItem Content="TX" />
+            </ComboBox>
+            <TextBox x:Name="EventSourceFilter" Grid.Column="1" PlaceholderText="来源包含" TextChanged="EventFilter_Changed" />
+            <TextBox x:Name="EventHexFilter" Grid.Column="2" PlaceholderText="HEX 包含" TextChanged="EventFilter_Changed" FontFamily="{StaticResource MonospaceFontFamily}" />
+          </Grid>
+          <Grid Grid.Row="2" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <ProgressBar x:Name="ReplayProgressBar" Maximum="1" Visibility="Collapsed" VerticalAlignment="Center" />
             <TextBlock x:Name="ReplayStatusText" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
           </Grid>
-          <Grid Grid.Row="2">
+          <Grid Grid.Row="3">
             <ListView x:Name="EventList" ItemsSource="{x:Bind Events}" SelectionMode="None">
               <ListView.ItemTemplate>
                 <DataTemplate>
@@ -161,7 +176,7 @@
             </ListView>
             <TextBlock x:Name="EventsEmptyState" Text="选择会话以查看报文" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           </Grid>
-          <Expander Grid.Row="3" Header="回环统计" IsExpanded="False">
+          <Expander Grid.Row="4" Header="回环统计" IsExpanded="False">
             <Grid MinHeight="120">
               <ListView x:Name="LoopbackResultList" ItemsSource="{x:Bind LoopbackResults}" SelectionMode="None">
                 <ListView.ItemTemplate>
