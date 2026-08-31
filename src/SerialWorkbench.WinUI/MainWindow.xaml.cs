@@ -382,6 +382,7 @@ public sealed partial class MainWindow : Window
         workspacePath = status.WorkspaceRoot is null ? $"全局数据：{status.DataRoot}" : $"工作区：{status.WorkspaceRoot}";
         sessionsPage?.SetWorkspace(workspacePath);
         connectionsPage?.SetConnections(status.Connections, connectionId);
+        connectionsPage?.SetHostMetrics(status.LatestEventSequence, status.PendingSessionEvents);
     }
 
     private void SyncConnectionContexts(IReadOnlyList<ConnectionSnapshot> snapshots)
@@ -762,6 +763,7 @@ public sealed partial class MainWindow : Window
             var status = await client.GetStatusAsync(CancellationToken.None);
             SyncConnectionContexts(status.Connections);
             page.SetConnections(status.Connections, connectionId);
+            page.SetHostMetrics(status.LatestEventSequence, status.PendingSessionEvents);
         }
         catch (Exception ex)
         {

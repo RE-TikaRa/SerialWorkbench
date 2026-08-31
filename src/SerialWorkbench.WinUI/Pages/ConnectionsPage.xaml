@@ -6,6 +6,7 @@
     <Grid Padding="{StaticResource ContentPagePadding}" RowSpacing="{StaticResource ContentPageSpacing}">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
       </Grid.RowDefinitions>
       <Grid ColumnSpacing="8" RowSpacing="8">
@@ -34,7 +35,8 @@
         <Button x:Name="RefreshButton" Grid.Column="1" Content="刷新" Click="RefreshButton_Click" VerticalAlignment="Bottom" />
         <Button x:Name="CloseButton" Grid.Column="2" Content="关闭连接" Click="CloseButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
       </Grid>
-      <Border Grid.Row="1" Style="{StaticResource SurfaceCardStyle}" Padding="0">
+      <TextBlock x:Name="HostMetricsText" Grid.Row="1" Text="事件序号 0 · 持久化队列 0" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      <Border Grid.Row="2" Style="{StaticResource SurfaceCardStyle}" Padding="0">
         <Grid>
           <ListView x:Name="ConnectionList" ItemsSource="{x:Bind Connections}" SelectionMode="Single" SelectionChanged="ConnectionList_SelectionChanged">
             <ListView.ItemTemplate>

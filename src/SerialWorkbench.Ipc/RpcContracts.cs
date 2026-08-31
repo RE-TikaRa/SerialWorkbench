@@ -19,7 +19,9 @@ public sealed record HostStatusDto(
     string? WorkspaceRoot,
     int ClientCount,
     IReadOnlyList<ConnectionSnapshot> Connections,
-    SessionDescriptor? ActiveSession);
+    SessionDescriptor? ActiveSession,
+    long LatestEventSequence = 0,
+    long PendingSessionEvents = 0);
 
 public sealed record OpenConnectionRequest(SerialConnectionOptions Options);
 

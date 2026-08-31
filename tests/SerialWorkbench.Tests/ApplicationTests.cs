@@ -111,6 +111,15 @@ public sealed class ApplicationTests
     }
 
     [Fact]
+    public void HostStatusCarriesEventPersistenceMetrics()
+    {
+        var status = new HostStatusDto("1.0", "app", "data", null, 1, [], null, 42, 3);
+
+        Assert.Equal(42, status.LatestEventSequence);
+        Assert.Equal(3, status.PendingSessionEvents);
+    }
+
+    [Fact]
     public async Task HostColdStartAcceptsConcurrentClients()
     {
         var clients = Enumerable.Range(0, 16)

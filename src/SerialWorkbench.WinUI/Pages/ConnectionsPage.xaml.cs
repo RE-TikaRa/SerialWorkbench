@@ -41,6 +41,9 @@ public sealed partial class ConnectionsPage : Page
         CloseButton.IsEnabled = SelectedConnection is not null;
     }
 
+    public void SetHostMetrics(long latestSequence, long pendingEvents) =>
+        HostMetricsText.Text = $"事件序号 {latestSequence:N0} · 持久化队列 {pendingEvents:N0}";
+
     public void SetPorts(IReadOnlyList<SerialPortDescriptor> ports)
     {
         var selectedName = SelectedPort?.PortName;
