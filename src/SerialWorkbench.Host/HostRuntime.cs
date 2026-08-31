@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Threading.Channels;
 using SerialWorkbench.Application;
 using SerialWorkbench.Domain;
@@ -17,6 +18,8 @@ public sealed class HostRuntime : IAsyncDisposable
     private TaskCompletionSource<bool> sessionFlushed = CompletedSignal();
     private long pendingSessionEvents;
     private Exception? sessionWriterError;
+    private long persistedSessionEvents;
+    private long persistenceStartedTimestamp;
     private int clientCount;
     private long idleSinceUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
@@ -45,6 +48,16 @@ public sealed class HostRuntime : IAsyncDisposable
     public int ClientCount => Volatile.Read(ref clientCount);
 
     public long PendingSessionEvents => Interlocked.Read(ref pendingSessionEvents);
+
+    public double SessionEventPersistenceEventsPerSecond
+    {
+        get
+        {
+            var started = Volatile.Read(ref persistenceStartedTimestamp);
+            var elapsed = started == 0 ? 0 : Stopwatch.GetElapsedTime(started).TotalSeconds;
+            return elapsed > 0 ? Interlocked.Read(ref persistedSessionEvents) / elapsed : 0;
+        }
+    }
 
     public void ClientConnected()
     {
@@ -135,6 +148,8 @@ public sealed class HostRuntime : IAsyncDisposable
             {
                 sessionFlushed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             }
+
+            Interlocked.CompareExchange(ref persistenceStartedTimestamp, Stopwatch.GetTimestamp(), 0);
         }
 
         if (!sessionEvents.Writer.TryWrite(item))
@@ -160,6 +175,7 @@ public sealed class HostRuntime : IAsyncDisposable
             try
             {
                 await Sessions.AppendManyAsync(batch, CancellationToken.None).ConfigureAwait(false);
+                Interlocked.Add(ref persistedSessionEvents, batch.Count);
             }
             catch (Exception ex)
             {

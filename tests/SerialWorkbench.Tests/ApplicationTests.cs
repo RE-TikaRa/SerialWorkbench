@@ -131,10 +131,11 @@ public sealed class ApplicationTests
     [Fact]
     public void HostStatusCarriesEventPersistenceMetrics()
     {
-        var status = new HostStatusDto("1.0", "app", "data", null, 1, [], null, 42, 3);
+        var status = new HostStatusDto("1.0", "app", "data", null, 1, [], null, 42, 3, 18.5);
 
         Assert.Equal(42, status.LatestEventSequence);
         Assert.Equal(3, status.PendingSessionEvents);
+        Assert.Equal(18.5, status.SessionEventPersistenceEventsPerSecond);
     }
 
     [Fact]

@@ -21,7 +21,8 @@ public sealed record HostStatusDto(
     IReadOnlyList<ConnectionSnapshot> Connections,
     SessionDescriptor? ActiveSession,
     long LatestEventSequence = 0,
-    long PendingSessionEvents = 0);
+    long PendingSessionEvents = 0,
+    double SessionEventPersistenceEventsPerSecond = 0);
 
 public sealed record OpenConnectionRequest(SerialConnectionOptions Options);
 

@@ -40,7 +40,8 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
             runtime.Connections.GetSnapshots(),
             runtime.Sessions.ActiveSession,
             runtime.Journal.LatestSequence,
-            runtime.PendingSessionEvents);
+            runtime.PendingSessionEvents,
+            runtime.SessionEventPersistenceEventsPerSecond);
 
     public Task<IReadOnlyList<SerialPortDescriptor>> ListPortsAsync(CancellationToken cancellationToken) =>
         SerialPortCatalog.GetPortsAsync(cancellationToken);
