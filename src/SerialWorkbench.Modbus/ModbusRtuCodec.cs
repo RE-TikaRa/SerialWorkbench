@@ -189,6 +189,53 @@ public static class ModbusRtuCodec
         return registers;
     }
 
+    public static bool[] ParseBitResponse(ReadOnlySpan<byte> frame, byte expectedSlave, byte expectedFunction, ushort quantity)
+    {
+        if (expectedFunction is not (1 or 2))
+        {
+            throw new ArgumentOutOfRangeException(nameof(expectedFunction));
+        }
+
+        if (quantity is < 1 or > 2000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(quantity));
+        }
+
+        if (frame.Length < 5)
+        {
+            throw new InvalidDataException("Modbus response is too short.");
+        }
+
+        if (!HasValidCrc(frame))
+        {
+            throw new InvalidDataException("Modbus CRC is invalid.");
+        }
+
+        if (frame[0] != expectedSlave || (frame[1] & 0x7F) != expectedFunction)
+        {
+            throw new InvalidDataException("Modbus response address or function does not match the request.");
+        }
+
+        if ((frame[1] & 0x80) != 0)
+        {
+            throw new ModbusException(frame[2]);
+        }
+
+        var byteCount = frame[2];
+        if (frame.Length != byteCount + 5 || byteCount < (quantity + 7) / 8)
+        {
+            throw new InvalidDataException("Modbus bit response length is invalid.");
+        }
+
+        var bits = new bool[quantity];
+        for (var index = 0; index < bits.Length; index++)
+        {
+            bits[index] = (frame[3 + (index / 8)] & (1 << (index % 8))) != 0;
+        }
+
+        return bits;
+    }
+
     public static (ushort Address, ushort Value) ParseWriteSingleRegisterResponse(ReadOnlySpan<byte> frame, byte expectedSlave)
     {
         if (frame.Length != 8)

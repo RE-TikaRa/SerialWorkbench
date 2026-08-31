@@ -422,13 +422,13 @@ static async Task<int> ModbusReadAsync(IHostRpc client, Arguments arguments, str
     {
         var slave = GetByte(arguments, "--slave", 1);
         var function = GetByte(arguments, "--function", 3);
-        if (function is not (3 or 4))
+        if (function is not (1 or 2 or 3 or 4))
         {
-            throw new ArgumentException("--function must be 3 or 4.");
+            throw new ArgumentException("--function must be 1, 2, 3, or 4.");
         }
 
         var address = GetUShort(arguments, "--address");
-        var quantity = ValidateReadQuantity(GetUShort(arguments, "--quantity"));
+        var quantity = ValidateReadQuantity(GetUShort(arguments, "--quantity"), function);
 
         var frame = ModbusRtuCodec.BuildReadRequest(slave, function, address, quantity);
         return await RunModbusAsync(client, connection, arguments, output, cancellationToken, "modbus.read", frame, slave, function).ConfigureAwait(false);
@@ -481,6 +481,7 @@ static async Task<int> RunModbusAsync(
         responseFrame = Convert.ToHexString(result.ResponseFrame),
         functionCode = result.FunctionCode,
         registers = result.Registers,
+        bits = result.Bits,
         address = result.Address,
         registerValue = result.Value,
         exceptionCode = result.ExceptionCode,
@@ -501,6 +502,11 @@ static async Task<int> RunModbusAsync(
         if (value.registers.Length > 0)
         {
             Console.WriteLine($"Registers: {string.Join(' ', value.registers.Select(static item => $"0x{item:X4}"))}");
+        }
+
+        if (value.bits is { Length: > 0 } bits)
+        {
+            Console.WriteLine($"Bits: {string.Join(' ', bits.Select(static item => item ? '1' : '0'))}");
         }
 
         if (value.address is { } address && value.registerValue is { } registerValue)
@@ -559,9 +565,13 @@ static ushort GetUShort(Arguments arguments, string name)
         : throw new ArgumentException($"{name} is required and must be between {ushort.MinValue} and {ushort.MaxValue}.");
 }
 
-static ushort ValidateReadQuantity(ushort quantity) => quantity is >= 1 and <= 125
-    ? quantity
-    : throw new ArgumentOutOfRangeException(nameof(quantity), quantity, "Read quantity must be between 1 and 125.");
+static ushort ValidateReadQuantity(ushort quantity, byte function)
+{
+    var maximum = function is 1 or 2 ? 2000 : 125;
+    return quantity is >= 1 && quantity <= maximum
+        ? quantity
+        : throw new ArgumentOutOfRangeException(nameof(quantity), quantity, $"Read quantity must be between 1 and {maximum}.");
+}
 
 static Task<ConnectionSnapshot> OpenAsync(IHostRpc client, Arguments arguments, CancellationToken cancellationToken)
 {
@@ -633,7 +643,7 @@ static void PrintHelp()
         serial-workbench send --port <port> (--text TEXT | --hex HEX) [--baud 115200]
         serial-workbench monitor --port <port> [--seconds 10] [--output text|jsonl]
         serial-workbench loopback run --port <port> [--baud 115200] [--length 4096] [--iterations 1]
-        serial-workbench modbus read --port <port> --slave 1 --address 0 --quantity 1 [--function 3]
+        serial-workbench modbus read --port <port> --slave 1 --address 0 --quantity 1 [--function 1|2|3|4]
         serial-workbench modbus write --port <port> --slave 1 --address 0 --value 0
         serial-workbench xmodem send --port <port> --file PATH [--baud 115200]
         serial-workbench xmodem receive --port <port> --file PATH [--baud 115200]

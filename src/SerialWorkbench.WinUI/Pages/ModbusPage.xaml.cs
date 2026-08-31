@@ -41,11 +41,22 @@ public sealed partial class ModbusPage : Page
         ResponseInput.Text = HexCodec.Format(response.ResponseFrame);
         if (response.Success)
         {
-            var rows = response.FunctionCode == 6 && response.Address is { } address && response.Value is { } value
-                ? [new RegisterRow($"0x{address:X4}", $"0x{value:X4}", value.ToString(System.Globalization.CultureInfo.InvariantCulture))]
-                : response.Registers
-                    .Select((value, index) => new RegisterRow($"[{index}]", $"0x{value:X4}", value.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+            RegisterRow[] rows;
+            if (response.FunctionCode == 6 && response.Address is { } address && response.Value is { } value)
+            {
+                rows = [new RegisterRow($"0x{address:X4}", $"0x{value:X4}", value.ToString(System.Globalization.CultureInfo.InvariantCulture))];
+            }
+            else if (response.Bits is { } bits)
+            {
+                rows = bits.Select((bit, index) => new RegisterRow($"[{index}]", bit ? "1" : "0", bit ? "True" : "False")).ToArray();
+            }
+            else
+            {
+                rows = response.Registers
+                    .Select((register, index) => new RegisterRow($"[{index}]", $"0x{register:X4}", register.ToString(System.Globalization.CultureInfo.InvariantCulture)))
                     .ToArray();
+            }
+
             RegisterList.ItemsSource = rows;
             ShowResult($"已收到响应 · {response.Duration.TotalMilliseconds:N0} ms", InfoBarSeverity.Success);
             return;
@@ -66,6 +77,8 @@ public sealed partial class ModbusPage : Page
         0 => 3,
         1 => 4,
         2 => 6,
+        3 => 1,
+        4 => 2,
         _ => 3,
     };
 
@@ -75,14 +88,23 @@ public sealed partial class ModbusPage : Page
         {
             Quantity.Header = FunctionValue == 6 ? "寄存器值" : "数量";
             Quantity.Minimum = FunctionValue == 6 ? 0 : 1;
-            Quantity.Maximum = FunctionValue == 6 ? ushort.MaxValue : 125;
+            Quantity.Maximum = FunctionValue switch
+            {
+                6 => ushort.MaxValue,
+                1 or 2 => 2000,
+                _ => 125,
+            };
             if (FunctionValue == 6 && Quantity.Value is < 0)
             {
                 Quantity.Value = 0;
             }
-            else if (FunctionValue != 6 && Quantity.Value is > 125)
+            else if (FunctionValue is 3 or 4 && Quantity.Value is > 125)
             {
                 Quantity.Value = 125;
+            }
+            else if (FunctionValue is 1 or 2 && Quantity.Value is > 2000)
+            {
+                Quantity.Value = 2000;
             }
         }
 
@@ -156,6 +178,14 @@ public sealed partial class ModbusPage : Page
                 var result = ModbusRtuCodec.ParseWriteSingleRegisterResponse(frame, (byte)SlaveAddress.Value);
                 RegisterList.ItemsSource = new[] { new RegisterRow($"0x{result.Address:X4}", $"0x{result.Value:X4}", result.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)) };
                 ShowResult("已解析写单寄存器响应。", InfoBarSeverity.Success);
+                return;
+            }
+
+            if (FunctionValue is 1 or 2)
+            {
+                var bits = ModbusRtuCodec.ParseBitResponse(frame, (byte)SlaveAddress.Value, FunctionValue, (ushort)Quantity.Value);
+                RegisterList.ItemsSource = bits.Select((bit, index) => new RegisterRow($"[{index}]", bit ? "1" : "0", bit ? "True" : "False")).ToArray();
+                ShowResult($"解析出 {bits.Length} 位。", InfoBarSeverity.Success);
                 return;
             }
 

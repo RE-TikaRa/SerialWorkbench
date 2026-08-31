@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -255,6 +256,14 @@ public sealed class SerialConnectionManager(
                             var result = ModbusRtuCodec.ParseWriteSingleRegisterResponse(frame, request.SlaveAddress);
                             stopwatch.Stop();
                             return new ModbusTransactionResult(true, frame, request.FunctionCode, [], result.Address, result.Value, null, stopwatch.Elapsed, null);
+                        }
+
+                        if (request.FunctionCode is 1 or 2)
+                        {
+                            var quantity = BinaryPrimitives.ReadUInt16BigEndian(request.Frame.AsSpan(4, 2));
+                            var bits = ModbusRtuCodec.ParseBitResponse(frame, request.SlaveAddress, request.FunctionCode, quantity);
+                            stopwatch.Stop();
+                            return new ModbusTransactionResult(true, frame, request.FunctionCode, [], null, null, null, stopwatch.Elapsed, null, bits);
                         }
 
                         var registers = ModbusRtuCodec.ParseRegisterResponse(frame, request.SlaveAddress, request.FunctionCode);

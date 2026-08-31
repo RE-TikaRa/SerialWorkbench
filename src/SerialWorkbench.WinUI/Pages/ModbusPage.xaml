@@ -88,6 +88,8 @@
               <x:String>03 读保持寄存器</x:String>
               <x:String>04 读输入寄存器</x:String>
               <x:String>06 写单个寄存器</x:String>
+              <x:String>01 读线圈</x:String>
+              <x:String>02 读离散输入</x:String>
             </ComboBox>
             <NumberBox x:Name="StartAddress" x:FieldModifier="public" Grid.Row="1" Grid.ColumnSpan="2" Header="起始地址" Value="0" Minimum="0" Maximum="65535" SpinButtonPlacementMode="Compact" ValueChanged="SlaveAddress_ValueChanged" />
             <NumberBox x:Name="Quantity" x:FieldModifier="public" Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Header="数量" Value="1" Minimum="1" Maximum="125" SpinButtonPlacementMode="Compact" ValueChanged="SlaveAddress_ValueChanged" />

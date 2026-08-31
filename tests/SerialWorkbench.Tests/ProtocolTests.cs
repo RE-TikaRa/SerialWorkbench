@@ -63,6 +63,7 @@ public sealed class ProtocolTests
     }
 
     [Theory]
+    [InlineData(1, 7)]
     [InlineData(3, 7)]
     [InlineData(4, 9)]
     [InlineData(6, 8)]
@@ -93,6 +94,16 @@ public sealed class ProtocolTests
 
         Assert.Equal(ushort.MaxValue, result.Address);
         Assert.Equal(ushort.MaxValue, result.Value);
+    }
+
+    [Fact]
+    public void ModbusBitResponseParsesLeastSignificantBitFirst()
+    {
+        var frame = WithModbusCrc([0x01, 0x01, 0x02, 0xCD, 0x01]);
+
+        var bits = ModbusRtuCodec.ParseBitResponse(frame, 1, 1, 10);
+
+        Assert.Equal([true, false, true, true, false, false, true, true, true, false], bits);
     }
 
     [Fact]

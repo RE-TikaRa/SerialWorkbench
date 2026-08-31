@@ -187,7 +187,8 @@ public sealed record ModbusTransactionResult(
     ushort? Value,
     byte? ExceptionCode,
     TimeSpan Duration,
-    string? Error);
+    string? Error,
+    bool[]? Bits = null);
 
 public sealed record SessionDescriptor(
     Guid Id,
