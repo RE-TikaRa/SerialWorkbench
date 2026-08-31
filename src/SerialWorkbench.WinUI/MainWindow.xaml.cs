@@ -17,12 +17,16 @@ namespace SerialWorkbench.WinUI;
 
 public sealed partial class MainWindow : Window
 {
+    private const int MaxReconnectAttempts = 5;
     private readonly DispatcherTimer eventTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly DispatcherTimer portRefreshTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private readonly DispatcherTimer loopSendTimer = new();
     private bool loopSending;
     private HostRpcClient? client;
     private Guid? connectionId;
+    private SerialConnectionOptions? reconnectOptions;
+    private int reconnectAttempts;
+    private bool reconnectInProgress;
     private long lastSequence;
     private bool paused;
     private long pauseBaselineBytes;
@@ -149,6 +153,9 @@ public sealed partial class MainWindow : Window
                 SetSerialConfigurationEnabled(true);
                 return;
             }
+
+            reconnectOptions = null;
+            reconnectAttempts = 0;
 
             var selectedPort = workbenchPage?.SelectedPort;
             if (selectedPort is not SerialPortDescriptor port)
@@ -349,7 +356,7 @@ public sealed partial class MainWindow : Window
         var connection = status.Connections.FirstOrDefault(item => item.Id == connectionId);
         if (connectionId is { } current && (connection is null || connection.State is ConnectionState.Faulted or ConnectionState.Closed))
         {
-            await HandleConnectionFaultAsync(current, connection?.Error).ConfigureAwait(true);
+            await HandleConnectionFaultAsync(current, connection, connection?.Error).ConfigureAwait(true);
             connection = null;
         }
 
@@ -373,10 +380,11 @@ public sealed partial class MainWindow : Window
         workbenchPage?.SetPauseState(paused, 0);
     }
 
-    private async Task HandleConnectionFaultAsync(Guid current, string? error)
+    private async Task HandleConnectionFaultAsync(Guid current, ConnectionSnapshot? snapshot, string? error)
     {
         loopbackCancel?.Invoke();
         sequenceCancel?.Invoke();
+        xmodemCancel?.Invoke();
         workbenchPage?.StopLoopSend();
         try
         {
@@ -388,6 +396,8 @@ public sealed partial class MainWindow : Window
         }
 
         connectionId = null;
+        reconnectOptions = snapshot?.Options.DeviceInstanceId is not null ? snapshot.Options : null;
+        reconnectAttempts = 0;
         textDecoder = null;
         currentTrafficBytes = 0;
         pauseBaselineBytes = 0;
@@ -395,7 +405,7 @@ public sealed partial class MainWindow : Window
         if (workbenchPage is not null)
         {
             workbenchPage.ConnectButton.Content = "连接";
-            workbenchPage.SetConnectionStatus("串口已断开");
+            workbenchPage.SetConnectionStatus(reconnectOptions is not null ? "设备已断开，等待重连" : "串口已断开");
             workbenchPage.SetTrafficCounts(0, 0);
             workbenchPage.SetPauseState(false, 0);
         }
@@ -594,6 +604,7 @@ public sealed partial class MainWindow : Window
             var currentName = currentPort?.PortName;
             if (SamePortSet(combo.ItemsSource as IReadOnlyList<SerialPortDescriptor>, ports))
             {
+                await TryReconnectAsync(ports).ConfigureAwait(true);
                 return;
             }
 
@@ -610,6 +621,7 @@ public sealed partial class MainWindow : Window
                             ? ports.FirstOrDefault(item => item.PortName.Equals(serialPreference.PortName, StringComparison.OrdinalIgnoreCase))
                             : null;
             combo.SelectedItem = target ?? (ports.Count > 0 ? ports[0] : null);
+            await TryReconnectAsync(ports).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -618,6 +630,56 @@ public sealed partial class MainWindow : Window
         finally
         {
             portRefreshing = false;
+        }
+    }
+
+    private async Task TryReconnectAsync(IReadOnlyList<SerialPortDescriptor> ports)
+    {
+        if (client is null
+            || connectionId is not null
+            || reconnectOptions is not { DeviceInstanceId: { } deviceInstanceId }
+            || reconnectInProgress
+            || reconnectAttempts >= MaxReconnectAttempts)
+        {
+            return;
+        }
+
+        var port = ports.FirstOrDefault(item => item.DeviceInstanceId?.Equals(deviceInstanceId, StringComparison.OrdinalIgnoreCase) == true);
+        if (port is null)
+        {
+            return;
+        }
+
+        reconnectInProgress = true;
+        reconnectAttempts++;
+        try
+        {
+            workbenchPage?.SetConnectionStatus($"正在重连 {port.PortName} ({reconnectAttempts}/{MaxReconnectAttempts})");
+            var options = reconnectOptions with { PortName = port.PortName };
+            var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(options), CancellationToken.None);
+            connectionId = connection.Id;
+            reconnectOptions = null;
+            reconnectAttempts = 0;
+            textDecoder = Encoding.GetEncoding(options.EncodingName).GetDecoder();
+            if (workbenchPage is not null)
+            {
+                workbenchPage.ConnectButton.Content = "断开";
+                workbenchPage.SetConnectionStatus($"{port.PortName} · {options.BaudRate:N0} baud · 已重连");
+            }
+
+            SetSerialConfigurationEnabled(false);
+        }
+        catch (Exception ex)
+        {
+            workbenchPage?.SetConnectionStatus(reconnectAttempts >= MaxReconnectAttempts ? "自动重连失败，请手动连接" : "设备已断开，等待重连");
+            if (reconnectAttempts >= MaxReconnectAttempts)
+            {
+                ShowMessage("自动重连失败", ex.Message, InfoBarSeverity.Error);
+            }
+        }
+        finally
+        {
+            reconnectInProgress = false;
         }
     }
 
