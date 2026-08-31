@@ -87,6 +87,7 @@ public sealed partial class ModbusPage : Page
         5 => 5,
         6 => 15,
         7 => 16,
+        8 => 17,
         _ => 3,
     };
 
@@ -99,15 +100,17 @@ public sealed partial class ModbusPage : Page
             {
                 6 => "寄存器值",
                 5 => "线圈值(0/1)",
+                17 => "无需填写",
                 _ => "数量",
             };
-            Quantity.Minimum = FunctionValue is 5 or 6 ? 0 : 1;
+            Quantity.Minimum = FunctionValue is 5 or 6 or 17 ? 0 : 1;
             Quantity.IsEnabled = !multiple;
             ValuesInput.Visibility = multiple ? Visibility.Visible : Visibility.Collapsed;
             Quantity.Maximum = FunctionValue switch
             {
                 6 => ushort.MaxValue,
                 5 => 1,
+                17 => 0,
                 1 or 2 => 2000,
                 _ => 125,
             };
@@ -127,6 +130,9 @@ public sealed partial class ModbusPage : Page
             {
                 Quantity.Value = 2000;
             }
+
+            Quantity.IsEnabled = FunctionValue != 17;
+            StartAddress.IsEnabled = FunctionValue != 17;
         }
 
         UpdatePreview();
@@ -160,6 +166,7 @@ public sealed partial class ModbusPage : Page
             6 => ModbusRtuCodec.BuildWriteSingleRegister(slave, address, value),
             15 => ModbusRtuCodec.BuildWriteMultipleCoils(slave, address, ParseCoilValues(ValuesInput.Text)),
             16 => ModbusRtuCodec.BuildWriteMultipleRegisters(slave, address, ParseRegisterValues(ValuesInput.Text)),
+            17 => ModbusRtuCodec.BuildReportServerIdRequest(slave),
             _ => ModbusRtuCodec.BuildReadRequest(slave, FunctionValue, address, value),
         };
     }
@@ -222,6 +229,12 @@ public sealed partial class ModbusPage : Page
                 var result = ModbusRtuCodec.ParseWriteMultipleResponse(frame, (byte)SlaveAddress.Value, FunctionValue);
                 RegisterList.ItemsSource = new[] { new RegisterRow($"0x{result.Address:X4}", result.Quantity.ToString(CultureInfo.InvariantCulture), "写入数量") };
                 ShowResult("已解析批量写入响应。", InfoBarSeverity.Success);
+                return;
+            }
+
+            if (FunctionValue == 17)
+            {
+                ShowResult("已解析设备标识响应。", InfoBarSeverity.Success);
                 return;
             }
 

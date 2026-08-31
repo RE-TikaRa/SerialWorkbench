@@ -184,7 +184,7 @@ public sealed class SerialConnectionManager(
             throw new InvalidDataException("Modbus request metadata does not match the frame.");
         }
 
-        if (request.Frame.Length < 8 || !ModbusRtuCodec.HasValidCrc(request.Frame))
+        if ((request.FunctionCode == 17 ? request.Frame.Length != 4 : request.Frame.Length < 8) || !ModbusRtuCodec.HasValidCrc(request.Frame))
         {
             throw new InvalidDataException("Modbus request frame length or CRC is invalid.");
         }
@@ -270,6 +270,17 @@ public sealed class SerialConnectionManager(
                             var result = ModbusRtuCodec.ParseWriteMultipleResponse(frame, request.SlaveAddress, request.FunctionCode);
                             stopwatch.Stop();
                             return new ModbusTransactionResult(true, frame, request.FunctionCode, [], result.Address, result.Quantity, null, stopwatch.Elapsed, null);
+                        }
+
+                        if (request.FunctionCode == 17)
+                        {
+                            if (frame[0] != request.SlaveAddress || frame[1] != 17 || !ModbusRtuCodec.HasValidCrc(frame))
+                            {
+                                throw new InvalidDataException("Modbus Report Server ID response is invalid.");
+                            }
+
+                            stopwatch.Stop();
+                            return new ModbusTransactionResult(true, frame, request.FunctionCode, [], null, null, null, stopwatch.Elapsed, null);
                         }
 
                         if (request.FunctionCode is 1 or 2)

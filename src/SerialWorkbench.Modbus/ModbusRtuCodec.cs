@@ -139,6 +139,15 @@ public static class ModbusRtuCodec
         return frame.ToArray();
     }
 
+    public static byte[] BuildReportServerIdRequest(byte slaveAddress)
+    {
+        Span<byte> frame = stackalloc byte[4];
+        frame[0] = slaveAddress;
+        frame[1] = 17;
+        BinaryPrimitives.WriteUInt16LittleEndian(frame[2..4], Checksums.Crc16Modbus(frame[..2]));
+        return frame.ToArray();
+    }
+
     public static byte[] BuildWriteSingleRegister(byte slaveAddress, ushort address, ushort value)
     {
         Span<byte> frame = stackalloc byte[8];

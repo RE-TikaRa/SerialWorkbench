@@ -422,15 +422,14 @@ static async Task<int> ModbusReadAsync(IHostRpc client, Arguments arguments, str
     {
         var slave = GetByte(arguments, "--slave", 1);
         var function = GetByte(arguments, "--function", 3);
-        if (function is not (1 or 2 or 3 or 4))
+        if (function is not (1 or 2 or 3 or 4 or 17))
         {
-            throw new ArgumentException("--function must be 1, 2, 3, or 4.");
+            throw new ArgumentException("--function must be 1, 2, 3, 4, or 17.");
         }
 
-        var address = GetUShort(arguments, "--address");
-        var quantity = ValidateReadQuantity(GetUShort(arguments, "--quantity"), function);
-
-        var frame = ModbusRtuCodec.BuildReadRequest(slave, function, address, quantity);
+        var frame = function == 17
+            ? ModbusRtuCodec.BuildReportServerIdRequest(slave)
+            : ModbusRtuCodec.BuildReadRequest(slave, function, GetUShort(arguments, "--address"), ValidateReadQuantity(GetUShort(arguments, "--quantity"), function));
         return await RunModbusAsync(client, connection, arguments, output, cancellationToken, "modbus.read", frame, slave, function).ConfigureAwait(false);
     }
     finally
@@ -698,7 +697,7 @@ static void PrintHelp()
         serial-workbench send --port <port> (--text TEXT | --hex HEX) [--baud 115200]
         serial-workbench monitor --port <port> [--seconds 10] [--output text|jsonl]
         serial-workbench loopback run --port <port> [--baud 115200] [--length 4096] [--iterations 1]
-        serial-workbench modbus read --port <port> --slave 1 --address 0 --quantity 1 [--function 1|2|3|4]
+        serial-workbench modbus read --port <port> --slave 1 --address 0 --quantity 1 [--function 1|2|3|4|17]
         serial-workbench modbus write --port <port> --slave 1 --address 0 (--value VALUE | --values VALUES) [--function 5|6|15|16]
         serial-workbench xmodem send --port <port> --file PATH [--baud 115200]
         serial-workbench xmodem receive --port <port> --file PATH [--baud 115200]

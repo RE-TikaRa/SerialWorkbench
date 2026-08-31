@@ -133,6 +133,15 @@ public sealed class ProtocolTests
     }
 
     [Fact]
+    public void ModbusReportServerIdRequestMatchesKnownLayout()
+    {
+        var frame = ModbusRtuCodec.BuildReportServerIdRequest(1);
+
+        Assert.Equal([0x01, 0x11, 0xC0, 0x2C], frame);
+        Assert.True(ModbusRtuCodec.HasValidCrc(frame));
+    }
+
+    [Fact]
     public void ModbusBitResponseParsesLeastSignificantBitFirst()
     {
         var frame = WithModbusCrc([0x01, 0x01, 0x02, 0xCD, 0x01]);
