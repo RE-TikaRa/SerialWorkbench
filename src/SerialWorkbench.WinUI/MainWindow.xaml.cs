@@ -900,15 +900,20 @@ public sealed partial class MainWindow : Window
 
         reconnectInProgress = true;
         reconnectAttempts++;
+        var activate = connectionId is null;
         try
         {
-            workbenchPage?.SetConnectionStatus($"正在重连 {port.PortName} ({reconnectAttempts}/{MaxReconnectAttempts})");
+            if (activate)
+            {
+                workbenchPage?.SetConnectionStatus($"正在重连 {port.PortName} ({reconnectAttempts}/{MaxReconnectAttempts})");
+            }
+
             var options = reconnectOptions with { PortName = port.PortName };
             var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(options), CancellationToken.None);
             connectionContexts[connection.Id] = new ConnectionContext(connection);
             reconnectOptions = null;
             reconnectAttempts = 0;
-            if (connectionId is null)
+            if (activate)
             {
                 ActivateConnection(connection.Id);
                 workbenchPage?.SetConnectionStatus($"{port.PortName} · {options.BaudRate:N0} baud · 已重连");
@@ -917,10 +922,13 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            workbenchPage?.SetConnectionStatus(reconnectAttempts >= MaxReconnectAttempts ? "自动重连失败，请手动连接" : "设备已断开，等待重连");
-            if (reconnectAttempts >= MaxReconnectAttempts)
+            if (activate)
             {
-                ShowMessage("自动重连失败", ex.Message, InfoBarSeverity.Error);
+                workbenchPage?.SetConnectionStatus(reconnectAttempts >= MaxReconnectAttempts ? "自动重连失败，请手动连接" : "设备已断开，等待重连");
+                if (reconnectAttempts >= MaxReconnectAttempts)
+                {
+                    ShowMessage("自动重连失败", ex.Message, InfoBarSeverity.Error);
+                }
             }
         }
         finally
@@ -1786,11 +1794,11 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        if (connectionId is { } current)
+        foreach (var id in connectionContexts.Keys.ToArray())
         {
             try
             {
-                await client.CloseConnectionAsync(current, CancellationToken.None);
+                await client.CloseConnectionAsync(id, CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -1799,6 +1807,8 @@ public sealed partial class MainWindow : Window
         }
 
         await client.DisposeAsync();
+        connectionContexts.Clear();
+        connectionId = null;
         loopbackCancel = null;
         textDecoder = null;
         replayCancellation?.Dispose();
