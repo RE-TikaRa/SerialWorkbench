@@ -148,9 +148,9 @@ static async Task<int> ExportSessionAsync(IHostRpc client, Arguments arguments, 
     var sessionId = ParseGuid(arguments.Get("--id"), "--id");
     var path = arguments.Get("--file") ?? throw new ArgumentException("sessions export requires --file.");
     var format = arguments.Get("--format")?.ToLowerInvariant() ?? "csv";
-    if (format is not ("csv" or "jsonl" or "binary"))
+    if (format is not ("csv" or "jsonl" or "binary" or "text" or "hex"))
     {
-        throw new ArgumentException("--format must be csv, jsonl, or binary.");
+        throw new ArgumentException("--format must be csv, jsonl, binary, text, or hex.");
     }
 
     var query = CreateSessionEventQuery(arguments, sessionId);
@@ -179,6 +179,35 @@ static async Task<int> ExportSessionAsync(IHostRpc client, Arguments arguments, 
         }
 
         WriteResult(output, "sessions.export", new { sessionId, path, format, bytes = binaryBytes });
+        return 0;
+    }
+
+    if (format is "text" or "hex")
+    {
+        long textBytes = 0;
+        long afterTextSequence = 0;
+        await using (var writer = new StreamWriter(path, false, new UTF8Encoding(false)))
+        {
+            while (true)
+            {
+                var events = await client.ReadSessionEventsAsync(query with { AfterSequence = afterTextSequence }, cancellationToken).ConfigureAwait(false);
+                if (events.Count == 0)
+                {
+                    break;
+                }
+
+                foreach (var item in events)
+                {
+                    var line = format == "hex"
+                        ? Convert.ToHexString(item.Data)
+                        : $"{item.Utc:O} {(item.Direction == SerialDirection.Receive ? "RX" : "TX")} {item.Source} {Convert.ToHexString(item.Data)}";
+                    textBytes += await WriteExportLineAsync(writer, line).ConfigureAwait(false);
+                    afterTextSequence = item.Sequence;
+                }
+            }
+        }
+
+        WriteResult(output, "sessions.export", new { sessionId, path, format, bytes = textBytes });
         return 0;
     }
 
@@ -969,7 +998,7 @@ static void PrintHelp()
         serial-workbench workspace set --path PATH
         serial-workbench sessions list|show|export|delete
         serial-workbench sessions show --id SESSION_ID [--output json]
-        serial-workbench sessions export --id SESSION_ID --file PATH [--format csv|jsonl|binary] [--direction all|rx|tx] [--source SOURCE] [--hex HEX]
+        serial-workbench sessions export --id SESSION_ID --file PATH [--format csv|jsonl|text|hex|binary] [--direction all|rx|tx] [--source SOURCE] [--hex HEX]
         serial-workbench sessions delete --id SESSION_ID
         serial-workbench send --port <port> (--text TEXT | --hex HEX) [--baud 115200]
         serial-workbench monitor --port <port> [--seconds 10] [--direction all|rx|tx] [--source SOURCE] [--output text|jsonl]
