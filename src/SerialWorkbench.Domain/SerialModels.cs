@@ -142,7 +142,10 @@ public sealed record SerialSequenceStep(
     string Format,
     int DelayMilliseconds,
     int RepeatCount,
-    int WaitMilliseconds);
+    int WaitMilliseconds,
+    string? ResponseHex = null,
+    int ResponseTimeoutMilliseconds = 0,
+    int RetryCount = 0);
 
 public sealed record SerialSequenceDefinition(
     string Name,

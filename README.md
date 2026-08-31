@@ -128,11 +128,14 @@ publish/win-x64/
   "format": "hex",
   "delayMilliseconds": 100,
   "repeatCount": 2,
-  "waitMilliseconds": 0
+  "waitMilliseconds": 0,
+  "responseHex": "01 06 00 10 00 01",
+  "responseTimeoutMilliseconds": 2000,
+  "retryCount": 2
 }
 ```
 
-序列还包含名称和步骤列表。运行期间所有 TX 进入普通会话事件，取消后不会发送后续步骤。
+序列还包含名称和步骤列表。设置 `responseHex` 后，Host 会在每次发送前订阅 RX，跨读取块匹配响应；超时按 `retryCount` 重发，成功后再执行下一步。运行期间所有 TX 进入普通会话事件，取消后不会发送后续步骤。
 
 ### 文件传输
 

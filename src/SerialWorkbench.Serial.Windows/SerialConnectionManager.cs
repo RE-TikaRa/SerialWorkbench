@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading.Channels;
 using SerialWorkbench.Application;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Modbus;
@@ -309,9 +310,46 @@ public sealed class SerialConnectionManager(
                 throw new ArgumentOutOfRangeException(nameof(sequence), "Step delays must be between 0 and 600000 milliseconds.");
             }
 
+            if (step.ResponseTimeoutMilliseconds is < 0 or > 600_000 || step.RetryCount is < 0 or > 100)
+            {
+                throw new ArgumentOutOfRangeException(nameof(sequence), "Response timeout must be between 0 and 600000 milliseconds and retries between 0 and 100.");
+            }
+
+            var response = string.IsNullOrWhiteSpace(step.ResponseHex) ? null : HexCodec.Parse(step.ResponseHex);
+            if (response is { Length: 0 })
+            {
+                throw new ArgumentException("Response HEX must contain at least one byte.", nameof(sequence));
+            }
+
             for (var repeatIndex = 0; repeatIndex < step.RepeatCount; repeatIndex++)
             {
-                await connection.SendAsync(step.Data, $"sequence:{sequence.Name}", cancellationToken).ConfigureAwait(false);
+                var sent = false;
+                for (var attempt = 0; attempt <= step.RetryCount; attempt++)
+                {
+                    await using var subscription = response is null ? null : connection.Subscribe();
+                    await connection.SendAsync(step.Data, $"sequence:{sequence.Name}", cancellationToken).ConfigureAwait(false);
+                    if (response is null)
+                    {
+                        sent = true;
+                        break;
+                    }
+
+                    try
+                    {
+                        await WaitForResponseAsync(subscription!.Reader, response, step.ResponseTimeoutMilliseconds == 0 ? 5_000 : step.ResponseTimeoutMilliseconds, cancellationToken).ConfigureAwait(false);
+                        sent = true;
+                        break;
+                    }
+                    catch (TimeoutException) when (attempt < step.RetryCount)
+                    {
+                    }
+                }
+
+                if (!sent)
+                {
+                    throw new TimeoutException($"Sequence step {stepIndex + 1} response timed out.");
+                }
+
                 if (step.WaitMilliseconds > 0)
                 {
                     await Task.Delay(step.WaitMilliseconds, cancellationToken).ConfigureAwait(false);
@@ -325,6 +363,33 @@ public sealed class SerialConnectionManager(
         }
 
         return new SerialSequenceProgress(sequence.Name, sequence.Steps.Count, sequence.Steps.Count, 0, 0, true, false, null);
+    }
+
+    private static async Task WaitForResponseAsync(ChannelReader<byte[]> reader, byte[] expected, int timeoutMilliseconds, CancellationToken cancellationToken)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(timeoutMilliseconds);
+        var received = new List<byte>(expected.Length);
+        try
+        {
+            while (true)
+            {
+                received.AddRange(await reader.ReadAsync(timeout.Token).ConfigureAwait(false));
+                if (BytePatternMatcher.Contains(CollectionsMarshal.AsSpan(received), expected))
+                {
+                    return;
+                }
+
+                if (received.Count > expected.Length)
+                {
+                    received.RemoveRange(0, received.Count - expected.Length);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException("Sequence response timed out.");
+        }
     }
 
     public async Task<XmodemTransferResult> SendXmodemAsync(Guid connectionId, byte[] data, CancellationToken cancellationToken)

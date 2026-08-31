@@ -18,7 +18,7 @@
           </Grid>
         </StackPanel>
       </Border>
-      <TextBlock Grid.Row="1" Text="每个步骤包含 data、format、delayMilliseconds、repeatCount 和 waitMilliseconds。data 使用 HEX 字符串。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+      <TextBlock Grid.Row="1" Text="每个步骤包含 data、format、delayMilliseconds、repeatCount、waitMilliseconds、responseHex、responseTimeoutMilliseconds 和 retryCount。data 与 responseHex 使用 HEX 字符串。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
     </Grid>
   </ScrollView>
 </Page>

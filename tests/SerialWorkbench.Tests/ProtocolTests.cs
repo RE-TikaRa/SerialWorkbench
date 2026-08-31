@@ -151,6 +151,13 @@ public sealed class ProtocolTests
         Assert.Equal(6, result.ExpectedLength);
     }
 
+    [Fact]
+    public void BytePatternMatcherFindsPatternsAcrossAByteBuffer()
+    {
+        Assert.True(BytePatternMatcher.Contains([0x10, 0x20, 0x30, 0x40], [0x20, 0x30]));
+        Assert.False(BytePatternMatcher.Contains([0x10, 0x20], [0x20, 0x30]));
+    }
+
     private static byte[] WithModbusCrc(ReadOnlySpan<byte> data)
     {
         var frame = new byte[data.Length + 2];
