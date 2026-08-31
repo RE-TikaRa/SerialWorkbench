@@ -107,13 +107,13 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
         runtime.Sessions.ListAsync(cancellationToken);
 
     public Task<IReadOnlyList<SerialTrafficEvent>> ReadSessionEventsAsync(SessionEventQuery query, CancellationToken cancellationToken) =>
-        runtime.Sessions.ReadEventsAsync(query.SessionId, query.MaximumCount, cancellationToken, query.AfterSequence, query.ConnectionId);
+        runtime.Sessions.ReadEventsAsync(query.SessionId, query.MaximumCount, cancellationToken, query.AfterSequence, query.ConnectionId, query.Direction, query.SourceContains, query.DataContainsHex);
 
     public Task<IReadOnlyList<SerialTrafficEvent>> ReadAllSessionEventsAsync(Guid sessionId, CancellationToken cancellationToken) =>
         runtime.Sessions.ReadAllEventsAsync(sessionId, cancellationToken);
 
-    public Task<string> ExportSessionCsvAsync(Guid sessionId, CancellationToken cancellationToken) =>
-        runtime.Sessions.ExportCsvAsync(sessionId, cancellationToken);
+    public Task<string> ExportSessionCsvAsync(SessionEventQuery query, CancellationToken cancellationToken) =>
+        runtime.Sessions.ExportCsvAsync(query.SessionId, query.ConnectionId, query.Direction, query.SourceContains, query.DataContainsHex, cancellationToken);
 
     public async Task<RpcResult> DeleteSessionAsync(Guid sessionId, CancellationToken cancellationToken)
     {

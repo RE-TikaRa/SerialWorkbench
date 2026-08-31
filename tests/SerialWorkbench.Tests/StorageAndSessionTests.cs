@@ -73,6 +73,10 @@ public sealed class StorageAndSessionTests
         Assert.Equal([2], page.Select(item => item.Sequence));
         var connectionPage = await store.ReadEventsAsync(session.Id, 10, cancellationToken, 0, connectionId);
         Assert.Equal([1, 2], connectionPage.Select(item => item.Sequence));
+        var filteredPage = await store.ReadEventsAsync(session.Id, 10, cancellationToken, 0, connectionId, SerialDirection.Receive, "TEST", "3040");
+        var filteredItem = Assert.Single(filteredPage);
+        Assert.Equal(2, filteredItem.Sequence);
+        Assert.Equal([0x30, 0x40, 0x50], filteredItem.Data);
         var allEvents = await store.ReadAllEventsAsync(session.Id, cancellationToken);
         Assert.Equal([1, 2], allEvents.Select(item => item.Sequence));
         var loopbackResults = await store.ReadLoopbackResultsAsync(session.Id, cancellationToken);
@@ -142,6 +146,9 @@ public sealed class StorageAndSessionTests
         Assert.StartsWith("utc,direction,source,hex,byte_count\r\n", csv, StringComparison.Ordinal);
         Assert.Contains("2026-08-26T01:02:03.0000000+00:00,Transmit,cli.send,1020,2\r\n", csv, StringComparison.Ordinal);
         Assert.Contains("2026-08-26T01:02:04.0000000+00:00,Receive,\"设备,通道\"\"A\"\"\",00FF,2\r\n", csv, StringComparison.Ordinal);
+
+        var filteredCsv = await store.ExportCsvAsync(sessionId, connectionId, SerialDirection.Receive, "通道", "00", cancellationToken);
+        Assert.Equal("utc,direction,source,hex,byte_count\r\n2026-08-26T01:02:04.0000000+00:00,Receive,\"设备,通道\"\"A\"\"\",00FF,2\r\n", filteredCsv);
     }
 
     [Fact]

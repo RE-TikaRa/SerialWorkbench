@@ -34,7 +34,14 @@ public sealed record EventQuery(
     SerialDirection? Direction = null,
     string? SourceContains = null);
 
-public sealed record SessionEventQuery(Guid SessionId, int MaximumCount = 1000, long AfterSequence = 0, Guid? ConnectionId = null);
+public sealed record SessionEventQuery(
+    Guid SessionId,
+    int MaximumCount = 1000,
+    long AfterSequence = 0,
+    Guid? ConnectionId = null,
+    SerialDirection? Direction = null,
+    string? SourceContains = null,
+    string? DataContainsHex = null);
 
 public sealed record SetWorkspaceRequest(string? Path);
 
@@ -68,7 +75,7 @@ public interface IHostRpc
 
     Task<IReadOnlyList<SerialTrafficEvent>> ReadAllSessionEventsAsync(Guid sessionId, CancellationToken cancellationToken);
 
-    Task<string> ExportSessionCsvAsync(Guid sessionId, CancellationToken cancellationToken);
+    Task<string> ExportSessionCsvAsync(SessionEventQuery query, CancellationToken cancellationToken);
 
     Task<RpcResult> DeleteSessionAsync(Guid sessionId, CancellationToken cancellationToken);
 

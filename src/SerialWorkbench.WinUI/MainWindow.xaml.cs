@@ -1552,7 +1552,7 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
-            var csv = await client.ExportSessionCsvAsync(sessionId, CancellationToken.None);
+            var csv = await client.ExportSessionCsvAsync(new SessionEventQuery(sessionId), CancellationToken.None);
             await Windows.Storage.FileIO.WriteTextAsync(file, csv, Windows.Storage.Streams.UnicodeEncoding.Utf8);
             ShowMessage("导出完成", $"已导出 {Path.GetFileName(file.Path)}。", InfoBarSeverity.Success);
         }

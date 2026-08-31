@@ -44,7 +44,7 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
         }
     }
 
-    public async Task<IReadOnlyList<SerialTrafficEvent>> ReadEventsAsync(Guid sessionId, int maximumCount, CancellationToken cancellationToken, long afterSequence = 0, Guid? connectionId = null)
+    public async Task<IReadOnlyList<SerialTrafficEvent>> ReadEventsAsync(Guid sessionId, int maximumCount, CancellationToken cancellationToken, long afterSequence = 0, Guid? connectionId = null, SerialDirection? direction = null, string? sourceContains = null, string? dataContainsHex = null)
     {
         if (maximumCount is < 1 or > 10_000)
         {
@@ -64,11 +64,17 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
                 FROM events
                 WHERE sequence > $afterSequence
                   AND ($connectionId IS NULL OR connection_id = $connectionId)
+                  AND ($direction IS NULL OR direction = $direction)
+                  AND ($sourceContains IS NULL OR instr(lower(source), lower($sourceContains)) > 0)
+                  AND ($dataContainsHex IS NULL OR instr(hex(data), upper($dataContainsHex)) > 0)
                 ORDER BY sequence
                 LIMIT $maximumCount;
                 """;
             command.Parameters.AddWithValue("$afterSequence", afterSequence);
             command.Parameters.AddWithValue("$connectionId", (object?)connectionId?.ToString("D") ?? DBNull.Value);
+            command.Parameters.AddWithValue("$direction", (object?)direction?.ToString() ?? DBNull.Value);
+            command.Parameters.AddWithValue("$sourceContains", (object?)sourceContains ?? DBNull.Value);
+            command.Parameters.AddWithValue("$dataContainsHex", (object?)dataContainsHex ?? DBNull.Value);
             command.Parameters.AddWithValue("$maximumCount", maximumCount);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             var events = new List<SerialTrafficEvent>();
@@ -235,7 +241,10 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
         }
     }
 
-    public async Task<string> ExportCsvAsync(Guid sessionId, CancellationToken cancellationToken)
+    public Task<string> ExportCsvAsync(Guid sessionId, CancellationToken cancellationToken) =>
+        ExportCsvAsync(sessionId, null, null, null, null, cancellationToken);
+
+    public async Task<string> ExportCsvAsync(Guid sessionId, Guid? connectionId, SerialDirection? direction, string? sourceContains, string? dataContainsHex, CancellationToken cancellationToken)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -248,8 +257,16 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
             command.CommandText = """
                 SELECT utc, direction, source, hex(data), length(data)
                 FROM events
+                WHERE ($connectionId IS NULL OR connection_id = $connectionId)
+                  AND ($direction IS NULL OR direction = $direction)
+                  AND ($sourceContains IS NULL OR instr(lower(source), lower($sourceContains)) > 0)
+                  AND ($dataContainsHex IS NULL OR instr(hex(data), upper($dataContainsHex)) > 0)
                 ORDER BY sequence;
                 """;
+            command.Parameters.AddWithValue("$connectionId", (object?)connectionId?.ToString("D") ?? DBNull.Value);
+            command.Parameters.AddWithValue("$direction", (object?)direction?.ToString() ?? DBNull.Value);
+            command.Parameters.AddWithValue("$sourceContains", (object?)sourceContains ?? DBNull.Value);
+            command.Parameters.AddWithValue("$dataContainsHex", (object?)dataContainsHex ?? DBNull.Value);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             var csv = new StringBuilder();
             csv.AppendLine("utc,direction,source,hex,byte_count");

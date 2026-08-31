@@ -153,6 +153,8 @@ static async Task<int> ExportSessionAsync(IHostRpc client, Arguments arguments, 
         throw new ArgumentException("--format must be csv or jsonl.");
     }
 
+    var query = CreateSessionEventQuery(arguments, sessionId);
+
     if (format == "jsonl")
     {
         long bytes = 0;
@@ -161,7 +163,7 @@ static async Task<int> ExportSessionAsync(IHostRpc client, Arguments arguments, 
         {
             while (true)
             {
-                var events = await client.ReadSessionEventsAsync(new SessionEventQuery(sessionId, 1000, afterSequence), cancellationToken).ConfigureAwait(false);
+                var events = await client.ReadSessionEventsAsync(query with { AfterSequence = afterSequence }, cancellationToken).ConfigureAwait(false);
                 if (events.Count == 0)
                 {
                     break;
@@ -181,10 +183,41 @@ static async Task<int> ExportSessionAsync(IHostRpc client, Arguments arguments, 
         return 0;
     }
 
-    var csv = await client.ExportSessionCsvAsync(sessionId, cancellationToken).ConfigureAwait(false);
+    var csv = await client.ExportSessionCsvAsync(query, cancellationToken).ConfigureAwait(false);
     await File.WriteAllTextAsync(path, csv, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), cancellationToken).ConfigureAwait(false);
-    WriteResult(output, "sessions.export", new { sessionId, path, bytes = Encoding.UTF8.GetByteCount(csv) });
+    WriteResult(output, "sessions.export", new { sessionId, path, format, bytes = Encoding.UTF8.GetByteCount(csv) });
     return 0;
+}
+
+static SessionEventQuery CreateSessionEventQuery(Arguments arguments, Guid sessionId) =>
+    new(
+        sessionId,
+        Direction: ParseDirection(arguments.Get("--direction")),
+        SourceContains: arguments.Get("--source"),
+        DataContainsHex: ParseHexFilter(arguments.Get("--hex")));
+
+static SerialDirection? ParseDirection(string? value) => value?.ToLowerInvariant() switch
+{
+    null or "all" => null,
+    "rx" => SerialDirection.Receive,
+    "tx" => SerialDirection.Transmit,
+    _ => throw new ArgumentException("--direction must be all, rx, or tx."),
+};
+
+static string? ParseHexFilter(string? value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return null;
+    }
+
+    var data = HexCodec.Parse(value);
+    if (data.Length == 0)
+    {
+        throw new ArgumentException("--hex must contain at least one byte.");
+    }
+
+    return Convert.ToHexString(data);
 }
 
 static async Task<int> DeleteSessionAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
@@ -401,13 +434,7 @@ static async Task<int> MonitorAsync(IHostRpc client, Arguments arguments, string
     var seconds = arguments.GetInt("--seconds", 10);
     var deadline = DateTime.UtcNow.AddSeconds(seconds);
     long sequence = 0;
-    SerialDirection? direction = arguments.Get("--direction")?.ToLowerInvariant() switch
-    {
-        null or "all" => null,
-        "rx" => SerialDirection.Receive,
-        "tx" => SerialDirection.Transmit,
-        _ => throw new ArgumentException("--direction must be all, rx, or tx."),
-    };
+    var direction = ParseDirection(arguments.Get("--direction"));
     var source = arguments.Get("--source");
     try
     {
@@ -879,7 +906,7 @@ static void PrintHelp()
         serial-workbench workspace set --path PATH
         serial-workbench sessions list|show|export|delete
         serial-workbench sessions show --id SESSION_ID [--output json]
-        serial-workbench sessions export --id SESSION_ID --file PATH [--format csv|jsonl]
+        serial-workbench sessions export --id SESSION_ID --file PATH [--format csv|jsonl] [--direction all|rx|tx] [--source SOURCE] [--hex HEX]
         serial-workbench sessions delete --id SESSION_ID
         serial-workbench send --port <port> (--text TEXT | --hex HEX) [--baud 115200]
         serial-workbench monitor --port <port> [--seconds 10] [--direction all|rx|tx] [--source SOURCE] [--output text|jsonl]
