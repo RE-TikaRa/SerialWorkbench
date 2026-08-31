@@ -24,6 +24,7 @@ public sealed partial class MainWindow : Window
     private bool loopSending;
     private HostRpcClient? client;
     private Guid? connectionId;
+    private readonly Dictionary<Guid, ConnectionContext> connectionContexts = [];
     private SerialConnectionOptions? reconnectOptions;
     private int reconnectAttempts;
     private bool reconnectInProgress;
@@ -47,6 +48,7 @@ public sealed partial class MainWindow : Window
     private long replaySequence;
     private TaskCompletionSource<bool> replayStateChanged = CreateReplaySignal();
     private WorkbenchPage? workbenchPage;
+    private ConnectionsPage? connectionsPage;
     private LoopbackPage? loopbackPage;
     private SettingsPage? settingsPage;
     private SessionsPage? sessionsPage;
@@ -81,7 +83,7 @@ public sealed partial class MainWindow : Window
         Activated += MainWindow_Activated;
     }
 
-    public ObservableCollection<TrafficRow> TrafficRows { get; }
+    public ObservableCollection<TrafficRow> TrafficRows { get; private set; }
 
     private async void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
     {
@@ -138,19 +140,7 @@ public sealed partial class MainWindow : Window
         {
             if (connectionId is { } current)
             {
-                loopbackCancel?.Invoke();
-                xmodemCancel?.Invoke();
-                await client.CloseConnectionAsync(current, CancellationToken.None);
-                connectionId = null;
-                textDecoder = null;
-                workbenchPage?.StopLoopSend();
-                if (workbenchPage is not null)
-                {
-                    workbenchPage.ConnectButton.Content = "连接";
-                }
-                workbenchPage?.SetConnectionStatus("未连接串口");
-                workbenchPage?.SetTrafficCounts(0, 0);
-                SetSerialConfigurationEnabled(true);
+                await CloseConnectionFromUiAsync(current);
                 return;
             }
 
@@ -178,8 +168,8 @@ public sealed partial class MainWindow : Window
                 port.DeviceInstanceId);
             SerialPreferenceStore.Save(workbenchPage!.ReadSerialPreference(port.PortName));
             var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(options), CancellationToken.None);
-            connectionId = connection.Id;
-            textDecoder = Encoding.GetEncoding(options.EncodingName).GetDecoder();
+            connectionContexts[connection.Id] = new ConnectionContext(connection);
+            ActivateConnection(connection.Id);
             if (workbenchPage is not null)
             {
                 workbenchPage.ConnectButton.Content = "断开";
@@ -298,7 +288,7 @@ public sealed partial class MainWindow : Window
 
     private async void EventTimer_Tick(object? sender, object e)
     {
-        if (polling || paused || replayCancellation is not null || client is null)
+        if (polling || replayCancellation is not null || client is null)
         {
             return;
         }
@@ -306,28 +296,48 @@ public sealed partial class MainWindow : Window
         polling = true;
         try
         {
-            var events = await client.ReadEventsAsync(new EventQuery(lastSequence, 1000, connectionId), CancellationToken.None);
-            foreach (var item in events)
+            var anyEvents = false;
+            foreach (var context in connectionContexts.Values.ToArray())
             {
-                lastSequence = Math.Max(lastSequence, item.Sequence);
-                var row = TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, workbenchPage?.SelectedEncoding ?? Encoding.UTF8, workbenchPage?.ShowTimestamp ?? true, textDecoder);
-                TrafficRows.Add(row);
-                terminalPage?.AppendRow(row);
-                if (item.Direction == SerialDirection.Receive)
+                var isCurrent = context.Snapshot.Id == connectionId;
+                var events = await client.ReadEventsAsync(new EventQuery(context.LastSequence, 1000, context.Snapshot.Id), CancellationToken.None);
+                foreach (var item in events)
                 {
-                    workbenchPage?.AppendWaveform(item.Data);
+                    anyEvents = true;
+                    if (isCurrent && paused)
+                    {
+                        continue;
+                    }
+
+                    context.LastSequence = Math.Max(context.LastSequence, item.Sequence);
+                    var encoding = Encoding.GetEncoding(context.Snapshot.Options.EncodingName);
+                    var row = TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, encoding, workbenchPage?.ShowTimestamp ?? true, context.TextDecoder);
+                    context.TrafficRows.Add(row);
+                    while (context.TrafficRows.Count > 20_000)
+                    {
+                        context.TrafficRows.RemoveAt(0);
+                    }
+
+                    if (isCurrent)
+                    {
+                        lastSequence = context.LastSequence;
+                        terminalPage?.AppendRow(row);
+                        if (item.Direction == SerialDirection.Receive)
+                        {
+                            workbenchPage?.AppendWaveform(item.Data);
+                        }
+                    }
                 }
             }
 
-            while (TrafficRows.Count > 20_000)
-            {
-                TrafficRows.RemoveAt(0);
-            }
-
-            if (events.Count > 0)
+            if (anyEvents)
             {
                 UpdateTrafficPresentation();
-                workbenchPage?.TrafficListView.ScrollIntoView(TrafficRows[^1]);
+                if (TrafficRows.Count > 0 && !paused)
+                {
+                    workbenchPage?.TrafficListView.ScrollIntoView(TrafficRows[^1]);
+                }
+
                 await RefreshStatusAsync();
             }
         }
@@ -353,6 +363,7 @@ public sealed partial class MainWindow : Window
         }
 
         var status = await client.GetStatusAsync(CancellationToken.None);
+        SyncConnectionContexts(status.Connections);
         var connection = status.Connections.FirstOrDefault(item => item.Id == connectionId);
         if (connectionId is { } current && (connection is null || connection.State is ConnectionState.Faulted or ConnectionState.Closed))
         {
@@ -367,6 +378,151 @@ public sealed partial class MainWindow : Window
         workspaceSelected = status.WorkspaceRoot is not null;
         workspacePath = status.WorkspaceRoot is null ? $"全局数据：{status.DataRoot}" : $"工作区：{status.WorkspaceRoot}";
         sessionsPage?.SetWorkspace(workspacePath);
+        connectionsPage?.SetConnections(status.Connections, connectionId);
+    }
+
+    private void SyncConnectionContexts(IReadOnlyList<ConnectionSnapshot> snapshots)
+    {
+        var activeIds = snapshots.Select(static item => item.Id).ToHashSet();
+        foreach (var snapshot in snapshots)
+        {
+            if (connectionContexts.TryGetValue(snapshot.Id, out var context))
+            {
+                context.Snapshot = snapshot;
+            }
+            else
+            {
+                connectionContexts[snapshot.Id] = new ConnectionContext(snapshot);
+            }
+        }
+
+        foreach (var id in connectionContexts.Keys.Where(id => !activeIds.Contains(id)).ToArray())
+        {
+            connectionContexts.Remove(id);
+        }
+    }
+
+    private void SaveCurrentContext()
+    {
+        if (connectionId is not { } current || !connectionContexts.TryGetValue(current, out var context))
+        {
+            return;
+        }
+
+        context.LastSequence = lastSequence;
+        context.Paused = paused;
+        context.PauseBaselineBytes = pauseBaselineBytes;
+        context.CurrentTrafficBytes = currentTrafficBytes;
+    }
+
+    private void ActivateConnection(Guid id)
+    {
+        if (!connectionContexts.TryGetValue(id, out var context))
+        {
+            return;
+        }
+
+        SaveCurrentContext();
+        connectionId = id;
+        TrafficRows = context.TrafficRows;
+        lastSequence = context.LastSequence;
+        textDecoder = context.TextDecoder;
+        paused = context.Paused;
+        pauseBaselineBytes = context.PauseBaselineBytes;
+        currentTrafficBytes = context.CurrentTrafficBytes;
+        workbenchPage?.BindRows(TrafficRows);
+        terminalPage?.BindRows(TrafficRows);
+        if (workbenchPage is not null)
+        {
+            workbenchPage.ConnectButton.Content = "断开";
+        }
+        workbenchPage?.ApplySerialProfile(new SerialProfile(
+            context.Snapshot.Options.Role.ToString(),
+            context.Snapshot.Options.PortName,
+            context.Snapshot.Options.BaudRate,
+            context.Snapshot.Options.DataBits,
+            context.Snapshot.Options.Parity,
+            context.Snapshot.Options.StopBits,
+            context.Snapshot.Options.Handshake,
+            context.Snapshot.Options.EncodingName,
+            context.Snapshot.Options.DtrEnable,
+            context.Snapshot.Options.RtsEnable,
+            context.Snapshot.Options.Role,
+            context.Snapshot.Options.DeviceInstanceId));
+        workbenchPage?.SetConnectionStatus($"{context.Snapshot.Options.PortName} · {context.Snapshot.Options.BaudRate:N0} baud");
+        workbenchPage?.SetTrafficCounts(context.Snapshot.ReceivedBytes, context.Snapshot.TransmittedBytes);
+        workbenchPage?.SetPauseState(paused, paused ? Math.Max(0, currentTrafficBytes - pauseBaselineBytes) : 0);
+        SetSerialConfigurationEnabled(false);
+    }
+
+    private void ResetCurrentConnection()
+    {
+        connectionId = null;
+        textDecoder = null;
+        TrafficRows = [];
+        lastSequence = 0;
+        currentTrafficBytes = 0;
+        pauseBaselineBytes = 0;
+        paused = false;
+        workbenchPage?.BindRows(TrafficRows);
+        terminalPage?.BindRows(TrafficRows);
+        workbenchPage?.StopLoopSend();
+        if (workbenchPage is not null)
+        {
+            workbenchPage.ConnectButton.Content = "连接";
+            workbenchPage.SetConnectionStatus("未连接串口");
+            workbenchPage.SetTrafficCounts(0, 0);
+            workbenchPage.SetPauseState(false, 0);
+        }
+
+        SetSerialConfigurationEnabled(true);
+    }
+
+    private async Task CloseConnectionFromUiAsync(Guid id)
+    {
+        if (client is null)
+        {
+            return;
+        }
+
+        if (id == connectionId)
+        {
+            loopbackCancel?.Invoke();
+            xmodemCancel?.Invoke();
+            workbenchPage?.StopLoopSend();
+        }
+
+        try
+        {
+            await client.CloseConnectionAsync(id, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+            return;
+        }
+
+        var wasCurrent = id == connectionId;
+        connectionContexts.Remove(id);
+        if (wasCurrent)
+        {
+            var next = connectionContexts.Values.OrderBy(static item => item.Snapshot.Options.PortName).FirstOrDefault();
+            if (next is null)
+            {
+                reconnectOptions = null;
+                ResetCurrentConnection();
+            }
+            else
+            {
+                ActivateConnection(next.Snapshot.Id);
+            }
+        }
+
+        await RefreshStatusAsync();
+        if (connectionsPage is not null)
+        {
+            await RefreshConnectionsPageAsync(connectionsPage);
+        }
     }
 
     private void PauseButton_Click(object sender, RoutedEventArgs e)
@@ -395,22 +551,21 @@ public sealed partial class MainWindow : Window
             Debug.WriteLine(ex);
         }
 
-        connectionId = null;
+        connectionContexts.Remove(current);
+        var next = connectionContexts.Values.OrderBy(static item => item.Snapshot.Options.PortName).FirstOrDefault();
         reconnectOptions = snapshot?.Options.DeviceInstanceId is not null ? snapshot.Options : null;
         reconnectAttempts = 0;
-        textDecoder = null;
-        currentTrafficBytes = 0;
-        pauseBaselineBytes = 0;
-        paused = false;
-        if (workbenchPage is not null)
+        if (next is null)
         {
-            workbenchPage.ConnectButton.Content = "连接";
-            workbenchPage.SetConnectionStatus(reconnectOptions is not null ? "设备已断开，等待重连" : "串口已断开");
-            workbenchPage.SetTrafficCounts(0, 0);
-            workbenchPage.SetPauseState(false, 0);
+            ResetCurrentConnection();
+            workbenchPage?.SetConnectionStatus(reconnectOptions is not null ? "设备已断开，等待重连" : "串口已断开");
+        }
+        else
+        {
+            ActivateConnection(next.Snapshot.Id);
         }
 
-        SetSerialConfigurationEnabled(true);
+        connectionsPage?.SetConnections(connectionContexts.Values.Select(static item => item.Snapshot).ToArray(), connectionId);
         ShowMessage("串口已断开", error ?? "设备连接已经结束。", InfoBarSeverity.Warning);
     }
 
@@ -438,6 +593,7 @@ public sealed partial class MainWindow : Window
         var destination = tag switch
         {
             "Terminal" => (PageType: typeof(TerminalPage), Title: "串口终端", Description: "使用当前串口连接进行文本或 HEX 交互。"),
+            "Connections" => (PageType: typeof(ConnectionsPage), Title: "连接管理", Description: "查看、切换和关闭已打开的串口连接。"),
             "Loopback" => (PageType: typeof(LoopbackPage), Title: "回环检测", Description: "验证串口发送与接收链路是否正常。"),
             "Modbus" => (PageType: typeof(ModbusPage), Title: "Modbus RTU", Description: "构造读写请求帧发送到当前串口，并解析寄存器响应。"),
             "ProtocolInspector" => (PageType: typeof(ProtocolInspectorPage), Title: "协议帧", Description: "使用协议模板查看地址、功能码、长度、CRC 和异常字段。"),
@@ -511,6 +667,18 @@ public sealed partial class MainWindow : Window
                 page.CancelRequested -= LoopbackPage_CancelRequested;
                 page.CancelRequested += LoopbackPage_CancelRequested;
                 break;
+            case ConnectionsPage page:
+                connectionsPage = page;
+                page.RefreshRequested -= ConnectionsPage_RefreshRequested;
+                page.RefreshRequested += ConnectionsPage_RefreshRequested;
+                page.OpenRequested -= ConnectionsPage_OpenRequested;
+                page.OpenRequested += ConnectionsPage_OpenRequested;
+                page.ConnectionSelected -= ConnectionsPage_ConnectionSelected;
+                page.ConnectionSelected += ConnectionsPage_ConnectionSelected;
+                page.CloseRequested -= ConnectionsPage_CloseRequested;
+                page.CloseRequested += ConnectionsPage_CloseRequested;
+                await RefreshConnectionsPageAsync(page);
+                break;
             case TerminalPage page:
                 terminalPage = page;
                 page.BindRows(TrafficRows);
@@ -575,6 +743,87 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async Task RefreshConnectionsPageAsync(ConnectionsPage page)
+    {
+        if (client is null)
+        {
+            return;
+        }
+
+        try
+        {
+            page.SetPorts(await client.ListPortsAsync(CancellationToken.None));
+            var status = await client.GetStatusAsync(CancellationToken.None);
+            SyncConnectionContexts(status.Connections);
+            page.SetConnections(status.Connections, connectionId);
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private async void ConnectionsPage_RefreshRequested(object? sender, EventArgs e)
+    {
+        if (connectionsPage is not null)
+        {
+            await RefreshConnectionsPageAsync(connectionsPage);
+        }
+    }
+
+    private void ConnectionsPage_ConnectionSelected(object? sender, Guid id)
+    {
+        ActivateConnection(id);
+        connectionsPage?.SetConnections(connectionContexts.Values.Select(static item => item.Snapshot).ToArray(), connectionId);
+    }
+
+    private async void ConnectionsPage_OpenRequested(object? sender, EventArgs e)
+    {
+        if (client is null || connectionsPage?.SelectedPort is not { } port)
+        {
+            return;
+        }
+
+        SetConnectionBusy(true);
+        try
+        {
+            var role = connectionsPage.RoleIndex switch
+            {
+                1 => SerialConnectionRole.Debug,
+                2 => SerialConnectionRole.Controller,
+                3 => SerialConnectionRole.Loopback,
+                _ => SerialConnectionRole.Dut,
+            };
+            var options = new SerialConnectionOptions(
+                port.PortName,
+                connectionsPage.BaudRate,
+                8,
+                SerialParity.None,
+                SerialStopBits.One,
+                SerialHandshake.None,
+                false,
+                false,
+                workbenchPage?.SelectedEncoding.WebName ?? "utf-8",
+                role,
+                port.DeviceInstanceId);
+            var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(options), CancellationToken.None);
+            connectionContexts[connection.Id] = new ConnectionContext(connection);
+            ActivateConnection(connection.Id);
+            await RefreshStatusAsync();
+            await RefreshConnectionsPageAsync(connectionsPage);
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            SetConnectionBusy(false);
+        }
+    }
+
+    private async void ConnectionsPage_CloseRequested(object? sender, Guid id) => await CloseConnectionFromUiAsync(id);
+
     private async void WorkbenchPage_RefreshPortsRequested(object? sender, EventArgs e) => await RefreshPortsAsync();
 
     private async void PortRefreshTimer_Tick(object? sender, object e)
@@ -636,7 +885,6 @@ public sealed partial class MainWindow : Window
     private async Task TryReconnectAsync(IReadOnlyList<SerialPortDescriptor> ports)
     {
         if (client is null
-            || connectionId is not null
             || reconnectOptions is not { DeviceInstanceId: { } deviceInstanceId }
             || reconnectInProgress
             || reconnectAttempts >= MaxReconnectAttempts)
@@ -657,17 +905,15 @@ public sealed partial class MainWindow : Window
             workbenchPage?.SetConnectionStatus($"正在重连 {port.PortName} ({reconnectAttempts}/{MaxReconnectAttempts})");
             var options = reconnectOptions with { PortName = port.PortName };
             var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(options), CancellationToken.None);
-            connectionId = connection.Id;
+            connectionContexts[connection.Id] = new ConnectionContext(connection);
             reconnectOptions = null;
             reconnectAttempts = 0;
-            textDecoder = Encoding.GetEncoding(options.EncodingName).GetDecoder();
-            if (workbenchPage is not null)
+            if (connectionId is null)
             {
-                workbenchPage.ConnectButton.Content = "断开";
-                workbenchPage.SetConnectionStatus($"{port.PortName} · {options.BaudRate:N0} baud · 已重连");
+                ActivateConnection(connection.Id);
+                workbenchPage?.SetConnectionStatus($"{port.PortName} · {options.BaudRate:N0} baud · 已重连");
             }
-
-            SetSerialConfigurationEnabled(false);
+            connectionsPage?.SetConnections(connectionContexts.Values.Select(static item => item.Snapshot).ToArray(), connectionId);
         }
         catch (Exception ex)
         {
@@ -1633,6 +1879,23 @@ public sealed partial class MainWindow : Window
         ErrorInfoBar.IsOpen = true;
     }
 
+}
+
+internal sealed class ConnectionContext(ConnectionSnapshot snapshot)
+{
+    public ConnectionSnapshot Snapshot { get; set; } = snapshot;
+
+    public ObservableCollection<TrafficRow> TrafficRows { get; } = [];
+
+    public long LastSequence { get; set; }
+
+    public Decoder? TextDecoder { get; } = Encoding.GetEncoding(snapshot.Options.EncodingName).GetDecoder();
+
+    public bool Paused { get; set; }
+
+    public long PauseBaselineBytes { get; set; }
+
+    public long CurrentTrafficBytes { get; set; }
 }
 
 public sealed class TrafficRow(
