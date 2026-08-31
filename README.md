@@ -10,6 +10,7 @@ SerialWorkbench 是面向 Windows 11 的串口调试工作台。它把串口连�
 - 为连接配置 `DUT`、`DEBUG`、`CONTROLLER` 或 `LOOPBACK` 逻辑角色。
 - 保存设备实例标识，端口刷新后按 `DeviceInstanceId` 恢复当前连接。
 - 在连接管理页同时打开、切换和关闭多条串口连接，并分别查看角色、设备身份、收发计数和事件历史。
+- 在连接管理页查看 DTR、RTS、CTS、DSR 和 DCD 状态，RI 在当前串口 API 下显示为未知。
 - 发送文本或 HEX 数据，设置文本编码、CR、LF、CRLF 和校验追加。
 - 按固定间隔循环发送，并在同一报文流中查看 TX 和 RX。
 - 使用文本或 HEX 监视报文，查看时间戳、完整原始字节和实时计数。

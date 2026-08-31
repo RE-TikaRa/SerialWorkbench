@@ -50,7 +50,10 @@
                     <TextBlock Text="{Binding Device}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                   </StackPanel>
                   <TextBlock Grid.Column="1" Text="{Binding Status}" VerticalAlignment="Center" />
-                  <TextBlock Grid.Column="2" Text="{Binding Counters}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                  <StackPanel Grid.Column="2" Spacing="3" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Counters}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{Binding ControlLines}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                  </StackPanel>
                 </Grid>
               </DataTemplate>
             </ListView.ItemTemplate>

@@ -78,9 +78,18 @@ public sealed record ConnectionSnapshot(
     long TransmitOperations,
     long ErrorCount,
     DateTimeOffset? LastActivityUtc,
-    string? Error);
+    string? Error,
+    SerialControlLineStatus? ControlLines = null);
 
 public sealed record SerialControlLines(bool DtrEnable, bool RtsEnable);
+
+public sealed record SerialControlLineStatus(
+    bool DtrEnable,
+    bool RtsEnable,
+    bool CtsHolding,
+    bool DsrHolding,
+    bool CarrierDetect,
+    bool? RingIndicator);
 
 public sealed record SerialTrafficEvent(
     long Sequence,

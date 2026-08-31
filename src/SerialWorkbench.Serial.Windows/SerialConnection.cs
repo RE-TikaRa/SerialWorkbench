@@ -177,6 +177,18 @@ public sealed class SerialConnection : IAsyncDisposable
     public ConnectionSnapshot GetSnapshot()
     {
         var milliseconds = Interlocked.Read(ref lastActivityUnixMilliseconds);
+        var controlLines = new SerialControlLineStatus(dtrEnable, rtsEnable, false, false, false, null);
+        if (port.IsOpen)
+        {
+            try
+            {
+                controlLines = new SerialControlLineStatus(dtrEnable, rtsEnable, port.CtsHolding, port.DsrHolding, port.CDHolding, null);
+            }
+            catch (Exception ex) when (ex is IOException or InvalidOperationException)
+            {
+            }
+        }
+
         return new ConnectionSnapshot(
             Id,
             Options with { DtrEnable = dtrEnable, RtsEnable = rtsEnable },
@@ -187,7 +199,8 @@ public sealed class SerialConnection : IAsyncDisposable
             Interlocked.Read(ref transmitOperations),
             Interlocked.Read(ref errorCount),
             milliseconds == 0 ? null : DateTimeOffset.FromUnixTimeMilliseconds(milliseconds),
-            error);
+            error,
+            controlLines);
     }
 
     public async ValueTask DisposeAsync()

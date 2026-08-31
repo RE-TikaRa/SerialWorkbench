@@ -91,6 +91,7 @@ public sealed class ConnectionRow
     public string Device { get; private init; } = "";
     public string Status { get; private init; } = "";
     public string Counters { get; private init; } = "";
+    public string ControlLines { get; private init; } = "";
 
     public static ConnectionRow From(ConnectionSnapshot snapshot, bool selected)
     {
@@ -100,6 +101,9 @@ public sealed class ConnectionRow
             : snapshot.Options.PortName;
         var status = selected ? $"{snapshot.State} · 当前" : snapshot.State.ToString();
         var counters = $"RX {snapshot.ReceivedBytes:N0} · TX {snapshot.TransmittedBytes:N0}";
+        var lines = snapshot.ControlLines is { } controlLines
+            ? $"CTS {(controlLines.CtsHolding ? 1 : 0)} · DSR {(controlLines.DsrHolding ? 1 : 0)} · DCD {(controlLines.CarrierDetect ? 1 : 0)} · RI {(controlLines.RingIndicator is { } ring ? ring ? "1" : "0" : "-")}"
+            : "CTS - · DSR - · DCD - · RI -";
         return new ConnectionRow
         {
             Id = snapshot.Id,
@@ -107,6 +111,7 @@ public sealed class ConnectionRow
             Device = device,
             Status = status,
             Counters = counters,
+            ControlLines = lines,
         };
     }
 }
