@@ -42,9 +42,11 @@ public sealed partial class ModbusPage : Page
         if (response.Success)
         {
             RegisterRow[] rows;
-            if (response.FunctionCode == 6 && response.Address is { } address && response.Value is { } value)
+            if (response.FunctionCode is 5 or 6 && response.Address is { } address && response.Value is { } value)
             {
-                rows = [new RegisterRow($"0x{address:X4}", $"0x{value:X4}", value.ToString(System.Globalization.CultureInfo.InvariantCulture))];
+                rows = response.FunctionCode == 5
+                    ? [new RegisterRow($"0x{address:X4}", value == 0 ? "0" : "1", value == 0 ? "False" : "True")]
+                    : [new RegisterRow($"0x{address:X4}", $"0x{value:X4}", value.ToString(System.Globalization.CultureInfo.InvariantCulture))];
             }
             else if (response.Bits is { } bits)
             {
@@ -79,6 +81,7 @@ public sealed partial class ModbusPage : Page
         2 => 6,
         3 => 1,
         4 => 2,
+        5 => 5,
         _ => 3,
     };
 
@@ -86,17 +89,27 @@ public sealed partial class ModbusPage : Page
     {
         if (Quantity is not null)
         {
-            Quantity.Header = FunctionValue == 6 ? "寄存器值" : "数量";
-            Quantity.Minimum = FunctionValue == 6 ? 0 : 1;
+            Quantity.Header = FunctionValue switch
+            {
+                6 => "寄存器值",
+                5 => "线圈值(0/1)",
+                _ => "数量",
+            };
+            Quantity.Minimum = FunctionValue is 5 or 6 ? 0 : 1;
             Quantity.Maximum = FunctionValue switch
             {
                 6 => ushort.MaxValue,
+                5 => 1,
                 1 or 2 => 2000,
                 _ => 125,
             };
             if (FunctionValue == 6 && Quantity.Value is < 0)
             {
                 Quantity.Value = 0;
+            }
+            else if (FunctionValue == 5 && Quantity.Value is > 1)
+            {
+                Quantity.Value = 1;
             }
             else if (FunctionValue is 3 or 4 && Quantity.Value is > 125)
             {
@@ -131,9 +144,12 @@ public sealed partial class ModbusPage : Page
         var slave = (byte)SlaveAddress.Value;
         var address = (ushort)StartAddress.Value;
         var value = (ushort)Quantity.Value;
-        return FunctionValue == 6
-            ? ModbusRtuCodec.BuildWriteSingleRegister(slave, address, value)
-            : ModbusRtuCodec.BuildReadRequest(slave, FunctionValue, address, value);
+        return FunctionValue switch
+        {
+            5 => ModbusRtuCodec.BuildWriteSingleCoil(slave, address, value != 0),
+            6 => ModbusRtuCodec.BuildWriteSingleRegister(slave, address, value),
+            _ => ModbusRtuCodec.BuildReadRequest(slave, FunctionValue, address, value),
+        };
     }
 
     private void UpdatePreview()
@@ -178,6 +194,14 @@ public sealed partial class ModbusPage : Page
                 var result = ModbusRtuCodec.ParseWriteSingleRegisterResponse(frame, (byte)SlaveAddress.Value);
                 RegisterList.ItemsSource = new[] { new RegisterRow($"0x{result.Address:X4}", $"0x{result.Value:X4}", result.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)) };
                 ShowResult("已解析写单寄存器响应。", InfoBarSeverity.Success);
+                return;
+            }
+
+            if (FunctionValue == 5)
+            {
+                var result = ModbusRtuCodec.ParseWriteSingleCoilResponse(frame, (byte)SlaveAddress.Value);
+                RegisterList.ItemsSource = new[] { new RegisterRow($"0x{result.Address:X4}", result.Value ? "1" : "0", result.Value ? "True" : "False") };
+                ShowResult("已解析写单个线圈响应。", InfoBarSeverity.Success);
                 return;
             }
 

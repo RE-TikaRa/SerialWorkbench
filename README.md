@@ -17,7 +17,7 @@ SerialWorkbench 是面向 Windows 11 的串口调试工作台。它把串口连�
 - 使用文本或 HEX 监视报文，查看时间戳、完整原始字节和实时计数。
 - 将接收数据解析为 CSV 文本或固定长度二进制波形。
 - 使用交互式串口终端发送数据、浏览输入历史和复制响应。
-- 构造并执行 Modbus RTU 读线圈、读离散输入、读寄存器和写单寄存器事务。
+- 构造并执行 Modbus RTU 读线圈、读离散输入、读寄存器、写单个线圈和写单个寄存器事务。
 - 区分 TX 回显、无关 RX、合法响应、CRC 错误、异常响应和超时。
 - 使用协议帧查看器检查地址、功能码、长度、CRC 和异常码。
 - 按固定、递增或随机数据执行 RX-TX 回环检测，保存差异位置、耗时和吞吐率。
@@ -324,6 +324,12 @@ HEX 发送：
 
 ```powershell
 .\serial-workbench.exe modbus write --port COM15 --baud 115200 --slave 1 --address 0 --value 1 --timeout 2000 --output json
+```
+
+写单个线圈：
+
+```powershell
+.\serial-workbench.exe modbus write --port COM15 --baud 115200 --slave 1 --address 0 --value 1 --function 5 --timeout 2000 --output json
 ```
 
 功能码可以使用 `1`、`2`、`3` 或 `4`。Modbus JSON 结果包含请求帧、响应帧、功能码、位数组、寄存器、地址、寄存器值、异常码、耗时和错误信息。

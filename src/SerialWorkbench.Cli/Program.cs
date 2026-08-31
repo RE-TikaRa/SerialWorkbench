@@ -445,10 +445,23 @@ static async Task<int> ModbusWriteAsync(IHostRpc client, Arguments arguments, st
     try
     {
         var slave = GetByte(arguments, "--slave", 1);
+        var function = GetByte(arguments, "--function", 6);
+        if (function is not (5 or 6))
+        {
+            throw new ArgumentException("--function must be 5 or 6.");
+        }
+
         var address = GetUShort(arguments, "--address");
         var value = GetUShort(arguments, "--value");
-        var frame = ModbusRtuCodec.BuildWriteSingleRegister(slave, address, value);
-        return await RunModbusAsync(client, connection, arguments, output, cancellationToken, "modbus.write", frame, slave, 6).ConfigureAwait(false);
+        if (function == 5 && value > 1)
+        {
+            throw new ArgumentException("--value must be 0 or 1 for function 5.");
+        }
+
+        var frame = function == 5
+            ? ModbusRtuCodec.BuildWriteSingleCoil(slave, address, value != 0)
+            : ModbusRtuCodec.BuildWriteSingleRegister(slave, address, value);
+        return await RunModbusAsync(client, connection, arguments, output, cancellationToken, "modbus.write", frame, slave, function).ConfigureAwait(false);
     }
     finally
     {
@@ -644,7 +657,7 @@ static void PrintHelp()
         serial-workbench monitor --port <port> [--seconds 10] [--output text|jsonl]
         serial-workbench loopback run --port <port> [--baud 115200] [--length 4096] [--iterations 1]
         serial-workbench modbus read --port <port> --slave 1 --address 0 --quantity 1 [--function 1|2|3|4]
-        serial-workbench modbus write --port <port> --slave 1 --address 0 --value 0
+        serial-workbench modbus write --port <port> --slave 1 --address 0 --value 0 [--function 5|6]
         serial-workbench xmodem send --port <port> --file PATH [--baud 115200]
         serial-workbench xmodem receive --port <port> --file PATH [--baud 115200]
         serial-workbench protocol inspect --hex HEX [--template PATH] [--output text|json]

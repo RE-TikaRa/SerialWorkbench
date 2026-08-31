@@ -110,7 +110,7 @@ public static class ModbusRtuCodec
             return 5;
         }
 
-        return expectedFunction == 6
+        return expectedFunction is 5 or 6
             ? 8
             : framePrefix.Length >= 3
                 ? framePrefix[2] + 5
@@ -146,6 +146,17 @@ public static class ModbusRtuCodec
         frame[1] = 6;
         BinaryPrimitives.WriteUInt16BigEndian(frame[2..4], address);
         BinaryPrimitives.WriteUInt16BigEndian(frame[4..6], value);
+        BinaryPrimitives.WriteUInt16LittleEndian(frame[6..8], Checksums.Crc16Modbus(frame[..6]));
+        return frame.ToArray();
+    }
+
+    public static byte[] BuildWriteSingleCoil(byte slaveAddress, ushort address, bool value)
+    {
+        Span<byte> frame = stackalloc byte[8];
+        frame[0] = slaveAddress;
+        frame[1] = 5;
+        BinaryPrimitives.WriteUInt16BigEndian(frame[2..4], address);
+        BinaryPrimitives.WriteUInt16BigEndian(frame[4..6], value ? (ushort)0xFF00 : (ushort)0x0000);
         BinaryPrimitives.WriteUInt16LittleEndian(frame[6..8], Checksums.Crc16Modbus(frame[..6]));
         return frame.ToArray();
     }
@@ -256,6 +267,32 @@ public static class ModbusRtuCodec
         return (
             BinaryPrimitives.ReadUInt16BigEndian(frame[2..4]),
             BinaryPrimitives.ReadUInt16BigEndian(frame[4..6]));
+    }
+
+    public static (ushort Address, bool Value) ParseWriteSingleCoilResponse(ReadOnlySpan<byte> frame, byte expectedSlave)
+    {
+        if (frame.Length != 8)
+        {
+            throw new InvalidDataException("Modbus write response length is invalid.");
+        }
+
+        if (!HasValidCrc(frame))
+        {
+            throw new InvalidDataException("Modbus CRC is invalid.");
+        }
+
+        if (frame[0] != expectedSlave || frame[1] != 5)
+        {
+            throw new InvalidDataException("Modbus response address or function does not match the request.");
+        }
+
+        var rawValue = BinaryPrimitives.ReadUInt16BigEndian(frame[4..6]);
+        if (rawValue is not (0x0000 or 0xFF00))
+        {
+            throw new InvalidDataException("Modbus coil response value is invalid.");
+        }
+
+        return (BinaryPrimitives.ReadUInt16BigEndian(frame[2..4]), rawValue == 0xFF00);
     }
 }
 

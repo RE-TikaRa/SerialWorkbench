@@ -258,6 +258,13 @@ public sealed class SerialConnectionManager(
                             return new ModbusTransactionResult(true, frame, request.FunctionCode, [], result.Address, result.Value, null, stopwatch.Elapsed, null);
                         }
 
+                        if (request.FunctionCode == 5)
+                        {
+                            var result = ModbusRtuCodec.ParseWriteSingleCoilResponse(frame, request.SlaveAddress);
+                            stopwatch.Stop();
+                            return new ModbusTransactionResult(true, frame, request.FunctionCode, [], result.Address, result.Value ? (ushort)1 : (ushort)0, null, stopwatch.Elapsed, null, [result.Value]);
+                        }
+
                         if (request.FunctionCode is 1 or 2)
                         {
                             var quantity = BinaryPrimitives.ReadUInt16BigEndian(request.Frame.AsSpan(4, 2));

@@ -66,6 +66,7 @@ public sealed class ProtocolTests
     [InlineData(1, 7)]
     [InlineData(3, 7)]
     [InlineData(4, 9)]
+    [InlineData(5, 8)]
     [InlineData(6, 8)]
     public void ModbusResponseLengthIsDerivedFromTheFunction(byte function, int length)
     {
@@ -94,6 +95,17 @@ public sealed class ProtocolTests
 
         Assert.Equal(ushort.MaxValue, result.Address);
         Assert.Equal(ushort.MaxValue, result.Value);
+    }
+
+    [Fact]
+    public void ModbusWriteSingleCoilMatchesKnownVector()
+    {
+        var frame = ModbusRtuCodec.BuildWriteSingleCoil(1, 0x0013, true);
+
+        Assert.Equal([0x01, 0x05, 0x00, 0x13, 0xFF, 0x00, 0x7D, 0xFF], frame);
+        var response = ModbusRtuCodec.ParseWriteSingleCoilResponse(frame, 1);
+        Assert.Equal((ushort)0x0013, response.Address);
+        Assert.True(response.Value);
     }
 
     [Fact]
