@@ -76,10 +76,15 @@ public sealed class ApplicationTests
     public void ConnectionRoleIsPartOfSerialOptions()
     {
         var defaultOptions = new SerialConnectionOptions("COM1");
-        var controllerOptions = defaultOptions with { Role = SerialConnectionRole.Controller };
+        var controllerOptions = defaultOptions with
+        {
+            Role = SerialConnectionRole.Controller,
+            DeviceInstanceId = "USB\\VID_1A86&PID_7523\\1",
+        };
 
         Assert.Equal(SerialConnectionRole.Dut, defaultOptions.Role);
         Assert.Equal(SerialConnectionRole.Controller, controllerOptions.Role);
+        Assert.Equal("USB\\VID_1A86&PID_7523\\1", controllerOptions.DeviceInstanceId);
     }
 
     [Fact]

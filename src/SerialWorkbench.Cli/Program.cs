@@ -533,7 +533,8 @@ static Task<ConnectionSnapshot> OpenAsync(IHostRpc client, Arguments arguments, 
         arguments.Has("--dtr"),
         arguments.Has("--rts"),
         arguments.Get("--encoding") ?? "utf-8",
-        Enum.Parse<SerialConnectionRole>(arguments.Get("--role") ?? "Dut", true));
+        Enum.Parse<SerialConnectionRole>(arguments.Get("--role") ?? "Dut", true),
+        arguments.Get("--device-id"));
     return client.OpenConnectionAsync(new OpenConnectionRequest(options), cancellationToken);
 }
 

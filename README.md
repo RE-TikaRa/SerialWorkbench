@@ -279,6 +279,7 @@ HEX 发送：
 --stop-bits One|OnePointFive|Two
 --handshake None|XOnXOff|RequestToSend|RequestToSendXOnXOff
 --role Dut|Debug|Controller|Loopback
+--device-id DEVICE_INSTANCE_ID
 --dtr
 --rts
 ```

@@ -57,7 +57,8 @@ public sealed record SerialConnectionOptions(
     bool DtrEnable = false,
     bool RtsEnable = false,
     string EncodingName = "utf-8",
-    SerialConnectionRole Role = SerialConnectionRole.Dut);
+    SerialConnectionRole Role = SerialConnectionRole.Dut,
+    string? DeviceInstanceId = null);
 
 public sealed record SerialPortDescriptor(
     string PortName,

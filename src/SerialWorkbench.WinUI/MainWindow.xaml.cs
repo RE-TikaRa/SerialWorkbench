@@ -167,7 +167,8 @@ public sealed partial class MainWindow : Window
                 workbenchPage?.DtrEnable ?? false,
                 workbenchPage?.RtsEnable ?? false,
                 encodingName,
-                workbenchPage?.Role ?? SerialConnectionRole.Dut);
+                workbenchPage?.Role ?? SerialConnectionRole.Dut,
+                port.DeviceInstanceId);
             SerialPreferenceStore.Save(workbenchPage!.ReadSerialPreference(port.PortName));
             var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(options), CancellationToken.None);
             connectionId = connection.Id;
@@ -589,18 +590,25 @@ public sealed partial class MainWindow : Window
         {
             var ports = await client.ListPortsAsync(CancellationToken.None);
             var combo = workbenchPage.PortComboBox;
-            var currentName = (combo.SelectedItem as SerialPortDescriptor)?.PortName;
+            var currentPort = combo.SelectedItem as SerialPortDescriptor;
+            var currentName = currentPort?.PortName;
             if (SamePortSet(combo.ItemsSource as IReadOnlyList<SerialPortDescriptor>, ports))
             {
                 return;
             }
 
             combo.ItemsSource = ports;
-            var target = currentName is not null
-                ? ports.FirstOrDefault(item => item.PortName.Equals(currentName, StringComparison.OrdinalIgnoreCase))
-                : serialPreference.PortName is not null
-                    ? ports.FirstOrDefault(item => item.PortName.Equals(serialPreference.PortName, StringComparison.OrdinalIgnoreCase))
-                    : null;
+            var target = currentPort?.DeviceInstanceId is not null
+                ? ports.FirstOrDefault(item => item.DeviceInstanceId?.Equals(currentPort.DeviceInstanceId, StringComparison.OrdinalIgnoreCase) == true)
+                    ?? (currentName is not null ? ports.FirstOrDefault(item => item.PortName.Equals(currentName, StringComparison.OrdinalIgnoreCase)) : null)
+                : serialPreference.DeviceInstanceId is not null
+                    ? ports.FirstOrDefault(item => item.DeviceInstanceId?.Equals(serialPreference.DeviceInstanceId, StringComparison.OrdinalIgnoreCase) == true)
+                        ?? (serialPreference.PortName is not null ? ports.FirstOrDefault(item => item.PortName.Equals(serialPreference.PortName, StringComparison.OrdinalIgnoreCase)) : null)
+                    : currentName is not null
+                        ? ports.FirstOrDefault(item => item.PortName.Equals(currentName, StringComparison.OrdinalIgnoreCase))
+                        : serialPreference.PortName is not null
+                            ? ports.FirstOrDefault(item => item.PortName.Equals(serialPreference.PortName, StringComparison.OrdinalIgnoreCase))
+                            : null;
             combo.SelectedItem = target ?? (ports.Count > 0 ? ports[0] : null);
         }
         catch (Exception ex)
@@ -622,7 +630,8 @@ public sealed partial class MainWindow : Window
 
         for (var index = 0; index < current.Count; index++)
         {
-            if (!current[index].PortName.Equals(updated[index].PortName, StringComparison.OrdinalIgnoreCase))
+            if (!current[index].PortName.Equals(updated[index].PortName, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(current[index].DeviceInstanceId, updated[index].DeviceInstanceId, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }

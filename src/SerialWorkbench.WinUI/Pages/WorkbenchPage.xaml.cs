@@ -169,9 +169,13 @@ public sealed partial class WorkbenchPage : Page
         };
         DtrCheckBox.IsChecked = profile.DtrEnable;
         RtsCheckBox.IsChecked = profile.RtsEnable;
-        if (profile.PortName is not null && PortComboBox.ItemsSource is IReadOnlyList<SerialPortDescriptor> ports)
+        if ((profile.PortName is not null || profile.DeviceInstanceId is not null)
+            && PortComboBox.ItemsSource is IReadOnlyList<SerialPortDescriptor> ports)
         {
-            PortComboBox.SelectedItem = ports.FirstOrDefault(item => item.PortName.Equals(profile.PortName, StringComparison.OrdinalIgnoreCase));
+            PortComboBox.SelectedItem = profile.DeviceInstanceId is not null
+                ? ports.FirstOrDefault(item => item.DeviceInstanceId?.Equals(profile.DeviceInstanceId, StringComparison.OrdinalIgnoreCase) == true)
+                    ?? (profile.PortName is not null ? ports.FirstOrDefault(item => item.PortName.Equals(profile.PortName, StringComparison.OrdinalIgnoreCase)) : null)
+                : ports.FirstOrDefault(item => item.PortName.Equals(profile.PortName, StringComparison.OrdinalIgnoreCase));
         }
     }
 
@@ -186,7 +190,8 @@ public sealed partial class WorkbenchPage : Page
         SelectedEncoding.WebName,
         DtrEnable,
         RtsEnable,
-        Role);
+        Role,
+        SelectedPort?.DeviceInstanceId);
 
     public void AddProfile(SerialProfile profile)
     {
@@ -237,7 +242,8 @@ public sealed partial class WorkbenchPage : Page
         PlotMode.SelectedIndex,
         (int)PlotFrameLength.Value,
         PlotSampleType.SelectedIndex,
-        Role);
+        Role,
+        SelectedPort?.DeviceInstanceId);
 
     private void ConnectButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ConnectRequested?.Invoke(this, EventArgs.Empty);
     private void RefreshPortsButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => RefreshPortsRequested?.Invoke(this, EventArgs.Empty);

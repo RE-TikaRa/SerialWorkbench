@@ -21,7 +21,8 @@ public sealed record SerialPreference(
     int PlotModeIndex,
     int PlotFrameLength,
     int PlotSampleTypeIndex,
-    SerialConnectionRole Role = SerialConnectionRole.Dut);
+    SerialConnectionRole Role = SerialConnectionRole.Dut,
+    string? DeviceInstanceId = null);
 
 public sealed record SerialProfile(
     string Name,
@@ -34,7 +35,8 @@ public sealed record SerialProfile(
     string EncodingName,
     bool DtrEnable,
     bool RtsEnable,
-    SerialConnectionRole Role = SerialConnectionRole.Dut);
+    SerialConnectionRole Role = SerialConnectionRole.Dut,
+    string? DeviceInstanceId = null);
 
 public static class SerialPreferenceStore
 {
