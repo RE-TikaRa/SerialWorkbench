@@ -1770,6 +1770,8 @@ public sealed partial class MainWindow : Window
             modbusPage.ClearPollResults();
             modbusPage.SetPolling(true);
             var failed = 0;
+            var completed = 0;
+            var totalDurationMilliseconds = 0d;
             try
             {
                 for (var sample = 1; sample <= count; sample++)
@@ -1778,6 +1780,8 @@ public sealed partial class MainWindow : Window
                     var frame = SerialWorkbench.Modbus.ModbusRtuCodec.BuildReadRequest(slave, function, address, quantity);
                     var result = await client.RunModbusAsync(new ModbusTransactionRequest(current, frame, slave, function, timeout), cancellation.Token);
                     modbusPage.AddPollResult(sample, result);
+                    completed++;
+                    totalDurationMilliseconds += result.Duration.TotalMilliseconds;
                     if (!result.Success)
                     {
                         failed++;
@@ -1790,11 +1794,14 @@ public sealed partial class MainWindow : Window
                     }
                 }
 
-                modbusPage.ShowPollResult($"轮询完成 · 成功 {count - failed} · 失败 {failed}", failed == 0 ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
+                var success = count - failed;
+                var average = completed == 0 ? 0 : totalDurationMilliseconds / completed;
+                modbusPage.ShowPollResult($"轮询完成 · 成功 {success} · 失败 {failed} · 成功率 {(double)success / count:P0} · 平均 {average:N0} ms", failed == 0 ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
             }
             catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
             {
-                modbusPage.ShowPollResult($"轮询已停止 · 已完成 {modbusPage.PollResults.Count} 次 · 失败 {failed}", InfoBarSeverity.Warning);
+                var average = completed == 0 ? 0 : totalDurationMilliseconds / completed;
+                modbusPage.ShowPollResult($"轮询已停止 · 已完成 {completed} 次 · 失败 {failed} · 平均 {average:N0} ms", InfoBarSeverity.Warning);
             }
             finally
             {
