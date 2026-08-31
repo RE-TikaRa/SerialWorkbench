@@ -44,7 +44,7 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
         }
     }
 
-    public async Task<IReadOnlyList<SerialTrafficEvent>> ReadEventsAsync(Guid sessionId, int maximumCount, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<SerialTrafficEvent>> ReadEventsAsync(Guid sessionId, int maximumCount, CancellationToken cancellationToken, long afterSequence = 0, Guid? connectionId = null)
     {
         if (maximumCount is < 1 or > 10_000)
         {
@@ -61,14 +61,14 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
             await using var command = sessionConnection.CreateCommand();
             command.CommandText = """
                 SELECT sequence, utc, monotonic_ticks, connection_id, direction, data, source, message
-                FROM (
-                    SELECT sequence, utc, monotonic_ticks, connection_id, direction, data, source, message
-                    FROM events
-                    ORDER BY sequence DESC
-                    LIMIT $maximumCount
-                )
-                ORDER BY sequence;
+                FROM events
+                WHERE sequence > $afterSequence
+                  AND ($connectionId IS NULL OR connection_id = $connectionId)
+                ORDER BY sequence
+                LIMIT $maximumCount;
                 """;
+            command.Parameters.AddWithValue("$afterSequence", afterSequence);
+            command.Parameters.AddWithValue("$connectionId", (object?)connectionId?.ToString("D") ?? DBNull.Value);
             command.Parameters.AddWithValue("$maximumCount", maximumCount);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             var events = new List<SerialTrafficEvent>();

@@ -397,6 +397,14 @@ HEX 发送：
 .\serial-workbench.exe sessions export --id SESSION_ID --file E:\Exports\session.csv --output json
 ```
 
+导出流式 JSONL：
+
+```powershell
+.\serial-workbench.exe sessions export --id SESSION_ID --file E:\Exports\session.jsonl --format jsonl --output json
+```
+
+`jsonl` 按会话事件序号分页读取，每行一个原始事件，适合大型会话处理。
+
 删除已经结束的会话：
 
 ```powershell

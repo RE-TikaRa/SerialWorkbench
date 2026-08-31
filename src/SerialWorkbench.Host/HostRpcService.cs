@@ -107,7 +107,7 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
         runtime.Sessions.ListAsync(cancellationToken);
 
     public Task<IReadOnlyList<SerialTrafficEvent>> ReadSessionEventsAsync(SessionEventQuery query, CancellationToken cancellationToken) =>
-        runtime.Sessions.ReadEventsAsync(query.SessionId, query.MaximumCount, cancellationToken);
+        runtime.Sessions.ReadEventsAsync(query.SessionId, query.MaximumCount, cancellationToken, query.AfterSequence, query.ConnectionId);
 
     public Task<IReadOnlyList<SerialTrafficEvent>> ReadAllSessionEventsAsync(Guid sessionId, CancellationToken cancellationToken) =>
         runtime.Sessions.ReadAllEventsAsync(sessionId, cancellationToken);

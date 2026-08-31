@@ -147,6 +147,40 @@ static async Task<int> ExportSessionAsync(IHostRpc client, Arguments arguments, 
 {
     var sessionId = ParseGuid(arguments.Get("--id"), "--id");
     var path = arguments.Get("--file") ?? throw new ArgumentException("sessions export requires --file.");
+    var format = arguments.Get("--format")?.ToLowerInvariant() ?? "csv";
+    if (format is not ("csv" or "jsonl"))
+    {
+        throw new ArgumentException("--format must be csv or jsonl.");
+    }
+
+    if (format == "jsonl")
+    {
+        long bytes = 0;
+        long afterSequence = 0;
+        await using (var writer = new StreamWriter(path, false, new UTF8Encoding(false)))
+        {
+            while (true)
+            {
+                var events = await client.ReadSessionEventsAsync(new SessionEventQuery(sessionId, 1000, afterSequence), cancellationToken).ConfigureAwait(false);
+                if (events.Count == 0)
+                {
+                    break;
+                }
+
+                foreach (var item in events)
+                {
+                    var line = JsonSerializer.Serialize(item, CliJson.Options);
+                    await writer.WriteLineAsync(line).ConfigureAwait(false);
+                    bytes += Encoding.UTF8.GetByteCount(line) + Environment.NewLine.Length;
+                    afterSequence = item.Sequence;
+                }
+            }
+        }
+
+        WriteResult(output, "sessions.export", new { sessionId, path, format, bytes });
+        return 0;
+    }
+
     var csv = await client.ExportSessionCsvAsync(sessionId, cancellationToken).ConfigureAwait(false);
     await File.WriteAllTextAsync(path, csv, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), cancellationToken).ConfigureAwait(false);
     WriteResult(output, "sessions.export", new { sessionId, path, bytes = Encoding.UTF8.GetByteCount(csv) });
@@ -837,7 +871,7 @@ static void PrintHelp()
         serial-workbench workspace set --path PATH
         serial-workbench sessions list|show|export|delete
         serial-workbench sessions show --id SESSION_ID [--output json]
-        serial-workbench sessions export --id SESSION_ID --file PATH
+        serial-workbench sessions export --id SESSION_ID --file PATH [--format csv|jsonl]
         serial-workbench sessions delete --id SESSION_ID
         serial-workbench send --port <port> (--text TEXT | --hex HEX) [--baud 115200]
         serial-workbench monitor --port <port> [--seconds 10] [--output text|jsonl]

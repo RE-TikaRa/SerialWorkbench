@@ -69,6 +69,10 @@ public sealed class StorageAndSessionTests
         Assert.Equal(5, session.RawByteCount);
         var events = await store.ReadEventsAsync(session.Id, 1000, cancellationToken);
         Assert.Equal([1, 2], events.Select(item => item.Sequence));
+        var page = await store.ReadEventsAsync(session.Id, 1, cancellationToken, 1);
+        Assert.Equal([2], page.Select(item => item.Sequence));
+        var connectionPage = await store.ReadEventsAsync(session.Id, 10, cancellationToken, 0, connectionId);
+        Assert.Equal([1, 2], connectionPage.Select(item => item.Sequence));
         var allEvents = await store.ReadAllEventsAsync(session.Id, cancellationToken);
         Assert.Equal([1, 2], allEvents.Select(item => item.Sequence));
         var loopbackResults = await store.ReadLoopbackResultsAsync(session.Id, cancellationToken);
