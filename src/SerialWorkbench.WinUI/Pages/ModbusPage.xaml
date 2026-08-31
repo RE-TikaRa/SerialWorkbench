@@ -18,6 +18,17 @@
             <Setter Target="Quantity.(Grid.Row)" Value="3" />
             <Setter Target="Quantity.(Grid.Column)" Value="0" />
             <Setter Target="Quantity.(Grid.ColumnSpan)" Value="4" />
+            <Setter Target="ScanFrom.(Grid.ColumnSpan)" Value="2" />
+            <Setter Target="ScanTo.(Grid.Column)" Value="2" />
+            <Setter Target="ScanTo.(Grid.ColumnSpan)" Value="3" />
+            <Setter Target="ScanAddress.(Grid.Row)" Value="1" />
+            <Setter Target="ScanAddress.(Grid.ColumnSpan)" Value="2" />
+            <Setter Target="ScanTimeout.(Grid.Row)" Value="1" />
+            <Setter Target="ScanTimeout.(Grid.Column)" Value="2" />
+            <Setter Target="ScanTimeout.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="ScanInterval.(Grid.Row)" Value="1" />
+            <Setter Target="ScanInterval.(Grid.Column)" Value="3" />
+            <Setter Target="ScanInterval.(Grid.ColumnSpan)" Value="2" />
           </VisualState.Setters>
         </VisualState>
         <VisualState x:Name="Narrow" />
@@ -62,6 +73,7 @@
         <RowDefinition x:Name="ContentRow" Height="Auto" />
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
       </Grid.RowDefinitions>
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
@@ -103,7 +115,49 @@
           <Button x:Name="SendButton" x:FieldModifier="public" Content="发送请求" Click="SendButton_Click" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Left" />
         </StackPanel>
       </Border>
-      <Border x:Name="ResponseCard" Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource SurfaceCardStyle}">
+      <Border x:Name="ScanCard" Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource SurfaceCardStyle}">
+        <StackPanel Spacing="{StaticResource CardContentSpacing}">
+          <TextBlock Text="从站扫描" Style="{StaticResource BodyStrongTextBlockStyle}" />
+          <Grid ColumnSpacing="12" RowSpacing="14">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <NumberBox x:Name="ScanFrom" x:FieldModifier="public" Header="起始从站" Value="1" Minimum="1" Maximum="247" SpinButtonPlacementMode="Compact" />
+            <NumberBox x:Name="ScanTo" x:FieldModifier="public" Grid.Column="1" Header="结束从站" Value="247" Minimum="1" Maximum="247" SpinButtonPlacementMode="Compact" />
+            <NumberBox x:Name="ScanAddress" x:FieldModifier="public" Grid.Column="2" Header="寄存器地址" Value="0" Minimum="0" Maximum="65535" SpinButtonPlacementMode="Compact" />
+            <NumberBox x:Name="ScanTimeout" x:FieldModifier="public" Grid.Column="3" Header="超时(ms)" Value="200" Minimum="1" Maximum="600000" SpinButtonPlacementMode="Compact" />
+            <NumberBox x:Name="ScanInterval" x:FieldModifier="public" Grid.Column="4" Header="间隔(ms)" Value="0" Minimum="0" Maximum="600000" SpinButtonPlacementMode="Compact" />
+          </Grid>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button x:Name="ScanButton" x:FieldModifier="public" Content="开始扫描" Click="ScanButton_Click" Style="{StaticResource AccentButtonStyle}" />
+            <Button x:Name="CancelScanButton" x:FieldModifier="public" Content="停止" Click="CancelScanButton_Click" IsEnabled="False" />
+            <TextBlock x:Name="ScanStatusText" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          </StackPanel>
+          <ListView x:Name="ScanResultList" ItemsSource="{x:Bind ScanResults}" MinHeight="160" SelectionMode="None">
+            <ListView.ItemTemplate>
+              <DataTemplate>
+                <Grid Padding="8,4" ColumnSpacing="16">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="80" />
+                    <ColumnDefinition Width="100" />
+                    <ColumnDefinition Width="90" />
+                    <ColumnDefinition Width="*" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding Slave}" FontFamily="{StaticResource MonospaceFontFamily}" />
+                  <TextBlock Grid.Column="1" Text="{Binding Status}" />
+                  <TextBlock Grid.Column="2" Text="{Binding Duration}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                  <TextBlock Grid.Column="3" Text="{Binding Details}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Details}" />
+                </Grid>
+              </DataTemplate>
+            </ListView.ItemTemplate>
+          </ListView>
+        </StackPanel>
+      </Border>
+      <Border x:Name="ResponseCard" Grid.Row="2" Grid.ColumnSpan="2" Style="{StaticResource SurfaceCardStyle}">
         <Grid RowSpacing="{StaticResource CardContentSpacing}">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -132,7 +186,7 @@
           </ListView>
         </Grid>
       </Border>
-      <InfoBar x:Name="Result" x:FieldModifier="public" Grid.Row="2" Grid.ColumnSpan="2" IsOpen="False" IsClosable="True" />
+      <InfoBar x:Name="Result" x:FieldModifier="public" Grid.Row="3" Grid.ColumnSpan="2" IsOpen="False" IsClosable="True" />
     </Grid>
   </ScrollView>
 </Page>

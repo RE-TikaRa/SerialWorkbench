@@ -63,6 +63,7 @@ public sealed partial class MainWindow : Window
     private Action? sequenceCancel;
     private Action? loopbackCancel;
     private Action? xmodemCancel;
+    private CancellationTokenSource? modbusScanCancellation;
     private ModbusPage? modbusPage;
     private readonly SerialPreference serialPreference = SerialPreferenceStore.Load();
     private readonly string? preferredWorkspace = WorkspacePreferenceStore.Load();
@@ -719,6 +720,10 @@ public sealed partial class MainWindow : Window
                 modbusPage = page;
                 page.SendRequested -= ModbusPage_SendRequested;
                 page.SendRequested += ModbusPage_SendRequested;
+                page.ScanRequested -= ModbusPage_ScanRequested;
+                page.ScanRequested += ModbusPage_ScanRequested;
+                page.ScanCancelRequested -= ModbusPage_ScanCancelRequested;
+                page.ScanCancelRequested += ModbusPage_ScanCancelRequested;
                 break;
             case SettingsPage page:
                 settingsPage = page;
@@ -1723,6 +1728,76 @@ public sealed partial class MainWindow : Window
 
     private void LoopbackPage_CancelRequested(object? sender, EventArgs e) => loopbackCancel?.Invoke();
 
+    private void ModbusPage_ScanCancelRequested(object? sender, EventArgs e) => modbusScanCancellation?.Cancel();
+
+    private async void ModbusPage_ScanRequested(object? sender, EventArgs e)
+    {
+        if (modbusPage is null)
+        {
+            return;
+        }
+
+        if (client is null || connectionId is not { } current)
+        {
+            modbusPage.ShowResult("请先连接串口。", InfoBarSeverity.Warning);
+            return;
+        }
+
+        try
+        {
+            var first = modbusPage.ScanFromValue;
+            var last = modbusPage.ScanToValue;
+            if (first > last)
+            {
+                throw new ArgumentException("起始从站不能大于结束从站。");
+            }
+
+            var address = modbusPage.ScanAddressValue;
+            var timeout = modbusPage.ScanTimeoutMilliseconds;
+            var interval = modbusPage.ScanIntervalMilliseconds;
+            using var cancellation = new CancellationTokenSource();
+            modbusScanCancellation = cancellation;
+            modbusPage.ClearScanResults();
+            modbusPage.SetScanning(true);
+            var responses = 0;
+            try
+            {
+                for (var slave = first; slave <= last; slave++)
+                {
+                    cancellation.Token.ThrowIfCancellationRequested();
+                    var frame = SerialWorkbench.Modbus.ModbusRtuCodec.BuildReadRequest(slave, 3, address, 1);
+                    var result = await client.RunModbusAsync(new ModbusTransactionRequest(current, frame, slave, 3, timeout), cancellation.Token);
+                    if (result.Success || result.ExceptionCode is not null)
+                    {
+                        modbusPage.AddScanResult(slave, result);
+                        responses++;
+                    }
+
+                    modbusPage.SetScanStatus($"已扫描 {slave} / {last} · 响应 {responses}");
+                    if (interval > 0 && slave < last)
+                    {
+                        await Task.Delay(interval, cancellation.Token);
+                    }
+                }
+
+                modbusPage.ShowScanResult($"扫描完成 · 响应 {responses} / {last - first + 1}", InfoBarSeverity.Success);
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            {
+                modbusPage.ShowScanResult($"扫描已停止 · 已收到 {responses} 个响应。", InfoBarSeverity.Warning);
+            }
+            finally
+            {
+                modbusPage.SetScanning(false);
+                modbusScanCancellation = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            modbusPage.ShowScanResult(ex.Message, InfoBarSeverity.Error);
+        }
+    }
+
     private async void ModbusPage_SendRequested(object? sender, EventArgs e)
     {
         if (modbusPage?.RequestFrame is not { } frame)
@@ -1853,6 +1928,7 @@ public sealed partial class MainWindow : Window
         loopSendTimer.Stop();
         loopbackCancel?.Invoke();
         xmodemCancel?.Invoke();
+        modbusScanCancellation?.Cancel();
         if (workbenchPage is not null)
         {
             SerialPreferenceStore.Save(workbenchPage.ReadSerialPreference(workbenchPage.SelectedPort?.PortName));
@@ -1881,6 +1957,7 @@ public sealed partial class MainWindow : Window
         loopbackCancel = null;
         textDecoder = null;
         replayCancellation?.Dispose();
+        modbusScanCancellation?.Dispose();
         sequenceCancel = null;
     }
 

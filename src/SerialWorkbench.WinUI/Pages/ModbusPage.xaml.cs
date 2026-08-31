@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -21,17 +22,58 @@ public sealed partial class ModbusPage : Page
 
     public event EventHandler? SendRequested;
 
+    public event EventHandler? ScanRequested;
+
+    public event EventHandler? ScanCancelRequested;
+
     public byte[]? RequestFrame { get; private set; }
 
     public byte SlaveAddressValue => (byte)SlaveAddress.Value;
 
     public byte FunctionCodeValue => FunctionValue;
 
+    public byte ScanFromValue => checked((byte)ScanFrom.Value);
+
+    public byte ScanToValue => checked((byte)ScanTo.Value);
+
+    public ushort ScanAddressValue => checked((ushort)ScanAddress.Value);
+
+    public int ScanTimeoutMilliseconds => checked((int)ScanTimeout.Value);
+
+    public int ScanIntervalMilliseconds => checked((int)ScanInterval.Value);
+
+    public ObservableCollection<ModbusScanRow> ScanResults { get; } = [];
+
     public void SetSending(bool sending) => SendButton.IsEnabled = !sending;
+
+    public void SetScanning(bool scanning)
+    {
+        ScanButton.IsEnabled = !scanning;
+        CancelScanButton.IsEnabled = scanning;
+        SendButton.IsEnabled = !scanning;
+    }
+
+    public void ClearScanResults()
+    {
+        ScanResults.Clear();
+        ScanStatusText.Text = "";
+    }
+
+    public void AddScanResult(byte slave, ModbusTransactionResult result) => ScanResults.Add(ModbusScanRow.From(slave, result));
+
+    public void SetScanStatus(string text) => ScanStatusText.Text = text;
 
     public void ShowResult(string message, InfoBarSeverity severity)
     {
         Result.Title = severity == InfoBarSeverity.Success ? "已发送" : "Modbus RTU";
+        Result.Message = message;
+        Result.Severity = severity;
+        Result.IsOpen = true;
+    }
+
+    public void ShowScanResult(string message, InfoBarSeverity severity)
+    {
+        Result.Title = "从站扫描";
         Result.Message = message;
         Result.Severity = severity;
         Result.IsOpen = true;
@@ -203,6 +245,10 @@ public sealed partial class ModbusPage : Page
         SendRequested?.Invoke(this, EventArgs.Empty);
     }
 
+    private void ScanButton_Click(object sender, RoutedEventArgs e) => ScanRequested?.Invoke(this, EventArgs.Empty);
+
+    private void CancelScanButton_Click(object sender, RoutedEventArgs e) => ScanCancelRequested?.Invoke(this, EventArgs.Empty);
+
     private void ParseButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
         try
@@ -293,3 +339,27 @@ public sealed partial class ModbusPage : Page
 }
 
 public sealed record RegisterRow(string Index, string Hex, string DecimalText);
+
+public sealed class ModbusScanRow
+{
+    public string Slave { get; private init; } = "";
+    public string Status { get; private init; } = "";
+    public string Duration { get; private init; } = "";
+    public string Details { get; private init; } = "";
+
+    public static ModbusScanRow From(byte slave, ModbusTransactionResult result)
+    {
+        var details = result.Success
+            ? result.Registers.Length > 0
+                ? string.Join(" ", result.Registers.Select(static value => $"0x{value:X4}"))
+                : "响应"
+            : result.Error ?? "Modbus 异常";
+        return new ModbusScanRow
+        {
+            Slave = $"从站 {slave}",
+            Status = result.Success ? "响应" : result.ExceptionCode is { } code ? $"异常 0x{code:X2}" : "失败",
+            Duration = $"{result.Duration.TotalMilliseconds:N0} ms",
+            Details = details,
+        };
+    }
+}
