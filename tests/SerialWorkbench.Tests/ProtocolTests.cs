@@ -111,6 +111,46 @@ public sealed class ProtocolTests
         Assert.Equal(inspection.CalculatedCrc, inspection.ActualCrc);
     }
 
+    [Fact]
+    public void ProtocolTemplateParsesFieldsAndChecksum()
+    {
+        var template = new ProtocolTemplateDefinition(
+            "sensor",
+            "AA",
+            9,
+            null,
+            [
+                new ProtocolFieldDefinition("address", 1, ProtocolFieldType.U8),
+                new ProtocolFieldDefinition("value", 2, ProtocolFieldType.F32, ByteOrder: ProtocolByteOrder.LittleEndian),
+            ],
+            new ProtocolChecksumDefinition(ProtocolChecksumKind.Xor, 8, 0, 8));
+        var frame = new byte[] { 0xAA, 0x01, 0x00, 0x00, 0x80, 0x3F, 0x10, 0x20, 0x24 };
+
+        var result = ProtocolTemplateParser.Inspect(template, frame);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(9, result.ExpectedLength);
+        Assert.True(result.ChecksumValid);
+        Assert.Equal("1", result.Fields[0].Value);
+        Assert.Equal("1", result.Fields[1].Value);
+    }
+
+    [Fact]
+    public void ProtocolTemplateLengthFieldDeterminesExpectedFrameSize()
+    {
+        var template = new ProtocolTemplateDefinition(
+            "length",
+            null,
+            null,
+            new ProtocolLengthFieldDefinition(1, 1, 3),
+            [new ProtocolFieldDefinition("payload", 2, ProtocolFieldType.Hex, 3)]);
+
+        var result = ProtocolTemplateParser.Inspect(template, [0x01, 0x03, 0x10, 0x20, 0x30, 0x40]);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(6, result.ExpectedLength);
+    }
+
     private static byte[] WithModbusCrc(ReadOnlySpan<byte> data)
     {
         var frame = new byte[data.Length + 2];

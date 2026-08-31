@@ -335,6 +335,14 @@ Modbus JSON 结果包含请求帧、响应帧、功能码、寄存器、地址�
 
 命令会返回地址、功能码、帧长、CRC、异常码和解析失败原因。解析失败时退出码为 `1`，原始 HEX 不会被修改。
 
+通用协议模板使用 JSON 文件描述帧头、长度字段、字段和校验：
+
+```powershell
+.\serial-workbench.exe protocol inspect --template E:\Protocols\sensor.json --hex "AA 01 34 12 00 00 80 3F 5B" --output json
+```
+
+模板字段类型支持 `U8`、`I8`、`U16`、`I16`、`U32`、`I32`、`F32` 和 `Hex`，数值字段支持 `LittleEndian` 与 `BigEndian`。
+
 ### 会话
 
 列出会话：

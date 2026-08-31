@@ -198,6 +198,49 @@ static async Task<int> XmodemReceiveAsync(IHostRpc client, Arguments arguments, 
 static int InspectProtocol(Arguments arguments, string output)
 {
     var frame = HexCodec.Parse(arguments.Get("--hex") ?? throw new ArgumentException("protocol inspect requires --hex."));
+    if (arguments.Get("--template") is { } templatePath)
+    {
+        var template = ProtocolTemplateCodec.Deserialize(File.ReadAllText(templatePath));
+        var templateInspection = ProtocolTemplateParser.Inspect(template, frame);
+        var templateValue = new
+        {
+            valid = templateInspection.IsValid,
+            template = templateInspection.Template,
+            frameLength = templateInspection.FrameLength,
+            expectedLength = templateInspection.ExpectedLength,
+            checksumValid = templateInspection.ChecksumValid,
+            fields = templateInspection.Fields,
+            error = templateInspection.Error,
+        };
+
+        if (output is "json" or "jsonl")
+        {
+            WriteResult(output, "protocol.inspect", templateValue);
+        }
+        else
+        {
+            Console.WriteLine($"Template: {templateValue.template}");
+            Console.WriteLine($"Valid: {templateValue.valid}");
+            Console.WriteLine($"Length: {templateValue.frameLength} / {templateValue.expectedLength?.ToString(CultureInfo.InvariantCulture) ?? "?"}");
+            if (templateValue.checksumValid is { } checksumValid)
+            {
+                Console.WriteLine($"Checksum: {checksumValid}");
+            }
+
+            foreach (var field in templateValue.fields)
+            {
+                Console.WriteLine($"{field.Name}: {field.Value} ({field.Hex})");
+            }
+
+            if (templateValue.error is { } error)
+            {
+                Console.WriteLine($"Error: {error}");
+            }
+        }
+
+        return templateValue.valid ? 0 : 1;
+    }
+
     var inspection = ModbusRtuCodec.Inspect(frame);
     var value = new
     {
@@ -594,7 +637,7 @@ static void PrintHelp()
         serial-workbench modbus write --port <port> --slave 1 --address 0 --value 0
         serial-workbench xmodem send --port <port> --file PATH [--baud 115200]
         serial-workbench xmodem receive --port <port> --file PATH [--baud 115200]
-        serial-workbench protocol inspect --hex HEX [--output text|json]
+        serial-workbench protocol inspect --hex HEX [--template PATH] [--output text|json]
         """);
 }
 

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://serialworkbench.local/schemas/protocol-template.schema.json",
+  "title": "SerialWorkbench protocol template",
+  "type": "object",
+  "required": ["name", "fields"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "headerHex": { "type": ["string", "null"] },
+    "fixedLength": { "type": ["integer", "null"], "minimum": 1 },
+    "lengthField": { "type": ["object", "null"] },
+    "fields": { "type": "array" },
+    "checksum": { "type": ["object", "null"] }
+  }
+}
