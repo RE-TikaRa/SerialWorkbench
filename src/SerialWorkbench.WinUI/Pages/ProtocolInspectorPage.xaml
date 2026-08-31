@@ -8,6 +8,7 @@
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
       </Grid.RowDefinitions>
       <Border Style="{StaticResource SurfaceCardStyle}">
         <StackPanel Spacing="12">
@@ -17,13 +18,15 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <ComboBox x:Name="TemplateSelector" Header="协议模板" SelectedIndex="0" HorizontalAlignment="Stretch">
+            <ComboBox x:Name="TemplateSelector" Header="协议模板" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="TemplateSelector_SelectionChanged">
               <x:String>Modbus RTU</x:String>
+              <x:String>自定义 JSON</x:String>
             </ComboBox>
             <TextBox x:Name="FrameInput" Grid.Column="1" Header="原始帧 HEX" PlaceholderText="输入完整帧，例如 01 03 02 00 0A 38 43" FontFamily="{StaticResource MonospaceFontFamily}" />
             <Button Grid.Column="2" Content="解析" Click="InspectButton_Click" Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Bottom" />
           </Grid>
           <TextBlock Text="原始 HEX 始终保留，解析结果只作为字段视图。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <TextBox x:Name="TemplateJson" Header="模板 JSON" AcceptsReturn="True" TextWrapping="Wrap" FontFamily="{StaticResource MonospaceFontFamily}" Visibility="Collapsed" MinHeight="180" />
         </StackPanel>
       </Border>
       <Border Grid.Row="1" Style="{StaticResource SurfaceCardStyle}">
@@ -59,6 +62,12 @@
         </Grid>
       </Border>
       <InfoBar x:Name="Result" Grid.Row="2" IsOpen="False" IsClosable="True" />
+      <Border x:Name="GenericFieldsPanel" Grid.Row="3" Style="{StaticResource SurfaceCardStyle}" Visibility="Collapsed">
+        <StackPanel>
+          <TextBlock Text="字段" Style="{StaticResource BodyStrongTextBlockStyle}" />
+          <TextBlock x:Name="GenericFieldsText" TextWrapping="Wrap" FontFamily="{StaticResource MonospaceFontFamily}" />
+        </StackPanel>
+      </Border>
     </Grid>
   </ScrollView>
 </Page>
