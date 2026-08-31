@@ -262,6 +262,18 @@
               </StackPanel>
             </Grid>
           </Expander>
+          <Expander x:Name="Rs485Expander" x:FieldModifier="public" Header="RS-485 半双工" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+            <Grid ColumnSpacing="12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <CheckBox x:Name="Rs485ModeCheckBox" x:FieldModifier="public" Content="启用 RTS 方向控制" VerticalAlignment="Center" />
+              <NumberBox x:Name="RtsBeforeSendNumberBox" x:FieldModifier="public" Grid.Column="1" Header="发送前延时(ms)" Value="0" Minimum="0" Maximum="60000" SpinButtonPlacementMode="Compact" />
+              <NumberBox x:Name="RtsAfterSendNumberBox" x:FieldModifier="public" Grid.Column="2" Header="发送后延时(ms)" Value="0" Minimum="0" Maximum="60000" SpinButtonPlacementMode="Compact" />
+            </Grid>
+          </Expander>
         </StackPanel>
       </Border>
       <Border Grid.Row="1" Style="{StaticResource SurfaceCardStyle}" Padding="0">

@@ -34,6 +34,7 @@ Host 持有串口句柄、写入租约、原始事件和 SQLite 会话。WinUI �
 - 连接配置保存 `DeviceInstanceId`，当前 WinUI 连接按设备身份自动重连。
 - WinUI 连接管理页支持同时打开、切换和关闭多条连接，并保留各自事件历史。
 - 连接管理页显示 DTR、RTS、CTS、DSR 和 DCD 状态，RI 在当前串口 API 下显示为未知。
+- RS-485 半双工发送支持 RTS 方向控制和发送前后延时。
 - SQLite 会话、空会话、事件原始字节、CSV 导出、会话筛选、回放和回环历史。
 - CLI 端口、Host、工作区、发送、监视、回环、Modbus、会话和 XMODEM 命令。
 - self-contained `win-x64` 便携发布。
@@ -65,8 +66,7 @@ Host 持有串口句柄、写入租约、原始事件和 SQLite 会话。WinUI �
 现有页面已经支持 DTR、RTS、BREAK 和清空 RX/TX 缓冲。后续还可以增加：
 
 - 清除串口错误状态。
-- RS-485 半双工方向控制。
-- RTS 前置和后置延时。
+- RS-485 方向状态事件记录和硬件收发切换诊断。
 
 ### 4. 报文搜索和筛选
 

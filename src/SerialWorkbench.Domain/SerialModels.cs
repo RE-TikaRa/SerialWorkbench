@@ -58,7 +58,10 @@ public sealed record SerialConnectionOptions(
     bool RtsEnable = false,
     string EncodingName = "utf-8",
     SerialConnectionRole Role = SerialConnectionRole.Dut,
-    string? DeviceInstanceId = null);
+    string? DeviceInstanceId = null,
+    bool Rs485Mode = false,
+    int RtsBeforeSendMilliseconds = 0,
+    int RtsAfterSendMilliseconds = 0);
 
 public sealed record SerialPortDescriptor(
     string PortName,

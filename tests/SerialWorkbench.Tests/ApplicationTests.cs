@@ -101,6 +101,16 @@ public sealed class ApplicationTests
     }
 
     [Fact]
+    public void SerialOptionsCarryRs485DirectionTiming()
+    {
+        var options = new SerialConnectionOptions("COM1", Rs485Mode: true, RtsBeforeSendMilliseconds: 5, RtsAfterSendMilliseconds: 8);
+
+        Assert.True(options.Rs485Mode);
+        Assert.Equal(5, options.RtsBeforeSendMilliseconds);
+        Assert.Equal(8, options.RtsAfterSendMilliseconds);
+    }
+
+    [Fact]
     public async Task HostColdStartAcceptsConcurrentClients()
     {
         var clients = Enumerable.Range(0, 16)

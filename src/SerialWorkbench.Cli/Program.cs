@@ -534,7 +534,10 @@ static Task<ConnectionSnapshot> OpenAsync(IHostRpc client, Arguments arguments, 
         arguments.Has("--rts"),
         arguments.Get("--encoding") ?? "utf-8",
         Enum.Parse<SerialConnectionRole>(arguments.Get("--role") ?? "Dut", true),
-        arguments.Get("--device-id"));
+        arguments.Get("--device-id"),
+        arguments.Has("--rs485"),
+        arguments.GetInt("--rts-before", 0),
+        arguments.GetInt("--rts-after", 0));
     return client.OpenConnectionAsync(new OpenConnectionRequest(options), cancellationToken);
 }
 

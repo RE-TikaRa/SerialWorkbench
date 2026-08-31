@@ -19,6 +19,16 @@ public sealed class SerialConnectionManager(
 
     public async Task<ConnectionSnapshot> OpenAsync(SerialConnectionOptions options, CancellationToken cancellationToken)
     {
+        if (options.RtsBeforeSendMilliseconds is < 0 or > 60_000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), options.RtsBeforeSendMilliseconds, "RTS before-send delay must be between 0 and 60000 milliseconds.");
+        }
+
+        if (options.RtsAfterSendMilliseconds is < 0 or > 60_000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), options.RtsAfterSendMilliseconds, "RTS after-send delay must be between 0 and 60000 milliseconds.");
+        }
+
         if (connections.Values.Any(item => string.Equals(item.Options.PortName, options.PortName, StringComparison.OrdinalIgnoreCase)))
         {
             throw new InvalidOperationException($"{options.PortName} is already open.");

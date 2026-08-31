@@ -111,6 +111,9 @@ public sealed partial class WorkbenchPage : Page
     public SerialConnectionRole Role => (SerialConnectionRole)RoleComboBox.SelectedIndex;
     public bool DtrEnable => DtrCheckBox.IsChecked == true;
     public bool RtsEnable => RtsCheckBox.IsChecked == true;
+    public bool Rs485Mode => Rs485ModeCheckBox.IsChecked == true;
+    public int RtsBeforeSendMilliseconds => checked((int)RtsBeforeSendNumberBox.Value);
+    public int RtsAfterSendMilliseconds => checked((int)RtsAfterSendNumberBox.Value);
     public int MonitorFormatIndex => MonitorFormat.SelectedIndex;
     public Encoding SelectedEncoding => EncodingComboBox.SelectedIndex switch
     {
@@ -141,6 +144,9 @@ public sealed partial class WorkbenchPage : Page
         };
         DtrCheckBox.IsChecked = preference.DtrEnable;
         RtsCheckBox.IsChecked = preference.RtsEnable;
+        Rs485ModeCheckBox.IsChecked = preference.Rs485Mode;
+        RtsBeforeSendNumberBox.Value = preference.RtsBeforeSendMilliseconds;
+        RtsAfterSendNumberBox.Value = preference.RtsAfterSendMilliseconds;
         MonitorFormat.SelectedIndex = preference.MonitorFormatIndex;
         SendFormat.SelectedIndex = preference.SendFormatIndex;
         SendLineEnding.SelectedIndex = preference.SendLineEndingIndex;
@@ -169,6 +175,9 @@ public sealed partial class WorkbenchPage : Page
         };
         DtrCheckBox.IsChecked = profile.DtrEnable;
         RtsCheckBox.IsChecked = profile.RtsEnable;
+        Rs485ModeCheckBox.IsChecked = profile.Rs485Mode;
+        RtsBeforeSendNumberBox.Value = profile.RtsBeforeSendMilliseconds;
+        RtsAfterSendNumberBox.Value = profile.RtsAfterSendMilliseconds;
         if ((profile.PortName is not null || profile.DeviceInstanceId is not null)
             && PortComboBox.ItemsSource is IReadOnlyList<SerialPortDescriptor> ports)
         {
@@ -191,7 +200,10 @@ public sealed partial class WorkbenchPage : Page
         DtrEnable,
         RtsEnable,
         Role,
-        SelectedPort?.DeviceInstanceId);
+        SelectedPort?.DeviceInstanceId,
+        Rs485Mode,
+        RtsBeforeSendMilliseconds,
+        RtsAfterSendMilliseconds);
 
     public void AddProfile(SerialProfile profile)
     {
@@ -243,7 +255,10 @@ public sealed partial class WorkbenchPage : Page
         (int)PlotFrameLength.Value,
         PlotSampleType.SelectedIndex,
         Role,
-        SelectedPort?.DeviceInstanceId);
+        SelectedPort?.DeviceInstanceId,
+        Rs485Mode,
+        RtsBeforeSendMilliseconds,
+        RtsAfterSendMilliseconds);
 
     private void ConnectButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ConnectRequested?.Invoke(this, EventArgs.Empty);
     private void RefreshPortsButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => RefreshPortsRequested?.Invoke(this, EventArgs.Empty);

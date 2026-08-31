@@ -37,12 +37,12 @@ public sealed class SerialConnection : IAsyncDisposable
         this.journal = journal;
         this.persist = persist;
         dtrEnable = options.DtrEnable;
-        rtsEnable = options.RtsEnable;
+        rtsEnable = options.Rs485Mode ? false : options.RtsEnable;
         port = new SerialPort(options.PortName, options.BaudRate, Convert(options.Parity), options.DataBits, Convert(options.StopBits))
         {
             Handshake = Convert(options.Handshake),
             DtrEnable = options.DtrEnable,
-            RtsEnable = options.RtsEnable,
+            RtsEnable = options.Rs485Mode ? false : options.RtsEnable,
             ReadBufferSize = 64 * 1024,
             WriteBufferSize = 64 * 1024,
             ReadTimeout = 500,
@@ -83,10 +83,23 @@ public sealed class SerialConnection : IAsyncDisposable
         }
 
         await writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var rs485DirectionEnabled = false;
         try
         {
+            if (Options.Rs485Mode)
+            {
+                port.RtsEnable = true;
+                rtsEnable = true;
+                rs485DirectionEnabled = true;
+                await Task.Delay(Options.RtsBeforeSendMilliseconds, cancellationToken).ConfigureAwait(false);
+            }
+
             await port.BaseStream.WriteAsync(data, cancellationToken).ConfigureAwait(false);
             await port.BaseStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+            if (Options.Rs485Mode)
+            {
+                await Task.Delay(Options.RtsAfterSendMilliseconds, cancellationToken).ConfigureAwait(false);
+            }
             Interlocked.Add(ref transmittedBytes, data.Length);
             Interlocked.Increment(ref transmitOperations);
             MarkActivity();
@@ -101,6 +114,12 @@ public sealed class SerialConnection : IAsyncDisposable
         }
         finally
         {
+            if (rs485DirectionEnabled)
+            {
+                port.RtsEnable = false;
+                rtsEnable = false;
+            }
+
             writeGate.Release();
         }
     }
@@ -113,9 +132,9 @@ public sealed class SerialConnection : IAsyncDisposable
         }
 
         port.DtrEnable = lines.DtrEnable;
-        port.RtsEnable = lines.RtsEnable;
+        port.RtsEnable = Options.Rs485Mode ? false : lines.RtsEnable;
         dtrEnable = lines.DtrEnable;
-        rtsEnable = lines.RtsEnable;
+        rtsEnable = Options.Rs485Mode ? false : lines.RtsEnable;
     }
 
     public void ClearBuffers(bool receive, bool transmit)

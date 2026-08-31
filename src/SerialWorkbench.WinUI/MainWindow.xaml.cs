@@ -165,7 +165,10 @@ public sealed partial class MainWindow : Window
                 workbenchPage?.RtsEnable ?? false,
                 encodingName,
                 workbenchPage?.Role ?? SerialConnectionRole.Dut,
-                port.DeviceInstanceId);
+                port.DeviceInstanceId,
+                workbenchPage?.Rs485Mode ?? false,
+                workbenchPage?.RtsBeforeSendMilliseconds ?? 0,
+                workbenchPage?.RtsAfterSendMilliseconds ?? 0);
             SerialPreferenceStore.Save(workbenchPage!.ReadSerialPreference(port.PortName));
             var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(options), CancellationToken.None);
             connectionContexts[connection.Id] = new ConnectionContext(connection);
@@ -448,7 +451,10 @@ public sealed partial class MainWindow : Window
             context.Snapshot.Options.DtrEnable,
             context.Snapshot.Options.RtsEnable,
             context.Snapshot.Options.Role,
-            context.Snapshot.Options.DeviceInstanceId));
+            context.Snapshot.Options.DeviceInstanceId,
+            context.Snapshot.Options.Rs485Mode,
+            context.Snapshot.Options.RtsBeforeSendMilliseconds,
+            context.Snapshot.Options.RtsAfterSendMilliseconds));
         workbenchPage?.SetConnectionStatus($"{context.Snapshot.Options.PortName} · {context.Snapshot.Options.BaudRate:N0} baud");
         workbenchPage?.SetTrafficCounts(context.Snapshot.ReceivedBytes, context.Snapshot.TransmittedBytes);
         workbenchPage?.SetPauseState(paused, paused ? Math.Max(0, currentTrafficBytes - pauseBaselineBytes) : 0);
@@ -805,7 +811,10 @@ public sealed partial class MainWindow : Window
                 false,
                 workbenchPage?.SelectedEncoding.WebName ?? "utf-8",
                 role,
-                port.DeviceInstanceId);
+                port.DeviceInstanceId,
+                false,
+                0,
+                0);
             var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(options), CancellationToken.None);
             connectionContexts[connection.Id] = new ConnectionContext(connection);
             ActivateConnection(connection.Id);
@@ -1830,6 +1839,7 @@ public sealed partial class MainWindow : Window
             workbenchPage.MonitorFormat.IsEnabled = enabled;
             workbenchPage.RoleComboBox.IsEnabled = enabled;
             workbenchPage.AdvancedExpander.IsEnabled = enabled;
+            workbenchPage.Rs485Expander.IsEnabled = enabled;
             workbenchPage.SetControlActionsEnabled(!enabled);
         }
 
