@@ -55,6 +55,7 @@
                   <StackPanel Grid.Column="2" Spacing="3" VerticalAlignment="Center">
                     <TextBlock Text="{Binding Counters}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     <TextBlock Text="{Binding ControlLines}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{Binding Diagnostics}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                   </StackPanel>
                 </Grid>
               </DataTemplate>

@@ -82,7 +82,8 @@ public sealed record ConnectionSnapshot(
     long ErrorCount,
     DateTimeOffset? LastActivityUtc,
     string? Error,
-    SerialControlLineStatus? ControlLines = null);
+    SerialControlLineStatus? ControlLines = null,
+    long ObserverDroppedBlocks = 0);
 
 public sealed record SerialControlLines(bool DtrEnable, bool RtsEnable);
 

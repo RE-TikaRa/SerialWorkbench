@@ -9,12 +9,13 @@ namespace SerialWorkbench.Serial.Windows;
 
 public sealed class SerialConnection : IAsyncDisposable
 {
+    private const int SubscriptionCapacity = 1024;
     private readonly SerialPort port;
     private readonly EventJournal journal;
     private readonly Func<SerialTrafficEvent, CancellationToken, ValueTask> persist;
     private readonly CancellationTokenSource lifetime = new();
     private readonly SemaphoreSlim writeGate = new(1, 1);
-    private readonly ConcurrentDictionary<Guid, Channel<byte[]>> subscriptions = [];
+    private readonly ConcurrentDictionary<Guid, Subscription> subscriptions = [];
     private Task? readerTask;
     private long receivedBytes;
     private long transmittedBytes;
@@ -183,14 +184,15 @@ public sealed class SerialConnection : IAsyncDisposable
     public Subscription Subscribe()
     {
         var id = Guid.NewGuid();
-        var channel = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(1024)
+        var channel = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(SubscriptionCapacity)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
             SingleReader = true,
             SingleWriter = true,
         });
-        subscriptions.AddOrUpdate(id, channel, static (_, _) => throw new InvalidOperationException());
-        return new Subscription(id, channel.Reader, this);
+        var subscription = new Subscription(id, channel, this);
+        subscriptions.AddOrUpdate(id, subscription, static (_, _) => throw new InvalidOperationException());
+        return subscription;
     }
 
     public ConnectionSnapshot GetSnapshot()
@@ -219,7 +221,8 @@ public sealed class SerialConnection : IAsyncDisposable
             Interlocked.Read(ref errorCount),
             milliseconds == 0 ? null : DateTimeOffset.FromUnixTimeMilliseconds(milliseconds),
             error,
-            controlLines);
+            controlLines,
+            subscriptions.Values.Sum(static subscription => subscription.DroppedBlocks));
     }
 
     public async ValueTask DisposeAsync()
@@ -241,9 +244,9 @@ public sealed class SerialConnection : IAsyncDisposable
             }
         }
 
-        foreach (var channel in subscriptions.Values)
+        foreach (var subscription in subscriptions.Values)
         {
-            channel.Writer.TryComplete();
+            subscription.Channel.Writer.TryComplete();
         }
 
         subscriptions.Clear();
@@ -293,9 +296,14 @@ public sealed class SerialConnection : IAsyncDisposable
                 var item = journal.Append(Id, SerialDirection.Receive, data, "serial");
                 await persist(item, cancellationToken).ConfigureAwait(false);
 
-                foreach (var channel in subscriptions.Values)
+                foreach (var subscription in subscriptions.Values)
                 {
-                    channel.Writer.TryWrite(data);
+                    if (subscription.Channel.Reader.Count >= SubscriptionCapacity)
+                    {
+                        subscription.IncrementDroppedBlocks();
+                    }
+
+                    subscription.Channel.Writer.TryWrite(data);
                 }
             }
         }
@@ -309,9 +317,9 @@ public sealed class SerialConnection : IAsyncDisposable
 
     private void Unsubscribe(Guid id)
     {
-        if (subscriptions.TryRemove(id, out var channel))
+        if (subscriptions.TryRemove(id, out var subscription))
         {
-            channel.Writer.TryComplete();
+            subscription.Channel.Writer.TryComplete();
         }
     }
 
@@ -342,9 +350,17 @@ public sealed class SerialConnection : IAsyncDisposable
         _ => throw new ArgumentOutOfRangeException(nameof(value)),
     };
 
-    public sealed class Subscription(Guid id, ChannelReader<byte[]> reader, SerialConnection owner) : IAsyncDisposable
+    public sealed class Subscription(Guid id, Channel<byte[]> channel, SerialConnection owner) : IAsyncDisposable
     {
-        public ChannelReader<byte[]> Reader { get; } = reader;
+        public Channel<byte[]> Channel { get; } = channel;
+
+        public ChannelReader<byte[]> Reader => Channel.Reader;
+
+        private long droppedBlocks;
+
+        public long DroppedBlocks => Interlocked.Read(ref droppedBlocks);
+
+        public void IncrementDroppedBlocks() => Interlocked.Increment(ref droppedBlocks);
 
         public ValueTask DisposeAsync()
         {

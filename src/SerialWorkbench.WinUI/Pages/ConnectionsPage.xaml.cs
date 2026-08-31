@@ -95,6 +95,7 @@ public sealed class ConnectionRow
     public string Status { get; private init; } = "";
     public string Counters { get; private init; } = "";
     public string ControlLines { get; private init; } = "";
+    public string Diagnostics { get; private init; } = "";
 
     public static ConnectionRow From(ConnectionSnapshot snapshot, bool selected)
     {
@@ -107,6 +108,7 @@ public sealed class ConnectionRow
         var lines = snapshot.ControlLines is { } controlLines
             ? $"CTS {(controlLines.CtsHolding ? 1 : 0)} · DSR {(controlLines.DsrHolding ? 1 : 0)} · DCD {(controlLines.CarrierDetect ? 1 : 0)} · RI {(controlLines.RingIndicator is { } ring ? ring ? "1" : "0" : "-")}"
             : "CTS - · DSR - · DCD - · RI -";
+        var diagnostics = $"丢弃 {snapshot.ObserverDroppedBlocks:N0} 块";
         return new ConnectionRow
         {
             Id = snapshot.Id,
@@ -115,6 +117,7 @@ public sealed class ConnectionRow
             Status = status,
             Counters = counters,
             ControlLines = lines,
+            Diagnostics = diagnostics,
         };
     }
 }

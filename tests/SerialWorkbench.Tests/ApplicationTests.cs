@@ -91,13 +91,14 @@ public sealed class ApplicationTests
     public void ConnectionSnapshotCarriesControlLineStatus()
     {
         var status = new SerialControlLineStatus(true, false, true, false, true, null);
-        var snapshot = new ConnectionSnapshot(Guid.NewGuid(), new SerialConnectionOptions("COM1"), ConnectionState.Open, 0, 0, 0, 0, 0, null, null, status);
+        var snapshot = new ConnectionSnapshot(Guid.NewGuid(), new SerialConnectionOptions("COM1"), ConnectionState.Open, 0, 0, 0, 0, 0, null, null, status, 7);
 
         Assert.True(snapshot.ControlLines?.DtrEnable);
         Assert.True(snapshot.ControlLines?.CtsHolding);
         Assert.True(snapshot.ControlLines?.CarrierDetect);
         Assert.False(snapshot.ControlLines?.DsrHolding);
         Assert.Null(snapshot.ControlLines?.RingIndicator);
+        Assert.Equal(7, snapshot.ObserverDroppedBlocks);
     }
 
     [Fact]
