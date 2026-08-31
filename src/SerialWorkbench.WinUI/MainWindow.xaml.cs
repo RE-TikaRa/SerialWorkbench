@@ -18,6 +18,7 @@ namespace SerialWorkbench.WinUI;
 public sealed partial class MainWindow : Window
 {
     private const int MaxReconnectAttempts = 5;
+    private const int SessionEventPageSize = 1000;
     private readonly DispatcherTimer eventTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly DispatcherTimer portRefreshTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private readonly DispatcherTimer loopSendTimer = new();
@@ -48,6 +49,9 @@ public sealed partial class MainWindow : Window
     private long replaySequence;
     private TaskCompletionSource<bool> replayStateChanged = CreateReplaySignal();
     private int sessionEventRequestVersion;
+    private Guid? sessionEventSessionId;
+    private long sessionEventAfterSequence;
+    private SessionEventFilter sessionEventFilter = new(null, null, null);
     private WorkbenchPage? workbenchPage;
     private ConnectionsPage? connectionsPage;
     private LoopbackPage? loopbackPage;
@@ -735,6 +739,8 @@ public sealed partial class MainWindow : Window
                 page.SessionSelected += SessionsPage_SessionSelected;
                 page.EventFilterChanged -= SessionsPage_EventFilterChanged;
                 page.EventFilterChanged += SessionsPage_EventFilterChanged;
+                page.LoadMoreEventsRequested -= SessionsPage_LoadMoreEventsRequested;
+                page.LoadMoreEventsRequested += SessionsPage_LoadMoreEventsRequested;
                 page.RevealRequested -= SessionsPage_RevealRequested;
                 page.RevealRequested += SessionsPage_RevealRequested;
                 page.ExportRequested -= SessionsPage_ExportRequested;
@@ -1336,6 +1342,14 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async void SessionsPage_LoadMoreEventsRequested(object? sender, EventArgs e)
+    {
+        if (sessionsPage?.SelectedSession is { } session)
+        {
+            await ReadSessionEventsAsync(session.Id, sessionsPage, sessionsPage.EventFilter, true);
+        }
+    }
+
     private async void SessionsPage_ReplayRequested(object? sender, Guid sessionId) => await ReplaySessionAsync(sessionId);
 
     private void SessionsPage_ReplayPauseRequested(object? sender, Guid sessionId)
@@ -1619,7 +1633,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async Task ReadSessionEventsAsync(Guid sessionId, SessionsPage? page = null, SessionEventFilter? filter = null)
+    private async Task ReadSessionEventsAsync(Guid sessionId, SessionsPage? page = null, SessionEventFilter? filter = null, bool append = false)
     {
         page ??= sessionsPage;
         if (client is null || page is null)
@@ -1629,11 +1643,21 @@ public sealed partial class MainWindow : Window
 
         var requestVersion = ++sessionEventRequestVersion;
         var selectedFilter = filter ?? page.EventFilter;
-        page.SetEventsLoading(sessionId);
+        if (!append || sessionEventSessionId != sessionId || sessionEventFilter != selectedFilter)
+        {
+            sessionEventSessionId = sessionId;
+            sessionEventFilter = selectedFilter;
+            sessionEventAfterSequence = 0;
+            append = false;
+        }
+
+        page.SetEventsLoading(sessionId, append);
         try
         {
             var events = await client.ReadSessionEventsAsync(new SessionEventQuery(
                 sessionId,
+                SessionEventPageSize,
+                sessionEventAfterSequence,
                 Direction: selectedFilter.Direction,
                 SourceContains: selectedFilter.SourceContains,
                 DataContainsHex: selectedFilter.DataContainsHex), CancellationToken.None);
@@ -1642,8 +1666,20 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
-            page.SetEvents(sessionId, events);
-            await ReadLoopbackResultsAsync(sessionId, page);
+            if (events.Count > 0)
+            {
+                sessionEventAfterSequence = events[^1].Sequence;
+            }
+
+            if (append)
+            {
+                page.AppendEvents(sessionId, events, events.Count == SessionEventPageSize);
+            }
+            else
+            {
+                page.SetEvents(sessionId, events, events.Count == SessionEventPageSize);
+                await ReadLoopbackResultsAsync(sessionId, page);
+            }
         }
         catch (Exception ex)
         {

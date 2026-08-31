@@ -138,6 +138,7 @@
               <ColumnDefinition Width="120" />
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <ComboBox x:Name="EventDirectionFilter" SelectedIndex="0" SelectionChanged="EventFilter_Changed" PlaceholderText="方向">
               <ComboBoxItem Content="全部" />
@@ -146,6 +147,7 @@
             </ComboBox>
             <TextBox x:Name="EventSourceFilter" Grid.Column="1" PlaceholderText="来源包含" TextChanged="EventFilter_Changed" />
             <TextBox x:Name="EventHexFilter" Grid.Column="2" PlaceholderText="HEX 包含" TextChanged="EventFilter_Changed" FontFamily="{StaticResource MonospaceFontFamily}" />
+            <Button x:Name="LoadMoreEventsButton" Grid.Column="3" Content="加载更多" IsEnabled="False" Visibility="Collapsed" Click="LoadMoreEventsButton_Click" />
           </Grid>
           <Grid Grid.Row="2" ColumnSpacing="8">
             <Grid.ColumnDefinitions>

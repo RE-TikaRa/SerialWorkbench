@@ -28,6 +28,8 @@ public sealed partial class SessionsPage : Page
 
     public event EventHandler<SessionEventFilter>? EventFilterChanged;
 
+    public event EventHandler? LoadMoreEventsRequested;
+
     public event EventHandler<string>? RevealRequested;
 
     public event EventHandler<Guid>? ExportRequested;
@@ -73,7 +75,7 @@ public sealed partial class SessionsPage : Page
         return selected?.Id;
     }
 
-    public void SetEvents(Guid sessionId, IReadOnlyList<SerialTrafficEvent> events)
+    public void SetEvents(Guid sessionId, IReadOnlyList<SerialTrafficEvent> events, bool hasMore)
     {
         if ((SessionList.SelectedItem as SessionRow)?.Id != sessionId)
         {
@@ -92,6 +94,28 @@ public sealed partial class SessionsPage : Page
             : $"{session.Title} · {events.Count:N0} 条";
         EventsEmptyState.Text = events.Count == 0 ? "该会话没有报文" : "";
         EventsEmptyState.Visibility = events.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        LoadMoreEventsButton.IsEnabled = hasMore;
+        LoadMoreEventsButton.Visibility = hasMore ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public void AppendEvents(Guid sessionId, IReadOnlyList<SerialTrafficEvent> events, bool hasMore)
+    {
+        if ((SessionList.SelectedItem as SessionRow)?.Id != sessionId)
+        {
+            return;
+        }
+
+        foreach (var item in events)
+        {
+            Events.Add(SessionEventRow.From(item));
+        }
+
+        var session = (SessionRow)SessionList.SelectedItem;
+        EventTitle.Text = session.EventCount > Events.Count
+            ? $"{session.Title} · 最近 {Events.Count:N0} / {session.EventCount:N0} 条"
+            : $"{session.Title} · {Events.Count:N0} 条";
+        LoadMoreEventsButton.IsEnabled = hasMore;
+        LoadMoreEventsButton.Visibility = hasMore ? Visibility.Visible : Visibility.Collapsed;
     }
 
     public void SetLoopbackResults(Guid sessionId, IReadOnlyList<LoopbackHistoryEntry> results)
@@ -116,18 +140,23 @@ public sealed partial class SessionsPage : Page
         RefreshSessionsButton.IsEnabled = !busy;
     }
 
-    public void SetEventsLoading(Guid sessionId)
+    public void SetEventsLoading(Guid sessionId, bool append = false)
     {
         if ((SessionList.SelectedItem as SessionRow)?.Id != sessionId)
         {
             return;
         }
 
-        Events.Clear();
-        LoopbackResults.Clear();
-        LoopbackEmptyState.Visibility = Visibility.Visible;
-        EventTitle.Text = "正在读取会话…";
-        EventsEmptyState.Visibility = Visibility.Collapsed;
+        LoadMoreEventsButton.IsEnabled = false;
+        if (!append)
+        {
+            Events.Clear();
+            LoopbackResults.Clear();
+            LoadMoreEventsButton.Visibility = Visibility.Collapsed;
+            LoopbackEmptyState.Visibility = Visibility.Visible;
+            EventTitle.Text = "正在读取会话…";
+            EventsEmptyState.Visibility = Visibility.Collapsed;
+        }
     }
 
     public void SetReplayState(Guid sessionId, bool running, bool paused, int current, long sequence, int total)
@@ -164,6 +193,8 @@ public sealed partial class SessionsPage : Page
     private void SessionFilter_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilter();
 
     private void EventFilter_Changed(object sender, object e) => EventFilterChanged?.Invoke(this, EventFilter);
+
+    private void LoadMoreEventsButton_Click(object sender, RoutedEventArgs e) => LoadMoreEventsRequested?.Invoke(this, EventArgs.Empty);
 
     private void ApplyFilter()
     {
@@ -275,6 +306,8 @@ public sealed partial class SessionsPage : Page
         ReplayStopButton.IsEnabled = false;
         ExportSessionButton.IsEnabled = session is not null;
         DeleteSessionButton.IsEnabled = session is { IsActive: false };
+        LoadMoreEventsButton.IsEnabled = false;
+        LoadMoreEventsButton.Visibility = Visibility.Collapsed;
         Events.Clear();
         LoopbackResults.Clear();
         LoopbackEmptyState.Visibility = Visibility.Visible;
