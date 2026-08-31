@@ -43,9 +43,9 @@ public static class ModbusRtuCodec
                 expectedLength = byteCount + 5;
             }
         }
-        else if (baseFunction is 5 or 6)
+        else if (baseFunction is 5 or 6 or 15 or 16)
         {
-            kind = "Write single response";
+            kind = baseFunction is 5 or 6 ? "Write single response" : "Write multiple response";
             expectedLength = 8;
             if (frame.Length >= 6)
             {
@@ -110,7 +110,7 @@ public static class ModbusRtuCodec
             return 5;
         }
 
-        return expectedFunction is 5 or 6
+        return expectedFunction is 5 or 6 or 15 or 16
             ? 8
             : framePrefix.Length >= 3
                 ? framePrefix[2] + 5
@@ -159,6 +159,54 @@ public static class ModbusRtuCodec
         BinaryPrimitives.WriteUInt16BigEndian(frame[4..6], value ? (ushort)0xFF00 : (ushort)0x0000);
         BinaryPrimitives.WriteUInt16LittleEndian(frame[6..8], Checksums.Crc16Modbus(frame[..6]));
         return frame.ToArray();
+    }
+
+    public static byte[] BuildWriteMultipleCoils(byte slaveAddress, ushort address, IReadOnlyList<bool> values)
+    {
+        if (values.Count is < 1 or > 1968)
+        {
+            throw new ArgumentOutOfRangeException(nameof(values));
+        }
+
+        var byteCount = (values.Count + 7) / 8;
+        var frame = new byte[9 + byteCount];
+        frame[0] = slaveAddress;
+        frame[1] = 15;
+        BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(2, 2), address);
+        BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(4, 2), checked((ushort)values.Count));
+        frame[6] = checked((byte)byteCount);
+        for (var index = 0; index < values.Count; index++)
+        {
+            if (values[index])
+            {
+                frame[7 + (index / 8)] |= (byte)(1 << (index % 8));
+            }
+        }
+
+        BinaryPrimitives.WriteUInt16LittleEndian(frame.AsSpan(frame.Length - 2), Checksums.Crc16Modbus(frame.AsSpan(0, frame.Length - 2)));
+        return frame;
+    }
+
+    public static byte[] BuildWriteMultipleRegisters(byte slaveAddress, ushort address, IReadOnlyList<ushort> values)
+    {
+        if (values.Count is < 1 or > 123)
+        {
+            throw new ArgumentOutOfRangeException(nameof(values));
+        }
+
+        var frame = new byte[9 + (values.Count * 2)];
+        frame[0] = slaveAddress;
+        frame[1] = 16;
+        BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(2, 2), address);
+        BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(4, 2), checked((ushort)values.Count));
+        frame[6] = checked((byte)(values.Count * 2));
+        for (var index = 0; index < values.Count; index++)
+        {
+            BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(7 + (index * 2), 2), values[index]);
+        }
+
+        BinaryPrimitives.WriteUInt16LittleEndian(frame.AsSpan(frame.Length - 2), Checksums.Crc16Modbus(frame.AsSpan(0, frame.Length - 2)));
+        return frame;
     }
 
     public static bool HasValidCrc(ReadOnlySpan<byte> frame) => frame.Length >= 4 && Checksums.Crc16Modbus(frame[..^2]) == BinaryPrimitives.ReadUInt16LittleEndian(frame[^2..]);
@@ -293,6 +341,31 @@ public static class ModbusRtuCodec
         }
 
         return (BinaryPrimitives.ReadUInt16BigEndian(frame[2..4]), rawValue == 0xFF00);
+    }
+
+    public static (ushort Address, ushort Quantity) ParseWriteMultipleResponse(ReadOnlySpan<byte> frame, byte expectedSlave, byte expectedFunction)
+    {
+        if (expectedFunction is not (15 or 16))
+        {
+            throw new ArgumentOutOfRangeException(nameof(expectedFunction));
+        }
+
+        if (frame.Length != 8)
+        {
+            throw new InvalidDataException("Modbus write response length is invalid.");
+        }
+
+        if (!HasValidCrc(frame))
+        {
+            throw new InvalidDataException("Modbus CRC is invalid.");
+        }
+
+        if (frame[0] != expectedSlave || frame[1] != expectedFunction)
+        {
+            throw new InvalidDataException("Modbus response address or function does not match the request.");
+        }
+
+        return (BinaryPrimitives.ReadUInt16BigEndian(frame[2..4]), BinaryPrimitives.ReadUInt16BigEndian(frame[4..6]));
     }
 }
 

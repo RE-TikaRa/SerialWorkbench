@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using SerialWorkbench.Domain;
@@ -42,11 +43,13 @@ public sealed partial class ModbusPage : Page
         if (response.Success)
         {
             RegisterRow[] rows;
-            if (response.FunctionCode is 5 or 6 && response.Address is { } address && response.Value is { } value)
+            if (response.FunctionCode is 5 or 6 or 15 or 16 && response.Address is { } address && response.Value is { } value)
             {
                 rows = response.FunctionCode == 5
                     ? [new RegisterRow($"0x{address:X4}", value == 0 ? "0" : "1", value == 0 ? "False" : "True")]
-                    : [new RegisterRow($"0x{address:X4}", $"0x{value:X4}", value.ToString(System.Globalization.CultureInfo.InvariantCulture))];
+                    : response.FunctionCode is 15 or 16
+                        ? [new RegisterRow($"0x{address:X4}", value.ToString(CultureInfo.InvariantCulture), "写入数量")]
+                        : [new RegisterRow($"0x{address:X4}", $"0x{value:X4}", value.ToString(CultureInfo.InvariantCulture))];
             }
             else if (response.Bits is { } bits)
             {
@@ -82,6 +85,8 @@ public sealed partial class ModbusPage : Page
         3 => 1,
         4 => 2,
         5 => 5,
+        6 => 15,
+        7 => 16,
         _ => 3,
     };
 
@@ -89,6 +94,7 @@ public sealed partial class ModbusPage : Page
     {
         if (Quantity is not null)
         {
+            var multiple = FunctionValue is 15 or 16;
             Quantity.Header = FunctionValue switch
             {
                 6 => "寄存器值",
@@ -96,6 +102,8 @@ public sealed partial class ModbusPage : Page
                 _ => "数量",
             };
             Quantity.Minimum = FunctionValue is 5 or 6 ? 0 : 1;
+            Quantity.IsEnabled = !multiple;
+            ValuesInput.Visibility = multiple ? Visibility.Visible : Visibility.Collapsed;
             Quantity.Maximum = FunctionValue switch
             {
                 6 => ushort.MaxValue,
@@ -126,6 +134,8 @@ public sealed partial class ModbusPage : Page
 
     private void SlaveAddress_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => UpdatePreview();
 
+    private void ValuesInput_TextChanged(object sender, TextChangedEventArgs e) => UpdatePreview();
+
     private void ModbusPage_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         var state = e.NewSize.Width switch
@@ -148,6 +158,8 @@ public sealed partial class ModbusPage : Page
         {
             5 => ModbusRtuCodec.BuildWriteSingleCoil(slave, address, value != 0),
             6 => ModbusRtuCodec.BuildWriteSingleRegister(slave, address, value),
+            15 => ModbusRtuCodec.BuildWriteMultipleCoils(slave, address, ParseCoilValues(ValuesInput.Text)),
+            16 => ModbusRtuCodec.BuildWriteMultipleRegisters(slave, address, ParseRegisterValues(ValuesInput.Text)),
             _ => ModbusRtuCodec.BuildReadRequest(slave, FunctionValue, address, value),
         };
     }
@@ -205,6 +217,14 @@ public sealed partial class ModbusPage : Page
                 return;
             }
 
+            if (FunctionValue is 15 or 16)
+            {
+                var result = ModbusRtuCodec.ParseWriteMultipleResponse(frame, (byte)SlaveAddress.Value, FunctionValue);
+                RegisterList.ItemsSource = new[] { new RegisterRow($"0x{result.Address:X4}", result.Quantity.ToString(CultureInfo.InvariantCulture), "写入数量") };
+                ShowResult("已解析批量写入响应。", InfoBarSeverity.Success);
+                return;
+            }
+
             if (FunctionValue is 1 or 2)
             {
                 var bits = ModbusRtuCodec.ParseBitResponse(frame, (byte)SlaveAddress.Value, FunctionValue, (ushort)Quantity.Value);
@@ -225,6 +245,38 @@ public sealed partial class ModbusPage : Page
             ShowResult(ex.Message, InfoBarSeverity.Error);
         }
     }
+
+    private static bool[] ParseCoilValues(string text)
+    {
+        var values = SplitValues(text)
+            .Select(static value => value switch
+            {
+                "0" => false,
+                "1" => true,
+                _ => throw new FormatException("线圈值必须为 0 或 1。"),
+            })
+            .ToArray();
+        return values.Length is >= 1 and <= 1968
+            ? values
+            : throw new FormatException("线圈值数量必须在 1 到 1968 之间。");
+    }
+
+    private static ushort[] ParseRegisterValues(string text)
+    {
+        var values = SplitValues(text)
+            .Select(static value => value.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+                ? ushort.Parse(value.AsSpan(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture)
+                : ushort.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture))
+            .ToArray();
+        return values.Length is >= 1 and <= 123
+            ? values
+            : throw new FormatException("寄存器值数量必须在 1 到 123 之间。");
+    }
+
+    private static string[] SplitValues(string text) =>
+        string.IsNullOrWhiteSpace(text)
+            ? throw new FormatException("请输入值列表。")
+            : text.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }
 
 public sealed record RegisterRow(string Index, string Hex, string DecimalText);

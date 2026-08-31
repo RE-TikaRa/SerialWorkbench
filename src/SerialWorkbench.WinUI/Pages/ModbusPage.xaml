@@ -91,9 +91,12 @@
               <x:String>01 读线圈</x:String>
               <x:String>02 读离散输入</x:String>
               <x:String>05 写单个线圈</x:String>
+              <x:String>0F 写多个线圈</x:String>
+              <x:String>10 写多个寄存器</x:String>
             </ComboBox>
             <NumberBox x:Name="StartAddress" x:FieldModifier="public" Grid.Row="1" Grid.ColumnSpan="2" Header="起始地址" Value="0" Minimum="0" Maximum="65535" SpinButtonPlacementMode="Compact" ValueChanged="SlaveAddress_ValueChanged" />
             <NumberBox x:Name="Quantity" x:FieldModifier="public" Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Header="数量" Value="1" Minimum="1" Maximum="125" SpinButtonPlacementMode="Compact" ValueChanged="SlaveAddress_ValueChanged" />
+            <TextBox x:Name="ValuesInput" x:FieldModifier="public" Grid.Row="2" Grid.ColumnSpan="4" Header="值列表" PlaceholderText="线圈使用 0,1；寄存器使用 10,0x0102" Visibility="Collapsed" TextChanged="ValuesInput_TextChanged" />
           </Grid>
           <TextBox x:Name="RequestPreview" x:FieldModifier="public" Header="请求帧预览" IsReadOnly="True" FontFamily="{StaticResource MonospaceFontFamily}" />
           <Button x:Name="SendButton" x:FieldModifier="public" Content="发送请求" Click="SendButton_Click" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Left" />

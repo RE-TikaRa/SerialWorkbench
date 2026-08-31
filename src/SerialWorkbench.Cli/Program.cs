@@ -446,21 +446,20 @@ static async Task<int> ModbusWriteAsync(IHostRpc client, Arguments arguments, st
     {
         var slave = GetByte(arguments, "--slave", 1);
         var function = GetByte(arguments, "--function", 6);
-        if (function is not (5 or 6))
+        if (function is not (5 or 6 or 15 or 16))
         {
-            throw new ArgumentException("--function must be 5 or 6.");
+            throw new ArgumentException("--function must be 5, 6, 15, or 16.");
         }
 
         var address = GetUShort(arguments, "--address");
-        var value = GetUShort(arguments, "--value");
-        if (function == 5 && value > 1)
+        var frame = function switch
         {
-            throw new ArgumentException("--value must be 0 or 1 for function 5.");
-        }
-
-        var frame = function == 5
-            ? ModbusRtuCodec.BuildWriteSingleCoil(slave, address, value != 0)
-            : ModbusRtuCodec.BuildWriteSingleRegister(slave, address, value);
+            5 => ModbusRtuCodec.BuildWriteSingleCoil(slave, address, GetCoilValue(arguments)),
+            6 => ModbusRtuCodec.BuildWriteSingleRegister(slave, address, GetUShort(arguments, "--value")),
+            15 => ModbusRtuCodec.BuildWriteMultipleCoils(slave, address, ParseCoilValues(arguments.Get("--values"))),
+            16 => ModbusRtuCodec.BuildWriteMultipleRegisters(slave, address, ParseRegisterValues(arguments.Get("--values"))),
+            _ => throw new InvalidOperationException("Unsupported Modbus write function."),
+        };
         return await RunModbusAsync(client, connection, arguments, output, cancellationToken, "modbus.write", frame, slave, function).ConfigureAwait(false);
     }
     finally
@@ -578,6 +577,49 @@ static ushort GetUShort(Arguments arguments, string name)
         : throw new ArgumentException($"{name} is required and must be between {ushort.MinValue} and {ushort.MaxValue}.");
 }
 
+static bool GetCoilValue(Arguments arguments)
+{
+    var value = GetUShort(arguments, "--value");
+    return value switch
+    {
+        0 => false,
+        1 => true,
+        _ => throw new ArgumentException("--value must be 0 or 1 for function 5."),
+    };
+}
+
+static bool[] ParseCoilValues(string? text)
+{
+    var values = SplitValues(text, "--values is required for function 15.")
+        .Select(static value => value switch
+        {
+            "0" => false,
+            "1" => true,
+            _ => throw new ArgumentException("Coil values must be 0 or 1."),
+        })
+        .ToArray();
+    return values.Length is >= 1 and <= 1968
+        ? values
+        : throw new ArgumentException("Function 15 requires between 1 and 1968 coil values.");
+}
+
+static ushort[] ParseRegisterValues(string? text)
+{
+    var values = SplitValues(text, "--values is required for function 16.")
+        .Select(static value => value.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            ? ushort.Parse(value.AsSpan(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture)
+            : ushort.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture))
+        .ToArray();
+    return values.Length is >= 1 and <= 123
+        ? values
+        : throw new ArgumentException("Function 16 requires between 1 and 123 register values.");
+}
+
+static string[] SplitValues(string? text, string missingMessage) =>
+    string.IsNullOrWhiteSpace(text)
+        ? throw new ArgumentException(missingMessage)
+        : text.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 static ushort ValidateReadQuantity(ushort quantity, byte function)
 {
     var maximum = function is 1 or 2 ? 2000 : 125;
@@ -657,7 +699,7 @@ static void PrintHelp()
         serial-workbench monitor --port <port> [--seconds 10] [--output text|jsonl]
         serial-workbench loopback run --port <port> [--baud 115200] [--length 4096] [--iterations 1]
         serial-workbench modbus read --port <port> --slave 1 --address 0 --quantity 1 [--function 1|2|3|4]
-        serial-workbench modbus write --port <port> --slave 1 --address 0 --value 0 [--function 5|6]
+        serial-workbench modbus write --port <port> --slave 1 --address 0 (--value VALUE | --values VALUES) [--function 5|6|15|16]
         serial-workbench xmodem send --port <port> --file PATH [--baud 115200]
         serial-workbench xmodem receive --port <port> --file PATH [--baud 115200]
         serial-workbench protocol inspect --hex HEX [--template PATH] [--output text|json]

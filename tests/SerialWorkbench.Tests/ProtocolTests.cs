@@ -68,6 +68,8 @@ public sealed class ProtocolTests
     [InlineData(4, 9)]
     [InlineData(5, 8)]
     [InlineData(6, 8)]
+    [InlineData(15, 8)]
+    [InlineData(16, 8)]
     public void ModbusResponseLengthIsDerivedFromTheFunction(byte function, int length)
     {
         var prefix = function == 6 ? new byte[] { 1, function } : new byte[] { 1, function, (byte)(length - 5) };
@@ -106,6 +108,28 @@ public sealed class ProtocolTests
         var response = ModbusRtuCodec.ParseWriteSingleCoilResponse(frame, 1);
         Assert.Equal((ushort)0x0013, response.Address);
         Assert.True(response.Value);
+    }
+
+    [Fact]
+    public void ModbusWriteMultipleCoilsMatchesKnownVector()
+    {
+        var values = new[] { true, false, true, true, false, false, true, true, true, false };
+
+        var frame = ModbusRtuCodec.BuildWriteMultipleCoils(0x11, 0x0013, values);
+
+        Assert.Equal([0x11, 0x0F, 0x00, 0x13, 0x00, 0x0A, 0x02, 0xCD, 0x01, 0xBF, 0x0B], frame);
+    }
+
+    [Fact]
+    public void ModbusWriteMultipleRegistersBuildsDataAndParsesResponse()
+    {
+        var request = ModbusRtuCodec.BuildWriteMultipleRegisters(1, 1, [0x000A, 0x0102]);
+
+        Assert.Equal([0x01, 0x10, 0x00, 0x01, 0x00, 0x02, 0x04, 0x00, 0x0A, 0x01, 0x02], request[..^2]);
+        Assert.True(ModbusRtuCodec.HasValidCrc(request));
+        var response = ModbusRtuCodec.ParseWriteMultipleResponse(WithModbusCrc([0x01, 0x10, 0x00, 0x01, 0x00, 0x02]), 1, 16);
+        Assert.Equal((ushort)1, response.Address);
+        Assert.Equal((ushort)2, response.Quantity);
     }
 
     [Fact]
