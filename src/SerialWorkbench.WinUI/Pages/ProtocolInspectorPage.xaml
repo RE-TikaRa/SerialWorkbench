@@ -18,7 +18,7 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <ComboBox x:Name="TemplateSelector" Header="协议模板" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="TemplateSelector_SelectionChanged">
+            <ComboBox x:Name="TemplateSelector" Header="协议模板" HorizontalAlignment="Stretch" SelectionChanged="TemplateSelector_SelectionChanged">
               <x:String>Modbus RTU</x:String>
               <x:String>自定义 JSON</x:String>
             </ComboBox>

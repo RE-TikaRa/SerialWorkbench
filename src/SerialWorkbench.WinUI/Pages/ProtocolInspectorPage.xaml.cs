@@ -10,6 +10,7 @@ public sealed partial class ProtocolInspectorPage : Page
     public ProtocolInspectorPage()
     {
         InitializeComponent();
+        TemplateSelector.SelectedIndex = 0;
         TemplateJson.Text = ProtocolTemplateCodec.Serialize(new ProtocolTemplateDefinition(
             "sensor",
             "AA",
