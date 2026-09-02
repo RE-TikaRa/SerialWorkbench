@@ -28,6 +28,7 @@ public sealed partial class WorkbenchPage : Page
         ProfileComboBox.ItemsSource = profiles;
         UpdateProfileActions();
         ViewSelector.SelectedItem = MonitorSelectorItem;
+        TrafficDirection.SelectedIndex = 0;
         Loaded += WorkbenchPage_Loaded;
         ActualThemeChanged += WorkbenchPage_ActualThemeChanged;
     }

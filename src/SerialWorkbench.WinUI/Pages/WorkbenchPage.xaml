@@ -318,7 +318,7 @@
                 <Button x:Name="CopyHexButton" x:FieldModifier="public" Grid.Column="3" Click="CopyHexButton_Click" Style="{StaticResource IconButtonStyle}" IsEnabled="False" ToolTipService.ToolTip="复制全部 HEX">
                   <SymbolIcon Symbol="Copy" />
                 </Button>
-                <ComboBox x:Name="TrafficDirection" Grid.Row="1" SelectedIndex="0" SelectionChanged="TrafficFilter_Changed" MinWidth="110">
+                <ComboBox x:Name="TrafficDirection" Grid.Row="1" SelectionChanged="TrafficFilter_Changed" MinWidth="110">
                   <x:String>全部方向</x:String>
                   <x:String>仅 RX</x:String>
                   <x:String>仅 TX</x:String>
