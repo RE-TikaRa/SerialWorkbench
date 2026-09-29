@@ -12,7 +12,7 @@ namespace SerialWorkbench.WinUI.Pages;
 public sealed partial class WorkbenchPage : Page
 {
     private const double CompactLayoutWidth = 560;
-    private const double WideLayoutWidth = 900;
+    private const double WideLayoutWidth = 800;
     private const int MaxWavePoints = 2000;
     private readonly WaveformParser waveformParser = new();
     private readonly List<List<double>> channelData = [];
@@ -439,6 +439,18 @@ public sealed partial class WorkbenchPage : Page
         };
         VisualStateManager.GoToState(this, state, false);
         VisualStateManager.GoToState(this, e.NewSize.Width < 641 ? "CompactPageMargins" : "StandardPageMargins", false);
+        VisualStateManager.GoToState(this, e.NewSize.Height < 600 ? "CompactHeight" : "StandardHeight", false);
+        UpdateConnectionViewport();
+    }
+
+    private void SendCard_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateConnectionViewport();
+
+    private void UpdateConnectionViewport()
+    {
+        var toolbarHeight = MonitorView.Visibility == Visibility.Visible ? MonitorToolbar.DesiredSize.Height : PlotToolbar.DesiredSize.Height;
+        var rowHeight = (double)Application.Current.Resources["ListViewItemMinHeight"];
+        ConnectionScrollView.MaxHeight = Math.Max(0, ActualHeight - WorkbenchLayout.Padding.Top - WorkbenchLayout.Padding.Bottom
+            - 2 * WorkbenchLayout.RowSpacing - SendCard.ActualHeight - ViewSelector.ActualHeight - toolbarHeight - rowHeight);
     }
 
     private void ApplyPlotTheme()
@@ -502,6 +514,7 @@ public sealed partial class WorkbenchPage : Page
         }
 
         viewSelectionInitialized = true;
+        UpdateConnectionViewport();
     }
 
     private void PlotClearButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)

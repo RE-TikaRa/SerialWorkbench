@@ -21,6 +21,9 @@ public sealed partial class ConnectionsPage : Page
 
     public int BaudRate => checked((int)BaudRateNumberBox.Value);
 
+    private void ConnectionsPage_SizeChanged(object sender, SizeChangedEventArgs e) =>
+        VisualStateManager.GoToState(this, e.NewSize.Width < 641 ? "Compact" : "Wide", false);
+
     public event EventHandler? RefreshRequested;
     public event EventHandler? OpenRequested;
     public event EventHandler<Guid>? ConnectionSelected;

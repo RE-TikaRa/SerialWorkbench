@@ -628,8 +628,13 @@ public sealed partial class MainWindow : Window
     private void ContentShell_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         var compact = e.NewSize.Width < 641;
+        var compactHeight = e.NewSize.Height < 650;
+        var inlineHeader = compactHeight && e.NewSize.Width >= 800;
         var horizontal = compact ? 12 : 24;
-        PageHeader.Margin = new Thickness(horizontal, horizontal, horizontal, 0);
+        PageHeader.Margin = new Thickness(horizontal, compactHeight ? 8 : horizontal, horizontal, 0);
+        PageHeader.Orientation = inlineHeader ? Orientation.Horizontal : Orientation.Vertical;
+        PageHeader.Spacing = inlineHeader ? 12 : compactHeight ? 4 : 6;
+        PageTitleText.Style = (Style)Application.Current.Resources[compactHeight ? "SubtitleTextBlockStyle" : "TitleTextBlockStyle"];
         ErrorInfoBar.Margin = new Thickness(horizontal, compact ? 12 : 18, horizontal, 0);
     }
 

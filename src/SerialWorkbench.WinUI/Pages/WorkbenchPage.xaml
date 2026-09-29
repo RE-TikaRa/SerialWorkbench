@@ -13,24 +13,27 @@
       <FadeInThemeAnimation TargetName="PlotView" />
     </Storyboard>
   </Page.Resources>
-  <ScrollView x:Name="WorkbenchScroller" ContentOrientation="Vertical" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Stretch">
+  <Grid x:Name="WorkbenchScroller">
     <VisualStateManager.VisualStateGroups>
       <VisualStateGroup x:Name="WindowStates">
         <VisualState x:Name="Compact">
           <VisualState.Setters>
-            <Setter Target="BaudRateComboBox.(Grid.Column)" Value="0" />
-            <Setter Target="BaudRateComboBox.(Grid.ColumnSpan)" Value="5" />
-            <Setter Target="MonitorFormat.(Grid.Row)" Value="2" />
-            <Setter Target="MonitorFormat.(Grid.Column)" Value="0" />
-            <Setter Target="MonitorFormat.(Grid.ColumnSpan)" Value="5" />
-            <Setter Target="ConnectButton.(Grid.Row)" Value="3" />
-            <Setter Target="ConnectButton.(Grid.Column)" Value="0" />
-            <Setter Target="ConnectButton.(Grid.ColumnSpan)" Value="5" />
-            <Setter Target="ConnectButton.HorizontalAlignment" Value="Stretch" />
+            <Setter Target="ProfileComboBox.(Grid.ColumnSpan)" Value="5" />
+            <Setter Target="ApplyProfileButton.(Grid.Row)" Value="1" />
+            <Setter Target="ApplyProfileButton.(Grid.Column)" Value="0" />
+            <Setter Target="ApplyProfileButton.(Grid.ColumnSpan)" Value="2" />
+            <Setter Target="ApplyProfileButton.Margin" Value="0,12,0,0" />
+            <Setter Target="NewProfileButton.(Grid.Row)" Value="1" />
+            <Setter Target="NewProfileButton.Margin" Value="0,12,0,0" />
+            <Setter Target="RenameProfileButton.(Grid.Row)" Value="1" />
+            <Setter Target="RenameProfileButton.Margin" Value="0,12,0,0" />
+            <Setter Target="DeleteProfileButton.(Grid.Row)" Value="1" />
+            <Setter Target="DeleteProfileButton.Margin" Value="0,12,0,0" />
             <Setter Target="DataBitsNumberBox.(Grid.ColumnSpan)" Value="6" />
             <Setter Target="ParityComboBox.(Grid.Row)" Value="1" />
             <Setter Target="ParityComboBox.(Grid.Column)" Value="0" />
             <Setter Target="ParityComboBox.(Grid.ColumnSpan)" Value="6" />
+            <Setter Target="ParityComboBox.Margin" Value="0,12,0,0" />
             <Setter Target="StopBitsComboBox.(Grid.Row)" Value="2" />
             <Setter Target="StopBitsComboBox.(Grid.ColumnSpan)" Value="6" />
             <Setter Target="HandshakeComboBox.(Grid.Row)" Value="3" />
@@ -41,35 +44,31 @@
             <Setter Target="ControlLinesPanel.(Grid.Row)" Value="5" />
             <Setter Target="ControlLinesPanel.(Grid.Column)" Value="0" />
             <Setter Target="ControlLinesPanel.(Grid.ColumnSpan)" Value="6" />
-            <Setter Target="ClearTrafficButton.(Grid.Row)" Value="1" />
-            <Setter Target="ClearTrafficButton.(Grid.Column)" Value="0" />
-            <Setter Target="ClearTrafficButton.(Grid.ColumnSpan)" Value="2" />
-            <Setter Target="ClearTrafficButton.HorizontalAlignment" Value="Stretch" />
-            <Setter Target="CopyHexButton.(Grid.Row)" Value="1" />
-            <Setter Target="CopyHexButton.(Grid.Column)" Value="2" />
-            <Setter Target="CopyHexButton.(Grid.ColumnSpan)" Value="2" />
-            <Setter Target="CopyHexButton.HorizontalAlignment" Value="Stretch" />
-            <Setter Target="PlotMode.(Grid.ColumnSpan)" Value="4" />
-            <Setter Target="PlotFrameLength.(Grid.Row)" Value="1" />
-            <Setter Target="PlotFrameLength.(Grid.Column)" Value="0" />
-            <Setter Target="PlotFrameLength.(Grid.ColumnSpan)" Value="4" />
-            <Setter Target="PlotSampleType.(Grid.Row)" Value="2" />
-            <Setter Target="PlotSampleType.(Grid.ColumnSpan)" Value="4" />
-            <Setter Target="PlotActions.(Grid.Row)" Value="3" />
-            <Setter Target="PlotActions.(Grid.Column)" Value="0" />
-            <Setter Target="PlotActions.(Grid.ColumnSpan)" Value="4" />
-            <Setter Target="PlotActions.HorizontalAlignment" Value="Left" />
-            <Setter Target="SendFormat.(Grid.ColumnSpan)" Value="6" />
-            <Setter Target="SendLineEnding.(Grid.Row)" Value="1" />
-            <Setter Target="SendLineEnding.(Grid.Column)" Value="0" />
-            <Setter Target="SendLineEnding.(Grid.ColumnSpan)" Value="6" />
-            <Setter Target="SendChecksum.(Grid.Row)" Value="2" />
-            <Setter Target="SendChecksum.(Grid.ColumnSpan)" Value="6" />
-            <Setter Target="LoopIntervalNumberBox.(Grid.Row)" Value="3" />
-            <Setter Target="LoopIntervalNumberBox.(Grid.Column)" Value="0" />
-            <Setter Target="LoopIntervalNumberBox.(Grid.ColumnSpan)" Value="6" />
-            <Setter Target="LoopSendToggle.(Grid.Row)" Value="4" />
-            <Setter Target="SendButton.(Grid.Row)" Value="4" />
+            <Setter Target="ControlLinesPanel.Orientation" Value="Vertical" />
+            <Setter Target="Rs485ModeCheckBox.(Grid.ColumnSpan)" Value="3" />
+            <Setter Target="RtsBeforeSendNumberBox.(Grid.Row)" Value="1" />
+            <Setter Target="RtsBeforeSendNumberBox.(Grid.Column)" Value="0" />
+            <Setter Target="RtsBeforeSendNumberBox.(Grid.ColumnSpan)" Value="3" />
+            <Setter Target="RtsBeforeSendNumberBox.Margin" Value="0,12,0,0" />
+            <Setter Target="RtsAfterSendNumberBox.(Grid.Row)" Value="2" />
+            <Setter Target="RtsAfterSendNumberBox.(Grid.Column)" Value="0" />
+            <Setter Target="RtsAfterSendNumberBox.(Grid.ColumnSpan)" Value="3" />
+            <Setter Target="RtsAfterSendNumberBox.Margin" Value="0,12,0,0" />
+            <Setter Target="SendFormat.(Grid.ColumnSpan)" Value="3" />
+            <Setter Target="SendLineEnding.(Grid.Column)" Value="3" />
+            <Setter Target="SendLineEnding.(Grid.ColumnSpan)" Value="3" />
+            <Setter Target="SendChecksum.(Grid.Row)" Value="1" />
+            <Setter Target="SendChecksum.(Grid.Column)" Value="0" />
+            <Setter Target="SendChecksum.(Grid.ColumnSpan)" Value="3" />
+            <Setter Target="SendChecksum.Margin" Value="0,12,0,0" />
+            <Setter Target="LoopIntervalNumberBox.(Grid.Column)" Value="3" />
+            <Setter Target="LoopIntervalNumberBox.(Grid.ColumnSpan)" Value="3" />
+            <Setter Target="LoopSendToggle.(Grid.Row)" Value="2" />
+            <Setter Target="LoopSendToggle.(Grid.Column)" Value="0" />
+            <Setter Target="LoopSendToggle.(Grid.ColumnSpan)" Value="3" />
+            <Setter Target="SendButton.(Grid.Row)" Value="2" />
+            <Setter Target="SendButton.(Grid.Column)" Value="3" />
+            <Setter Target="SendButton.(Grid.ColumnSpan)" Value="3" />
           </VisualState.Setters>
         </VisualState>
         <VisualState x:Name="Narrow" />
@@ -80,10 +79,13 @@
             <Setter Target="BaudRateComboBox.(Grid.Row)" Value="0" />
             <Setter Target="BaudRateComboBox.(Grid.Column)" Value="2" />
             <Setter Target="BaudRateComboBox.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="BaudRateComboBox.Margin" Value="0" />
             <Setter Target="MonitorFormat.(Grid.Row)" Value="0" />
             <Setter Target="MonitorFormat.(Grid.Column)" Value="3" />
             <Setter Target="MonitorFormat.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="MonitorFormat.Margin" Value="0" />
             <Setter Target="ConnectButton.(Grid.Row)" Value="0" />
+            <Setter Target="ConnectButton.Margin" Value="0" />
             <Setter Target="DataBitsNumberBox.(Grid.Row)" Value="0" />
             <Setter Target="DataBitsNumberBox.(Grid.ColumnSpan)" Value="1" />
             <Setter Target="ParityComboBox.(Grid.Row)" Value="0" />
@@ -92,29 +94,34 @@
             <Setter Target="StopBitsComboBox.(Grid.Row)" Value="0" />
             <Setter Target="StopBitsComboBox.(Grid.Column)" Value="2" />
             <Setter Target="StopBitsComboBox.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="StopBitsComboBox.Margin" Value="0" />
             <Setter Target="HandshakeComboBox.(Grid.Row)" Value="0" />
             <Setter Target="HandshakeComboBox.(Grid.Column)" Value="3" />
             <Setter Target="HandshakeComboBox.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="HandshakeComboBox.Margin" Value="0" />
             <Setter Target="EncodingComboBox.(Grid.Row)" Value="0" />
             <Setter Target="EncodingComboBox.(Grid.Column)" Value="4" />
             <Setter Target="EncodingComboBox.(Grid.ColumnSpan)" Value="1" />
-            <Setter Target="ControlLinesPanel.(Grid.Row)" Value="0" />
-            <Setter Target="ControlLinesPanel.(Grid.Column)" Value="5" />
-            <Setter Target="ControlLinesPanel.(Grid.ColumnSpan)" Value="1" />
-            <Setter Target="MonitorActions.(Grid.Row)" Value="0" />
-            <Setter Target="MonitorActions.HorizontalAlignment" Value="Right" />
+            <Setter Target="EncodingComboBox.Margin" Value="0" />
+            <Setter Target="ControlLinesPanel.(Grid.Row)" Value="1" />
+            <Setter Target="ControlLinesPanel.(Grid.Column)" Value="0" />
+            <Setter Target="ControlLinesPanel.(Grid.ColumnSpan)" Value="6" />
+            <Setter Target="MonitorActions.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="TrafficFilters.(Grid.Row)" Value="0" />
+            <Setter Target="TrafficFilters.(Grid.Column)" Value="2" />
+            <Setter Target="TrafficFilters.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="TrafficFilters.Margin" Value="0" />
             <Setter Target="PlotMode.(Grid.ColumnSpan)" Value="1" />
             <Setter Target="PlotFrameLength.(Grid.Column)" Value="1" />
             <Setter Target="PlotFrameLength.(Grid.ColumnSpan)" Value="1" />
             <Setter Target="PlotSampleType.(Grid.Row)" Value="0" />
             <Setter Target="PlotSampleType.(Grid.Column)" Value="2" />
             <Setter Target="PlotSampleType.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="PlotSampleType.Margin" Value="0" />
             <Setter Target="PlotActions.(Grid.Row)" Value="0" />
             <Setter Target="PlotActions.(Grid.Column)" Value="3" />
             <Setter Target="PlotActions.(Grid.ColumnSpan)" Value="1" />
-            <Setter Target="SendHistory.(Grid.Row)" Value="0" />
-            <Setter Target="SendHistory.(Grid.Column)" Value="1" />
-            <Setter Target="SendHistory.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="PlotActions.Margin" Value="0" />
             <Setter Target="SendFormat.(Grid.ColumnSpan)" Value="1" />
             <Setter Target="SendLineEnding.(Grid.Column)" Value="1" />
             <Setter Target="SendLineEnding.(Grid.ColumnSpan)" Value="1" />
@@ -124,12 +131,15 @@
             <Setter Target="LoopSendToggle.(Grid.Row)" Value="0" />
             <Setter Target="LoopSendToggle.(Grid.Column)" Value="3" />
             <Setter Target="LoopSendToggle.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="LoopSendToggle.Margin" Value="0" />
             <Setter Target="LoopIntervalNumberBox.(Grid.Row)" Value="0" />
             <Setter Target="LoopIntervalNumberBox.(Grid.Column)" Value="4" />
             <Setter Target="LoopIntervalNumberBox.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="LoopIntervalNumberBox.Margin" Value="0" />
             <Setter Target="SendButton.(Grid.Row)" Value="0" />
             <Setter Target="SendButton.(Grid.Column)" Value="5" />
             <Setter Target="SendButton.(Grid.ColumnSpan)" Value="1" />
+            <Setter Target="SendButton.Margin" Value="0" />
           </VisualState.Setters>
         </VisualState>
       </VisualStateGroup>
@@ -141,142 +151,177 @@
         </VisualState>
         <VisualState x:Name="StandardPageMargins" />
       </VisualStateGroup>
+      <VisualStateGroup x:Name="HeightStates">
+        <VisualState x:Name="CompactHeight">
+          <VisualState.Setters>
+            <Setter Target="WorkbenchLayout.RowSpacing" Value="8" />
+            <Setter Target="ConnectionCard.Padding" Value="8" />
+            <Setter Target="ConnectionContent.Spacing" Value="8" />
+            <Setter Target="SendCard.Padding" Value="8" />
+            <Setter Target="SendContent.Spacing" Value="8" />
+            <Setter Target="MonitorToolbar.Padding" Value="12,8" />
+            <Setter Target="PlotToolbar.Padding" Value="12,8" />
+          </VisualState.Setters>
+        </VisualState>
+        <VisualState x:Name="StandardHeight" />
+      </VisualStateGroup>
     </VisualStateManager.VisualStateGroups>
-    <Grid x:Name="WorkbenchLayout" MinHeight="{x:Bind WorkbenchScroller.ActualHeight, Mode=OneWay}" Padding="{StaticResource ContentPagePadding}" RowSpacing="{StaticResource ContentPageSpacing}">
+    <Grid x:Name="WorkbenchLayout" Padding="{StaticResource ContentPagePadding}" RowSpacing="{StaticResource ContentPageSpacing}">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
         <RowDefinition Height="Auto" />
       </Grid.RowDefinitions>
-      <Border Grid.Row="0" Style="{StaticResource SurfaceCardStyle}">
-        <StackPanel Spacing="{StaticResource CardContentSpacing}">
-          <TextBlock Text="串口连接" Style="{StaticResource BodyStrongTextBlockStyle}" />
-          <Grid ColumnSpacing="8">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <ComboBox x:Name="ProfileComboBox" Header="连接配置" DisplayMemberPath="Name" PlaceholderText="选择配置" SelectionChanged="ProfileComboBox_SelectionChanged" HorizontalAlignment="Stretch" />
-            <Button x:Name="ApplyProfileButton" Grid.Column="1" Content="应用" Click="ApplyProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
-            <Button x:Name="NewProfileButton" Grid.Column="2" Content="新建" Click="NewProfileButton_Click" VerticalAlignment="Bottom" />
-            <Button x:Name="RenameProfileButton" Grid.Column="3" Content="重命名" Click="RenameProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
-            <Button x:Name="DeleteProfileButton" Grid.Column="4" Content="删除" Click="DeleteProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
-          </Grid>
-          <ComboBox x:Name="RoleComboBox" x:FieldModifier="public" Header="逻辑角色" SelectedIndex="0" HorizontalAlignment="Stretch">
-            <x:String>DUT</x:String>
-            <x:String>DEBUG</x:String>
-            <x:String>CONTROLLER</x:String>
-            <x:String>LOOPBACK</x:String>
-          </ComboBox>
-          <Grid ColumnSpacing="12" RowSpacing="14">
-            <Grid.RowDefinitions>
-              <RowDefinition Height="Auto" />
-              <RowDefinition Height="Auto" />
-              <RowDefinition Height="Auto" />
-              <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="2*" />
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <ComboBox x:Name="PortComboBox" x:FieldModifier="public" Grid.ColumnSpan="4" Header="端口" DisplayMemberPath="DisplayName" PlaceholderText="选择串口" HorizontalAlignment="Stretch" />
-            <Button x:Name="RefreshPortsButton" x:FieldModifier="public" Grid.Column="4" Click="RefreshPortsButton_Click" Style="{StaticResource IconButtonStyle}" VerticalAlignment="Bottom" ToolTipService.ToolTip="刷新端口">
-              <FontIcon Glyph="&#xE72C;" FontSize="16" />
-            </Button>
-            <ComboBox x:Name="BaudRateComboBox" x:FieldModifier="public" Grid.Row="1" Grid.ColumnSpan="2" Header="波特率" IsEditable="True" SelectedIndex="7" HorizontalAlignment="Stretch">
-              <x:String>1200</x:String>
-              <x:String>2400</x:String>
-              <x:String>4800</x:String>
-              <x:String>9600</x:String>
-              <x:String>19200</x:String>
-              <x:String>38400</x:String>
-              <x:String>57600</x:String>
-              <x:String>115200</x:String>
-              <x:String>230400</x:String>
-              <x:String>460800</x:String>
-              <x:String>921600</x:String>
-            </ComboBox>
-            <ComboBox x:Name="MonitorFormat" x:FieldModifier="public" Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Header="显示" SelectedIndex="0" HorizontalAlignment="Stretch">
-              <x:String>HEX</x:String>
-              <x:String>文本</x:String>
-            </ComboBox>
-            <Button x:Name="ConnectButton" x:FieldModifier="public" Grid.Row="1" Grid.Column="4" Content="连接" Click="ConnectButton_Click" Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Bottom" />
-          </Grid>
-          <TextBlock x:Name="ConnectionStatusText" Text="正在连接服务…" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-          <Expander x:Name="AdvancedExpander" x:FieldModifier="public" Header="高级参数" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-            <Grid ColumnSpacing="12" RowSpacing="14">
+      <ScrollView x:Name="ConnectionScrollView" HorizontalContentAlignment="Stretch" VerticalScrollBarVisibility="Auto">
+        <Border x:Name="ConnectionCard" Style="{StaticResource SurfaceCardStyle}">
+          <StackPanel x:Name="ConnectionContent" Spacing="12">
+            <Grid ColumnSpacing="12">
               <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
               </Grid.RowDefinitions>
               <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
-              <NumberBox x:Name="DataBitsNumberBox" x:FieldModifier="public" Grid.ColumnSpan="3" Header="数据位" Value="8" Minimum="5" Maximum="8" SpinButtonPlacementMode="Compact" />
-              <ComboBox x:Name="ParityComboBox" x:FieldModifier="public" Grid.Column="3" Grid.ColumnSpan="3" Header="校验" SelectedIndex="0" HorizontalAlignment="Stretch">
-                <x:String>无</x:String>
-                <x:String>奇校验</x:String>
-                <x:String>偶校验</x:String>
-                <x:String>标记</x:String>
-                <x:String>空格</x:String>
+              <ComboBox x:Name="PortComboBox" x:FieldModifier="public" Grid.ColumnSpan="4" Header="端口" DisplayMemberPath="DisplayName" PlaceholderText="选择串口" HorizontalAlignment="Stretch" />
+              <Button x:Name="RefreshPortsButton" x:FieldModifier="public" Grid.Column="4" Click="RefreshPortsButton_Click" Style="{StaticResource IconButtonStyle}" VerticalAlignment="Bottom" ToolTipService.ToolTip="刷新端口" AutomationProperties.Name="刷新端口">
+                <FontIcon Glyph="&#xE72C;" FontSize="16" />
+              </Button>
+              <ComboBox x:Name="BaudRateComboBox" x:FieldModifier="public" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,12,0,0" Header="波特率" IsEditable="True" SelectedIndex="7" HorizontalAlignment="Stretch">
+                <x:String>1200</x:String>
+                <x:String>2400</x:String>
+                <x:String>4800</x:String>
+                <x:String>9600</x:String>
+                <x:String>19200</x:String>
+                <x:String>38400</x:String>
+                <x:String>57600</x:String>
+                <x:String>115200</x:String>
+                <x:String>230400</x:String>
+                <x:String>460800</x:String>
+                <x:String>921600</x:String>
               </ComboBox>
-              <ComboBox x:Name="StopBitsComboBox" x:FieldModifier="public" Grid.Row="1" Grid.ColumnSpan="3" Header="停止位" SelectedIndex="0" HorizontalAlignment="Stretch">
-                <x:String>1</x:String>
-                <x:String>1.5</x:String>
-                <x:String>2</x:String>
+              <ComboBox x:Name="MonitorFormat" x:FieldModifier="public" Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Margin="0,12,0,0" Header="显示" SelectedIndex="0" HorizontalAlignment="Stretch">
+                <x:String>HEX</x:String>
+                <x:String>文本</x:String>
               </ComboBox>
-              <ComboBox x:Name="HandshakeComboBox" x:FieldModifier="public" Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="3" Header="流控" SelectedIndex="0" HorizontalAlignment="Stretch">
-                <x:String>无</x:String>
-                <x:String>XON/XOFF</x:String>
-                <x:String>RTS</x:String>
-                <x:String>RTS + XON/XOFF</x:String>
-              </ComboBox>
-              <ComboBox x:Name="EncodingComboBox" x:FieldModifier="public" Grid.Row="2" Grid.ColumnSpan="3" Header="编码" SelectedIndex="0" HorizontalAlignment="Stretch">
-                <x:String>UTF-8</x:String>
-                <x:String>ASCII</x:String>
-                <x:String>GB2312</x:String>
-                <x:String>GBK</x:String>
-                <x:String>UTF-16 LE</x:String>
-              </ComboBox>
-              <StackPanel x:Name="ControlLinesPanel" x:FieldModifier="public" Grid.Row="2" Grid.Column="3" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
-                <CheckBox x:Name="DtrCheckBox" x:FieldModifier="public" Content="DTR" Checked="ControlLineCheckBox_Changed" Unchecked="ControlLineCheckBox_Changed" />
-                <CheckBox x:Name="RtsCheckBox" x:FieldModifier="public" Content="RTS" Checked="ControlLineCheckBox_Changed" Unchecked="ControlLineCheckBox_Changed" />
-                <Button x:Name="ClearReceiveButton" x:FieldModifier="public" Content="清空 RX" Click="ClearReceiveButton_Click" />
-                <Button x:Name="ClearTransmitButton" x:FieldModifier="public" Content="清空 TX" Click="ClearTransmitButton_Click" />
-                <Button x:Name="BreakButton" x:FieldModifier="public" Content="BREAK" Click="BreakButton_Click" />
+              <Button x:Name="ConnectButton" x:FieldModifier="public" Grid.Row="1" Grid.Column="4" Margin="0,12,0,0" Content="连接" Click="ConnectButton_Click" Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Bottom" />
+            </Grid>
+            <Expander x:Name="ConnectionSettingsExpander" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+              <Expander.Header>
+                <Grid ColumnSpacing="12">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="高级参数" VerticalAlignment="Center" />
+                  <TextBlock x:Name="ConnectionStatusText" Grid.Column="1" Text="正在连接服务…" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                </Grid>
+              </Expander.Header>
+              <StackPanel Spacing="{StaticResource CardContentSpacing}">
+                <Grid ColumnSpacing="8">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <ComboBox x:Name="ProfileComboBox" Header="连接配置" DisplayMemberPath="Name" PlaceholderText="选择配置" SelectionChanged="ProfileComboBox_SelectionChanged" HorizontalAlignment="Stretch" />
+                  <Button x:Name="ApplyProfileButton" Grid.Column="1" Content="应用" Click="ApplyProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
+                  <Button x:Name="NewProfileButton" Grid.Column="2" Content="新建" Click="NewProfileButton_Click" VerticalAlignment="Bottom" />
+                  <Button x:Name="RenameProfileButton" Grid.Column="3" Content="重命名" Click="RenameProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
+                  <Button x:Name="DeleteProfileButton" Grid.Column="4" Content="删除" Click="DeleteProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
+                </Grid>
+                <ComboBox x:Name="RoleComboBox" x:FieldModifier="public" Header="逻辑角色" SelectedIndex="0" HorizontalAlignment="Stretch">
+                  <x:String>DUT</x:String>
+                  <x:String>DEBUG</x:String>
+                  <x:String>CONTROLLER</x:String>
+                  <x:String>LOOPBACK</x:String>
+                </ComboBox>
+                <Expander x:Name="AdvancedExpander" x:FieldModifier="public" Header="串口参数" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                  <Grid ColumnSpacing="12">
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <NumberBox x:Name="DataBitsNumberBox" x:FieldModifier="public" Grid.ColumnSpan="3" Header="数据位" Value="8" Minimum="5" Maximum="8" SpinButtonPlacementMode="Compact" />
+                    <ComboBox x:Name="ParityComboBox" x:FieldModifier="public" Grid.Column="3" Grid.ColumnSpan="3" Header="校验" SelectedIndex="0" HorizontalAlignment="Stretch">
+                      <x:String>无</x:String>
+                      <x:String>奇校验</x:String>
+                      <x:String>偶校验</x:String>
+                      <x:String>标记</x:String>
+                      <x:String>空格</x:String>
+                    </ComboBox>
+                    <ComboBox x:Name="StopBitsComboBox" x:FieldModifier="public" Grid.Row="1" Grid.ColumnSpan="3" Margin="0,12,0,0" Header="停止位" SelectedIndex="0" HorizontalAlignment="Stretch">
+                      <x:String>1</x:String>
+                      <x:String>1.5</x:String>
+                      <x:String>2</x:String>
+                    </ComboBox>
+                    <ComboBox x:Name="HandshakeComboBox" x:FieldModifier="public" Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="3" Margin="0,12,0,0" Header="流控" SelectedIndex="0" HorizontalAlignment="Stretch">
+                      <x:String>无</x:String>
+                      <x:String>XON/XOFF</x:String>
+                      <x:String>RTS</x:String>
+                      <x:String>RTS + XON/XOFF</x:String>
+                    </ComboBox>
+                    <ComboBox x:Name="EncodingComboBox" x:FieldModifier="public" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,12,0,0" Header="编码" SelectedIndex="0" HorizontalAlignment="Stretch">
+                      <x:String>UTF-8</x:String>
+                      <x:String>ASCII</x:String>
+                      <x:String>GB2312</x:String>
+                      <x:String>GBK</x:String>
+                      <x:String>UTF-16 LE</x:String>
+                    </ComboBox>
+                    <StackPanel x:Name="ControlLinesPanel" x:FieldModifier="public" Grid.Row="2" Grid.Column="3" Grid.ColumnSpan="3" Margin="0,12,0,0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+                      <CheckBox x:Name="DtrCheckBox" x:FieldModifier="public" Content="DTR" Checked="ControlLineCheckBox_Changed" Unchecked="ControlLineCheckBox_Changed" />
+                      <CheckBox x:Name="RtsCheckBox" x:FieldModifier="public" Content="RTS" Checked="ControlLineCheckBox_Changed" Unchecked="ControlLineCheckBox_Changed" />
+                      <Button x:Name="ClearReceiveButton" x:FieldModifier="public" Content="清空 RX" Click="ClearReceiveButton_Click" />
+                      <Button x:Name="ClearTransmitButton" x:FieldModifier="public" Content="清空 TX" Click="ClearTransmitButton_Click" />
+                      <Button x:Name="BreakButton" x:FieldModifier="public" Content="BREAK" Click="BreakButton_Click" />
+                    </StackPanel>
+                  </Grid>
+                </Expander>
+                <Expander x:Name="Rs485Expander" x:FieldModifier="public" Header="RS-485 半双工" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                  <Grid ColumnSpacing="12">
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <CheckBox x:Name="Rs485ModeCheckBox" x:FieldModifier="public" Content="启用 RTS 方向控制" VerticalAlignment="Center" />
+                    <NumberBox x:Name="RtsBeforeSendNumberBox" x:FieldModifier="public" Grid.Column="1" Header="发送前延时(ms)" Value="0" Minimum="0" Maximum="60000" SpinButtonPlacementMode="Compact" />
+                    <NumberBox x:Name="RtsAfterSendNumberBox" x:FieldModifier="public" Grid.Column="2" Header="发送后延时(ms)" Value="0" Minimum="0" Maximum="60000" SpinButtonPlacementMode="Compact" />
+                  </Grid>
+                </Expander>
               </StackPanel>
-            </Grid>
-          </Expander>
-          <Expander x:Name="Rs485Expander" x:FieldModifier="public" Header="RS-485 半双工" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-            <Grid ColumnSpacing="12">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-              </Grid.ColumnDefinitions>
-              <CheckBox x:Name="Rs485ModeCheckBox" x:FieldModifier="public" Content="启用 RTS 方向控制" VerticalAlignment="Center" />
-              <NumberBox x:Name="RtsBeforeSendNumberBox" x:FieldModifier="public" Grid.Column="1" Header="发送前延时(ms)" Value="0" Minimum="0" Maximum="60000" SpinButtonPlacementMode="Compact" />
-              <NumberBox x:Name="RtsAfterSendNumberBox" x:FieldModifier="public" Grid.Column="2" Header="发送后延时(ms)" Value="0" Minimum="0" Maximum="60000" SpinButtonPlacementMode="Compact" />
-            </Grid>
-          </Expander>
-        </StackPanel>
-      </Border>
-      <Border Grid.Row="1" Style="{StaticResource SurfaceCardStyle}" Padding="0">
+            </Expander>
+          </StackPanel>
+        </Border>
+      </ScrollView>
+      <Border x:Name="TrafficCard" Grid.Row="1" Style="{StaticResource SurfaceCardStyle}" Padding="0">
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -295,17 +340,18 @@
               <RowDefinition Height="Auto" />
               <RowDefinition Height="*" />
             </Grid.RowDefinitions>
-            <Grid x:Name="MonitorToolbar" Padding="20,10" RowSpacing="8">
+            <Grid x:Name="MonitorToolbar" Padding="20,10" ColumnSpacing="12" SizeChanged="SendCard_SizeChanged">
               <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
               </Grid.RowDefinitions>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
               <TextBlock x:Name="CountersText" Text="RX 0 · TX 0" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
-              <Grid x:Name="MonitorActions" Grid.Row="1" HorizontalAlignment="Left" ColumnSpacing="8" RowSpacing="8">
-                <Grid.RowDefinitions>
-                  <RowDefinition Height="Auto" />
-                  <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+              <Grid x:Name="MonitorActions" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" ColumnSpacing="8">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="Auto" />
                   <ColumnDefinition Width="Auto" />
@@ -315,22 +361,28 @@
                 <ToggleButton x:Name="TimestampToggle" x:FieldModifier="public" Content="时间戳" IsChecked="True" />
                 <Button x:Name="PauseButton" x:FieldModifier="public" Grid.Column="1" Content="暂停" Click="PauseButton_Click" />
                 <Button x:Name="ClearTrafficButton" Grid.Column="2" Content="清空" Click="ClearButton_Click" />
-                <Button x:Name="CopyHexButton" x:FieldModifier="public" Grid.Column="3" Click="CopyHexButton_Click" Style="{StaticResource IconButtonStyle}" IsEnabled="False" ToolTipService.ToolTip="复制全部 HEX">
+                <Button x:Name="CopyHexButton" x:FieldModifier="public" Grid.Column="3" Click="CopyHexButton_Click" Style="{StaticResource IconButtonStyle}" IsEnabled="False" ToolTipService.ToolTip="复制全部 HEX" AutomationProperties.Name="复制 HEX">
                   <SymbolIcon Symbol="Copy" />
                 </Button>
-                <ComboBox x:Name="TrafficDirection" Grid.Row="1" SelectionChanged="TrafficFilter_Changed" MinWidth="110">
+              </Grid>
+              <Grid x:Name="TrafficFilters" Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <ComboBox x:Name="TrafficDirection" SelectionChanged="TrafficFilter_Changed">
                   <x:String>全部方向</x:String>
                   <x:String>仅 RX</x:String>
                   <x:String>仅 TX</x:String>
                 </ComboBox>
-                <TextBox x:Name="TrafficSearch" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" PlaceholderText="搜索文本、HEX 或来源" TextChanged="TrafficSearch_TextChanged" MinWidth="260" />
+                <TextBox x:Name="TrafficSearch" Grid.Column="1" PlaceholderText="搜索文本、HEX 或来源" TextChanged="TrafficSearch_TextChanged" />
               </Grid>
             </Grid>
-            <Grid Grid.Row="1" MinHeight="320">
-              <ListView x:Name="TrafficListView" x:FieldModifier="public" ItemTemplate="{StaticResource TrafficRowTemplate}" ItemContainerStyle="{StaticResource TrafficListViewItemStyle}" />
+            <Grid Grid.Row="1">
+              <ListView x:Name="TrafficListView" x:FieldModifier="public" ItemTemplate="{StaticResource TrafficRowTemplate}" ItemContainerStyle="{StaticResource TrafficListViewItemStyle}" ScrollViewer.VerticalScrollBarVisibility="Auto" />
               <StackPanel x:Name="MonitorEmptyState" x:FieldModifier="public" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-                <TextBlock x:Name="MonitorEmptyTitle" Text="等待串口数据" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                <TextBlock x:Name="MonitorEmptyDescription" Text="连接设备后，收发报文会显示在这里。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock x:Name="MonitorEmptyTitle" Text="等待串口数据" Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Center" />
+                <TextBlock x:Name="MonitorEmptyDescription" Text="连接设备后，收发报文会显示在这里。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" TextAlignment="Center" />
               </StackPanel>
             </Grid>
           </Grid>
@@ -339,10 +391,8 @@
               <RowDefinition Height="Auto" />
               <RowDefinition Height="*" />
             </Grid.RowDefinitions>
-            <Grid x:Name="PlotToolbar" Padding="20,10" ColumnSpacing="12" RowSpacing="12">
+            <Grid x:Name="PlotToolbar" Padding="20,10" ColumnSpacing="12" SizeChanged="SendCard_SizeChanged">
               <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
               </Grid.RowDefinitions>
@@ -357,40 +407,35 @@
                 <x:String>二进制帧</x:String>
               </ComboBox>
               <NumberBox x:Name="PlotFrameLength" x:FieldModifier="public" Grid.Column="2" Grid.ColumnSpan="2" Header="帧长(字节)" Value="8" Minimum="1" Maximum="4096" SpinButtonPlacementMode="Compact" IsEnabled="False" />
-              <ComboBox x:Name="PlotSampleType" x:FieldModifier="public" Grid.Row="1" Grid.ColumnSpan="2" Header="数据类型" SelectedIndex="0" HorizontalAlignment="Stretch" IsEnabled="False">
+              <ComboBox x:Name="PlotSampleType" x:FieldModifier="public" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,12,0,0" Header="数据类型" SelectedIndex="0" HorizontalAlignment="Stretch" IsEnabled="False">
                 <x:String>Int16 LE</x:String>
                 <x:String>Int16 BE</x:String>
                 <x:String>UInt16 LE</x:String>
                 <x:String>Float32 LE</x:String>
               </ComboBox>
-              <StackPanel x:Name="PlotActions" Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" VerticalAlignment="Bottom">
+              <StackPanel x:Name="PlotActions" Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Margin="0,12,0,0" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" VerticalAlignment="Bottom">
                 <ToggleButton x:Name="PlotRunning" x:FieldModifier="public" Content="绘制中" IsChecked="True" />
                 <Button Content="清空" Click="PlotClearButton_Click" />
               </StackPanel>
             </Grid>
-            <sp:WinUIPlot x:Name="WavePlot" x:FieldModifier="public" Grid.Row="1" MinHeight="320" />
+            <sp:WinUIPlot x:Name="WavePlot" x:FieldModifier="public" Grid.Row="1" />
           </Grid>
         </Grid>
       </Border>
-      <Border Grid.Row="2" Style="{StaticResource SurfaceCardStyle}">
-        <StackPanel Spacing="{StaticResource CardContentSpacing}">
-          <Grid ColumnSpacing="12" RowSpacing="12">
-            <Grid.RowDefinitions>
-              <RowDefinition Height="Auto" />
-              <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
+      <Border x:Name="SendCard" Grid.Row="2" Style="{StaticResource SurfaceCardStyle}" VerticalAlignment="Top" SizeChanged="SendCard_SizeChanged">
+        <StackPanel x:Name="SendContent" Spacing="12">
+          <Grid ColumnSpacing="12">
             <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="2*" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <TextBlock Text="发送" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
-            <ComboBox x:Name="SendHistory" x:FieldModifier="public" Grid.Row="1" Grid.ColumnSpan="2" PlaceholderText="发送历史" HorizontalAlignment="Stretch" SelectionChanged="SendHistory_SelectionChanged" />
+            <TextBox x:Name="SendEditor" x:FieldModifier="public" Grid.Column="1" AcceptsReturn="False" TextWrapping="NoWrap" VerticalAlignment="Top" PlaceholderText="输入文本或 HEX" FontFamily="{StaticResource MonospaceFontFamily}" />
+            <ComboBox x:Name="SendHistory" x:FieldModifier="public" Grid.Column="2" PlaceholderText="发送历史" HorizontalAlignment="Stretch" SelectionChanged="SendHistory_SelectionChanged" />
           </Grid>
-          <TextBox x:Name="SendEditor" x:FieldModifier="public" AcceptsReturn="False" PlaceholderText="输入文本或 HEX" FontFamily="{StaticResource MonospaceFontFamily}" />
-          <Grid ColumnSpacing="12" RowSpacing="14">
+          <Grid ColumnSpacing="12">
             <Grid.RowDefinitions>
-              <RowDefinition Height="Auto" />
-              <RowDefinition Height="Auto" />
               <RowDefinition Height="Auto" />
               <RowDefinition Height="Auto" />
               <RowDefinition Height="Auto" />
@@ -403,17 +448,17 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <ComboBox x:Name="SendFormat" x:FieldModifier="public" Grid.ColumnSpan="3" Header="格式" SelectedIndex="0" HorizontalAlignment="Stretch">
+            <ComboBox x:Name="SendFormat" x:FieldModifier="public" Grid.ColumnSpan="2" Header="格式" SelectedIndex="0" HorizontalAlignment="Stretch">
               <x:String>文本</x:String>
               <x:String>HEX</x:String>
             </ComboBox>
-            <ComboBox x:Name="SendLineEnding" x:FieldModifier="public" Grid.Column="3" Grid.ColumnSpan="3" Header="行尾" SelectedIndex="0" HorizontalAlignment="Stretch">
+            <ComboBox x:Name="SendLineEnding" x:FieldModifier="public" Grid.Column="2" Grid.ColumnSpan="2" Header="行尾" SelectedIndex="0" HorizontalAlignment="Stretch">
               <x:String>无</x:String>
               <x:String>CR</x:String>
               <x:String>LF</x:String>
               <x:String>CRLF</x:String>
             </ComboBox>
-            <ComboBox x:Name="SendChecksum" x:FieldModifier="public" Grid.Row="1" Grid.ColumnSpan="3" Header="校验" SelectedIndex="0" HorizontalAlignment="Stretch">
+            <ComboBox x:Name="SendChecksum" x:FieldModifier="public" Grid.Column="4" Grid.ColumnSpan="2" Header="校验" SelectedIndex="0" HorizontalAlignment="Stretch">
               <x:String>无</x:String>
               <x:String>XOR</x:String>
               <x:String>SUM8</x:String>
@@ -421,13 +466,13 @@
               <x:String>CRC16-XModem</x:String>
               <x:String>CRC32</x:String>
             </ComboBox>
-            <ToggleButton x:Name="LoopSendToggle" x:FieldModifier="public" Grid.Row="2" Grid.ColumnSpan="3" Content="循环发送" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Checked="LoopSendToggle_Checked" Unchecked="LoopSendToggle_Unchecked" />
-            <NumberBox x:Name="LoopIntervalNumberBox" x:FieldModifier="public" Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="3" Header="间隔(ms)" Value="1000" Minimum="10" Maximum="600000" SpinButtonPlacementMode="Compact" />
-            <Button x:Name="SendButton" x:FieldModifier="public" Grid.Row="2" Grid.Column="3" Grid.ColumnSpan="3" Content="发送" Click="SendButton_Click" Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" />
+            <ToggleButton x:Name="LoopSendToggle" x:FieldModifier="public" Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Margin="0,12,0,0" Content="循环发送" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Checked="LoopSendToggle_Checked" Unchecked="LoopSendToggle_Unchecked" />
+            <NumberBox x:Name="LoopIntervalNumberBox" x:FieldModifier="public" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,12,0,0" Header="间隔(ms)" Value="1000" Minimum="10" Maximum="600000" SpinButtonPlacementMode="Compact" />
+            <Button x:Name="SendButton" x:FieldModifier="public" Grid.Row="1" Grid.Column="4" Grid.ColumnSpan="2" Margin="0,12,0,0" Content="发送" Click="SendButton_Click" Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" />
           </Grid>
-          <InfoBar x:Name="SendStatus" x:FieldModifier="public" IsOpen="False" IsClosable="True" />
+          <InfoBar x:Name="SendStatus" x:FieldModifier="public" IsOpen="False" IsClosable="True" Visibility="{x:Bind SendStatus.IsOpen, Mode=OneWay}" />
         </StackPanel>
       </Border>
     </Grid>
-  </ScrollView>
+  </Grid>
 </Page>

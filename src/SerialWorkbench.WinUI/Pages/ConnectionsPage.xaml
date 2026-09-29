@@ -1,73 +1,108 @@
 <Page x:Class="SerialWorkbench.WinUI.Pages.ConnectionsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    NavigationCacheMode="Required">
-  <ScrollView VerticalScrollBarVisibility="Auto">
-    <Grid Padding="{StaticResource ContentPagePadding}" RowSpacing="{StaticResource ContentPageSpacing}">
+    NavigationCacheMode="Required"
+    SizeChanged="ConnectionsPage_SizeChanged">
+  <Grid x:Name="PageLayout" Padding="{StaticResource ContentPagePadding}" RowSpacing="{StaticResource ContentPageSpacing}">
+    <VisualStateManager.VisualStateGroups>
+      <VisualStateGroup x:Name="WindowStates">
+        <VisualState x:Name="Compact">
+          <VisualState.Setters>
+            <Setter Target="PageLayout.Padding" Value="{StaticResource CompactContentPagePadding}" />
+            <Setter Target="ConnectionParameters.(Grid.ColumnSpan)" Value="3" />
+            <Setter Target="PortComboBox.(Grid.ColumnSpan)" Value="4" />
+            <Setter Target="RoleComboBox.(Grid.Row)" Value="1" />
+            <Setter Target="RoleComboBox.(Grid.Column)" Value="0" />
+            <Setter Target="RoleComboBox.(Grid.ColumnSpan)" Value="2" />
+            <Setter Target="RoleComboBox.Margin" Value="0,12,0,0" />
+            <Setter Target="BaudRateNumberBox.(Grid.Row)" Value="1" />
+            <Setter Target="BaudRateNumberBox.(Grid.ColumnSpan)" Value="2" />
+            <Setter Target="BaudRateNumberBox.Margin" Value="0,12,0,0" />
+            <Setter Target="OpenButton.(Grid.Row)" Value="2" />
+            <Setter Target="OpenButton.(Grid.Column)" Value="0" />
+            <Setter Target="OpenButton.(Grid.ColumnSpan)" Value="4" />
+            <Setter Target="OpenButton.Margin" Value="0,12,0,0" />
+            <Setter Target="RefreshButton.(Grid.Row)" Value="1" />
+            <Setter Target="RefreshButton.Margin" Value="0,12,0,0" />
+            <Setter Target="CloseButton.(Grid.Row)" Value="1" />
+            <Setter Target="CloseButton.Margin" Value="0,12,0,0" />
+          </VisualState.Setters>
+        </VisualState>
+        <VisualState x:Name="Wide" />
+      </VisualStateGroup>
+    </VisualStateManager.VisualStateGroups>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+    <Grid ColumnSpacing="8">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
-        <RowDefinition Height="*" />
       </Grid.RowDefinitions>
-      <Grid ColumnSpacing="8" RowSpacing="8">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <Grid x:Name="ConnectionParameters" ColumnSpacing="8">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="2*" />
+          <ColumnDefinition Width="*" />
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <Grid ColumnSpacing="8">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="2*" />
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <ComboBox x:Name="PortComboBox" Header="端口" DisplayMemberPath="DisplayName" PlaceholderText="选择串口" />
-          <ComboBox x:Name="RoleComboBox" Grid.Column="1" Header="角色" SelectedIndex="0">
-            <x:String>DUT</x:String>
-            <x:String>DEBUG</x:String>
-            <x:String>CONTROLLER</x:String>
-            <x:String>LOOPBACK</x:String>
-          </ComboBox>
-          <NumberBox x:Name="BaudRateNumberBox" Grid.Column="2" Header="波特率" Value="115200" Minimum="1" Maximum="4000000" SpinButtonPlacementMode="Compact" />
-          <Button x:Name="OpenButton" Grid.Column="3" Content="打开连接" Click="OpenButton_Click" VerticalAlignment="Bottom" />
-        </Grid>
-        <Button x:Name="RefreshButton" Grid.Column="1" Content="刷新" Click="RefreshButton_Click" VerticalAlignment="Bottom" />
-        <Button x:Name="CloseButton" Grid.Column="2" Content="关闭连接" Click="CloseButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
+        <ComboBox x:Name="PortComboBox" Header="端口" DisplayMemberPath="DisplayName" PlaceholderText="选择串口" HorizontalAlignment="Stretch" />
+        <ComboBox x:Name="RoleComboBox" Grid.Column="1" Header="角色" SelectedIndex="0" HorizontalAlignment="Stretch">
+          <x:String>DUT</x:String>
+          <x:String>DEBUG</x:String>
+          <x:String>CONTROLLER</x:String>
+          <x:String>LOOPBACK</x:String>
+        </ComboBox>
+        <NumberBox x:Name="BaudRateNumberBox" Grid.Column="2" Header="波特率" Value="115200" Minimum="1" Maximum="4000000" SpinButtonPlacementMode="Compact" />
+        <Button x:Name="OpenButton" Grid.Column="3" Content="打开连接" Click="OpenButton_Click" VerticalAlignment="Bottom" />
       </Grid>
-      <TextBlock x:Name="HostMetricsText" Grid.Row="1" Text="事件序号 0 · 持久化队列 0" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-      <Border Grid.Row="2" Style="{StaticResource SurfaceCardStyle}" Padding="0">
-        <Grid>
-          <ListView x:Name="ConnectionList" ItemsSource="{x:Bind Connections}" SelectionMode="Single" SelectionChanged="ConnectionList_SelectionChanged">
-            <ListView.ItemTemplate>
-              <DataTemplate>
-                <Grid Padding="14,10" ColumnSpacing="16">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2*" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                  </Grid.ColumnDefinitions>
-                  <StackPanel Spacing="3">
-                    <TextBlock Text="{Binding Name}" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                    <TextBlock Text="{Binding Device}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                  </StackPanel>
-                  <TextBlock Grid.Column="1" Text="{Binding Status}" VerticalAlignment="Center" />
-                  <StackPanel Grid.Column="2" Spacing="3" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Counters}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <TextBlock Text="{Binding ControlLines}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <TextBlock Text="{Binding Rates}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <TextBlock Text="{Binding Diagnostics}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                  </StackPanel>
-                </Grid>
-              </DataTemplate>
-            </ListView.ItemTemplate>
-          </ListView>
-          <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-            <TextBlock Text="尚无打开的连接" Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Center" />
-            <TextBlock Text="在工作台选择串口后，可以打开多条连接。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-          </StackPanel>
-        </Grid>
-      </Border>
+      <Button x:Name="RefreshButton" Grid.Column="1" Content="刷新" Click="RefreshButton_Click" VerticalAlignment="Bottom" />
+      <Button x:Name="CloseButton" Grid.Column="2" Content="关闭连接" Click="CloseButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
     </Grid>
-  </ScrollView>
+    <TextBlock x:Name="HostMetricsText" Grid.Row="1" Text="事件序号 0 · 持久化队列 0" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+    <Border Grid.Row="2" Style="{StaticResource SurfaceCardStyle}" Padding="0">
+      <Grid>
+        <ListView x:Name="ConnectionList" ItemsSource="{x:Bind Connections}" SelectionMode="Single" SelectionChanged="ConnectionList_SelectionChanged" ItemContainerStyle="{StaticResource TrafficListViewItemStyle}">
+          <ListView.ItemTemplate>
+            <DataTemplate>
+              <Grid Padding="14,10" ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="3">
+                  <TextBlock Text="{Binding Name}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Name}" />
+                  <TextBlock Text="{Binding Device}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Device}" />
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="{Binding Status}" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="2" Spacing="3" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Counters}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                  <TextBlock Text="{Binding ControlLines}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                  <TextBlock Text="{Binding Rates}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                  <TextBlock Text="{Binding Diagnostics}" FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+              </Grid>
+            </DataTemplate>
+          </ListView.ItemTemplate>
+        </ListView>
+        <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+          <TextBlock Text="尚无打开的连接" Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Center" />
+          <TextBlock Text="在工作台选择串口后，可以打开多条连接。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" TextAlignment="Center" />
+        </StackPanel>
+      </Grid>
+    </Border>
+  </Grid>
 </Page>

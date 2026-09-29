@@ -25,6 +25,12 @@ public sealed partial class TerminalPage : Page
 
     public int LineEndingIndex => LineEnding.SelectedIndex;
 
+    private void TerminalPage_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        VisualStateManager.GoToState(this, e.NewSize.Width < 641 ? "Compact" : "Wide", false);
+        InputEditor.MaxHeight = Math.Max(InputEditor.MinHeight, e.NewSize.Height / 3);
+    }
+
     public void BindRows(IEnumerable<TrafficRow> source)
     {
         Rows.Clear();

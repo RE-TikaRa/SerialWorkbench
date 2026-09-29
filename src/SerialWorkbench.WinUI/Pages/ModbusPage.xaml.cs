@@ -249,6 +249,18 @@ public sealed partial class ModbusPage : Page
         VisualStateManager.GoToState(this, state, false);
         VisualStateManager.GoToState(this, e.NewSize.Width < SplitLayoutWidth ? "StackedCards" : "SplitCards", false);
         VisualStateManager.GoToState(this, e.NewSize.Width < 641 ? "CompactPageMargins" : "StandardPageMargins", false);
+        UpdateResultViewports();
+    }
+
+    private void ResultHeader_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateResultViewports();
+
+    private void UpdateResultViewports()
+    {
+        var height = ActualHeight - PageLayout.Padding.Top - PageLayout.Padding.Bottom;
+        ScanResultList.MaxHeight = Math.Max(0, height - ScanHeader.ActualHeight - ScanHeader.Spacing - ScanCard.Padding.Top - ScanCard.Padding.Bottom);
+        PollResultList.MaxHeight = Math.Max(0, height - PollHeader.ActualHeight - PollHeader.Spacing - ScanCard.Padding.Top - ScanCard.Padding.Bottom);
+        var responseHeight = ActualWidth >= SplitLayoutWidth ? Math.Min(height, RequestCard.ActualHeight) : height;
+        RegisterList.MaxHeight = Math.Max(0, responseHeight - ResponseHeader.ActualHeight - ResponseHeader.Spacing - ResponseCard.Padding.Top - ResponseCard.Padding.Bottom);
     }
 
     private byte[] BuildFrame()
