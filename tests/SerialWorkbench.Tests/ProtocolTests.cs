@@ -24,6 +24,15 @@ public sealed class ProtocolTests
     }
 
     [Fact]
+    public void SerialSequenceCodecReadsAndWritesHexData()
+    {
+        var sequence = SerialSequenceCodec.Deserialize("""{"name":"read","steps":[{"data":"01 03 00 00 00 01 84 0A","format":"hex","delayMilliseconds":0,"repeatCount":1,"waitMilliseconds":0}]}""");
+
+        Assert.Equal([0x01, 0x03, 0x00, 0x00, 0x00, 0x01, 0x84, 0x0A], sequence.Steps[0].Data);
+        Assert.Contains("\"data\": \"01 03 00 00 00 01 84 0A\"", SerialSequenceCodec.Serialize(sequence), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ChecksumsMatchPublishedCheckValues()
     {
         var bytes = Encoding.ASCII.GetBytes("123456789");

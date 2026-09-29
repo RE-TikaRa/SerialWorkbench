@@ -135,7 +135,7 @@ publish/win-x64/
 
 ```json
 {
-  "data": [1, 3, 0, 0, 0, 1, 132, 10],
+  "data": "01 03 00 00 00 01 84 0A",
   "format": "hex",
   "delayMilliseconds": 100,
   "repeatCount": 2,
