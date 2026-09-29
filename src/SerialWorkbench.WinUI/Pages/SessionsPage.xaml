@@ -59,8 +59,8 @@
             </Grid.ColumnDefinitions>
             <Grid ColumnSpacing="8">
               <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="180" />
               </Grid.ColumnDefinitions>
               <TextBlock Text="已保存会话" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
               <TextBox x:Name="SessionFilter" Grid.Column="1" PlaceholderText="筛选会话" TextChanged="SessionFilter_TextChanged" />
