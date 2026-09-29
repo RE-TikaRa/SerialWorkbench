@@ -12,7 +12,11 @@ public sealed partial class SessionsPage : Page
     private bool replayRunning;
     private readonly List<SessionRow> allSessions = [];
 
-    public SessionsPage() => InitializeComponent();
+    public SessionsPage()
+    {
+        InitializeComponent();
+        EventDirectionFilter.SelectedIndex = 0;
+    }
 
     public ObservableCollection<SessionRow> Sessions { get; } = [];
 

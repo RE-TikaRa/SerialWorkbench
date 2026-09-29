@@ -29,6 +29,7 @@ public sealed partial class WorkbenchPage : Page
         UpdateProfileActions();
         ViewSelector.SelectedItem = MonitorSelectorItem;
         TrafficDirection.SelectedIndex = 0;
+        PlotMode.SelectedIndex = 0;
         Loaded += WorkbenchPage_Loaded;
         ActualThemeChanged += WorkbenchPage_ActualThemeChanged;
     }
@@ -491,15 +492,8 @@ public sealed partial class WorkbenchPage : Page
     private void PlotMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         var binary = PlotMode.SelectedIndex == 1;
-        if (PlotFrameLength is not null)
-        {
-            PlotFrameLength.IsEnabled = binary;
-        }
-
-        if (PlotSampleType is not null)
-        {
-            PlotSampleType.IsEnabled = binary;
-        }
+        PlotFrameLength.IsEnabled = binary;
+        PlotSampleType.IsEnabled = binary;
     }
 
     private void ViewSelector_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)

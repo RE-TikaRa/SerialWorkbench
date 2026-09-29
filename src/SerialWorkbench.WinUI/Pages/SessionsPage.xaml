@@ -140,7 +140,7 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <ComboBox x:Name="EventDirectionFilter" SelectedIndex="0" SelectionChanged="EventFilter_Changed" PlaceholderText="方向">
+            <ComboBox x:Name="EventDirectionFilter" SelectionChanged="EventFilter_Changed" PlaceholderText="方向">
               <ComboBoxItem Content="全部" />
               <ComboBoxItem Content="RX" />
               <ComboBoxItem Content="TX" />

@@ -17,7 +17,7 @@ public sealed partial class ModbusPage : Page
     public ModbusPage()
     {
         InitializeComponent();
-        UpdatePreview();
+        FunctionCode.SelectedIndex = 0;
     }
 
     public event EventHandler? SendRequested;
@@ -189,48 +189,44 @@ public sealed partial class ModbusPage : Page
 
     private void FunctionCode_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (Quantity is not null)
+        var multiple = FunctionValue is 15 or 16;
+        Quantity.Header = FunctionValue switch
         {
-            var multiple = FunctionValue is 15 or 16;
-            Quantity.Header = FunctionValue switch
-            {
-                6 => "寄存器值",
-                5 => "线圈值(0/1)",
-                17 => "无需填写",
-                _ => "数量",
-            };
-            Quantity.Minimum = FunctionValue is 5 or 6 or 17 ? 0 : 1;
-            Quantity.IsEnabled = !multiple;
-            ValuesInput.Visibility = multiple ? Visibility.Visible : Visibility.Collapsed;
-            Quantity.Maximum = FunctionValue switch
-            {
-                6 => ushort.MaxValue,
-                5 => 1,
-                17 => 0,
-                1 or 2 => 2000,
-                _ => 125,
-            };
-            if (FunctionValue == 6 && Quantity.Value is < 0)
-            {
-                Quantity.Value = 0;
-            }
-            else if (FunctionValue == 5 && Quantity.Value is > 1)
-            {
-                Quantity.Value = 1;
-            }
-            else if (FunctionValue is 3 or 4 && Quantity.Value is > 125)
-            {
-                Quantity.Value = 125;
-            }
-            else if (FunctionValue is 1 or 2 && Quantity.Value is > 2000)
-            {
-                Quantity.Value = 2000;
-            }
-
-            Quantity.IsEnabled = FunctionValue != 17;
-            StartAddress.IsEnabled = FunctionValue != 17;
+            6 => "寄存器值",
+            5 => "线圈值(0/1)",
+            17 => "无需填写",
+            _ => "数量",
+        };
+        Quantity.Minimum = FunctionValue is 5 or 6 or 17 ? 0 : 1;
+        Quantity.IsEnabled = !multiple;
+        ValuesInput.Visibility = multiple ? Visibility.Visible : Visibility.Collapsed;
+        Quantity.Maximum = FunctionValue switch
+        {
+            6 => ushort.MaxValue,
+            5 => 1,
+            17 => 0,
+            1 or 2 => 2000,
+            _ => 125,
+        };
+        if (FunctionValue == 6 && Quantity.Value is < 0)
+        {
+            Quantity.Value = 0;
+        }
+        else if (FunctionValue == 5 && Quantity.Value is > 1)
+        {
+            Quantity.Value = 1;
+        }
+        else if (FunctionValue is 3 or 4 && Quantity.Value is > 125)
+        {
+            Quantity.Value = 125;
+        }
+        else if (FunctionValue is 1 or 2 && Quantity.Value is > 2000)
+        {
+            Quantity.Value = 2000;
         }
 
+        Quantity.IsEnabled = FunctionValue != 17;
+        StartAddress.IsEnabled = FunctionValue != 17;
         UpdatePreview();
     }
 

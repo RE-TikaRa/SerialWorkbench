@@ -123,7 +123,7 @@
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <NumberBox x:Name="SlaveAddress" x:FieldModifier="public" Grid.ColumnSpan="2" Header="从站地址" Value="1" Minimum="0" Maximum="247" SpinButtonPlacementMode="Compact" ValueChanged="SlaveAddress_ValueChanged" />
-            <ComboBox x:Name="FunctionCode" x:FieldModifier="public" Grid.Column="2" Grid.ColumnSpan="2" Header="功能码" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="FunctionCode_SelectionChanged">
+            <ComboBox x:Name="FunctionCode" x:FieldModifier="public" Grid.Column="2" Grid.ColumnSpan="2" Header="功能码" HorizontalAlignment="Stretch" SelectionChanged="FunctionCode_SelectionChanged">
               <x:String>03 读保持寄存器</x:String>
               <x:String>04 读输入寄存器</x:String>
               <x:String>06 写单个寄存器</x:String>

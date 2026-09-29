@@ -402,7 +402,7 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
-              <ComboBox x:Name="PlotMode" x:FieldModifier="public" Grid.ColumnSpan="2" Header="解析模式" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="PlotMode_SelectionChanged">
+              <ComboBox x:Name="PlotMode" x:FieldModifier="public" Grid.ColumnSpan="2" Header="解析模式" HorizontalAlignment="Stretch" SelectionChanged="PlotMode_SelectionChanged">
                 <x:String>CSV 文本行</x:String>
                 <x:String>二进制帧</x:String>
               </ComboBox>
