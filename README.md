@@ -77,7 +77,7 @@ publish/win-x64/
 - CR、LF、CRLF 行尾。
 - XOR、SUM8、CRC16-Modbus、CRC16-XModem 和 CRC32 校验追加。
 - 定时循环发送。
-- 连接后在线切换 DTR/RTS、清空 RX/TX 缓冲和发送 100 ms BREAK。
+- 连接后在线切换 DTR/RTS、清空 RX/TX 缓冲和发送 100 ms BREAK。RTS 流控或 RS-485 方向控制启用时，RTS 不能手动切换。
 
 暂停只影响工作台显示，串口事件仍由 Host 接收并保存。终端、Modbus、回环和自动化页面复用当前连接。
 

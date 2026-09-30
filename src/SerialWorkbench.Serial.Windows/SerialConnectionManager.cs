@@ -31,6 +31,11 @@ public sealed class SerialConnectionManager(
             throw new ArgumentOutOfRangeException(nameof(options), options.RtsAfterSendMilliseconds, "RTS after-send delay must be between 0 and 60000 milliseconds.");
         }
 
+        if (options.DataBits == 5 ? options.StopBits == SerialStopBits.Two : options.StopBits == SerialStopBits.OnePointFive)
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), options.StopBits, $"{options.StopBits} stop bits cannot be used with {options.DataBits} data bits.");
+        }
+
         if (connections.Values.Any(item => string.Equals(item.Options.PortName, options.PortName, StringComparison.OrdinalIgnoreCase)))
         {
             throw new InvalidOperationException($"{options.PortName} is already open.");

@@ -18,6 +18,8 @@ public sealed partial class WorkbenchPage : Page
     private readonly List<List<double>> channelData = [];
     private ThemeSettings? themeSettings;
     private bool viewSelectionInitialized;
+    private bool serialConfigurationEnabled = true;
+    private int baudRate = 115200;
     private readonly ObservableCollection<SerialProfile> profiles = new(SerialProfileStore.Load());
     private readonly ObservableCollection<TrafficRow> visibleRows = [];
     private ObservableCollection<TrafficRow>? sourceRows;
@@ -30,6 +32,7 @@ public sealed partial class WorkbenchPage : Page
         ViewSelector.SelectedItem = MonitorSelectorItem;
         TrafficDirection.SelectedIndex = 0;
         PlotMode.SelectedIndex = 0;
+        HandshakeComboBox.SelectedIndex = 0;
         Loaded += WorkbenchPage_Loaded;
         ActualThemeChanged += WorkbenchPage_ActualThemeChanged;
     }
@@ -65,8 +68,8 @@ public sealed partial class WorkbenchPage : Page
 
     public void RefreshTrafficFilter()
     {
-        var query = TrafficSearch?.Text.Trim();
-        var direction = TrafficDirection?.SelectedIndex ?? 0;
+        var query = TrafficSearch.Text.Trim();
+        var direction = TrafficDirection.SelectedIndex;
         visibleRows.Clear();
         if (sourceRows is not null)
         {
@@ -102,17 +105,14 @@ public sealed partial class WorkbenchPage : Page
     public SerialProfile? SelectedProfile => ProfileComboBox.SelectedItem as SerialProfile;
 
     public SerialPortDescriptor? SelectedPort => PortComboBox.SelectedItem as SerialPortDescriptor;
-    public double BaudRate =>
-        int.TryParse(BaudRateComboBox.Text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var rate) && rate > 0
-            ? rate
-            : 115200;
+    public int BaudRate => baudRate;
     public int DataBits => (int)DataBitsNumberBox.Value;
     public SerialParity Parity => (SerialParity)ParityComboBox.SelectedIndex;
     public SerialStopBits StopBits => (SerialStopBits)StopBitsComboBox.SelectedIndex;
     public SerialHandshake Handshake => (SerialHandshake)HandshakeComboBox.SelectedIndex;
     public SerialConnectionRole Role => (SerialConnectionRole)RoleComboBox.SelectedIndex;
-    public bool DtrEnable => DtrCheckBox.IsChecked == true;
-    public bool RtsEnable => RtsCheckBox.IsChecked == true;
+    public bool DtrEnable => DtrToggle.IsChecked == true;
+    public bool RtsEnable => RtsToggle.IsChecked == true;
     public bool Rs485Mode => Rs485ModeCheckBox.IsChecked == true;
     public int RtsBeforeSendMilliseconds => checked((int)RtsBeforeSendNumberBox.Value);
     public int RtsAfterSendMilliseconds => checked((int)RtsAfterSendNumberBox.Value);
@@ -120,17 +120,15 @@ public sealed partial class WorkbenchPage : Page
     public Encoding SelectedEncoding => EncodingComboBox.SelectedIndex switch
     {
         1 => Encoding.ASCII,
-        2 => Encoding.GetEncoding("GB2312"),
-        3 => Encoding.GetEncoding("GBK"),
-        4 => Encoding.Unicode,
+        2 => Encoding.GetEncoding("GBK"),
+        3 => Encoding.Unicode,
         _ => Encoding.UTF8,
     };
-    public bool IsPaused => PauseButton.Content?.ToString() == "继续";
     public bool ShowTimestamp => TimestampToggle.IsChecked == true;
 
     public void ApplySerialPreference(SerialPreference preference)
     {
-        BaudRateComboBox.Text = preference.BaudRate.ToString(CultureInfo.InvariantCulture);
+        SetBaudRate(preference.BaudRate);
         DataBitsNumberBox.Value = preference.DataBits;
         ParityComboBox.SelectedIndex = (int)preference.Parity;
         StopBitsComboBox.SelectedIndex = (int)preference.StopBits;
@@ -139,13 +137,12 @@ public sealed partial class WorkbenchPage : Page
         EncodingComboBox.SelectedIndex = preference.EncodingName.ToLowerInvariant() switch
         {
             "us-ascii" => 1,
-            "gb2312" => 2,
-            "gbk" => 3,
-            "utf-16" or "unicode" => 4,
+            "gb2312" or "gbk" => 2,
+            "utf-16" or "unicode" => 3,
             _ => 0,
         };
-        DtrCheckBox.IsChecked = preference.DtrEnable;
-        RtsCheckBox.IsChecked = preference.RtsEnable;
+        DtrToggle.IsChecked = preference.DtrEnable;
+        RtsToggle.IsChecked = preference.RtsEnable;
         Rs485ModeCheckBox.IsChecked = preference.Rs485Mode;
         RtsBeforeSendNumberBox.Value = preference.RtsBeforeSendMilliseconds;
         RtsAfterSendNumberBox.Value = preference.RtsAfterSendMilliseconds;
@@ -161,7 +158,7 @@ public sealed partial class WorkbenchPage : Page
 
     public void ApplySerialProfile(SerialProfile profile)
     {
-        BaudRateComboBox.Text = profile.BaudRate.ToString(CultureInfo.InvariantCulture);
+        SetBaudRate(profile.BaudRate);
         DataBitsNumberBox.Value = profile.DataBits;
         ParityComboBox.SelectedIndex = (int)profile.Parity;
         StopBitsComboBox.SelectedIndex = (int)profile.StopBits;
@@ -170,13 +167,12 @@ public sealed partial class WorkbenchPage : Page
         EncodingComboBox.SelectedIndex = profile.EncodingName.ToLowerInvariant() switch
         {
             "us-ascii" => 1,
-            "gb2312" => 2,
-            "gbk" => 3,
-            "utf-16" or "unicode" => 4,
+            "gb2312" or "gbk" => 2,
+            "utf-16" or "unicode" => 3,
             _ => 0,
         };
-        DtrCheckBox.IsChecked = profile.DtrEnable;
-        RtsCheckBox.IsChecked = profile.RtsEnable;
+        DtrToggle.IsChecked = profile.DtrEnable;
+        RtsToggle.IsChecked = profile.RtsEnable;
         Rs485ModeCheckBox.IsChecked = profile.Rs485Mode;
         RtsBeforeSendNumberBox.Value = profile.RtsBeforeSendMilliseconds;
         RtsAfterSendNumberBox.Value = profile.RtsAfterSendMilliseconds;
@@ -193,7 +189,7 @@ public sealed partial class WorkbenchPage : Page
     public SerialProfile ReadSerialProfile(string name) => new(
         name,
         SelectedPort?.PortName,
-        checked((int)BaudRate),
+        BaudRate,
         DataBits,
         Parity,
         StopBits,
@@ -240,7 +236,7 @@ public sealed partial class WorkbenchPage : Page
 
     public SerialPreference ReadSerialPreference(string? portName) => new(
         portName,
-        checked((int)BaudRate),
+        BaudRate,
         DataBits,
         Parity,
         StopBits,
@@ -282,15 +278,47 @@ public sealed partial class WorkbenchPage : Page
     private void RenameProfileButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ProfileRenameRequested?.Invoke(this, EventArgs.Empty);
 
     private void DeleteProfileButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ProfileDeleteRequested?.Invoke(this, EventArgs.Empty);
-    private void ControlLineCheckBox_Changed(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ControlLinesChangedRequested?.Invoke(this, EventArgs.Empty);
+    private void ControlLineToggle_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ControlLinesChangedRequested?.Invoke(this, EventArgs.Empty);
     private void ClearReceiveButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ClearReceiveRequested?.Invoke(this, EventArgs.Empty);
     private void ClearTransmitButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ClearTransmitRequested?.Invoke(this, EventArgs.Empty);
     private void BreakButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => BreakRequested?.Invoke(this, EventArgs.Empty);
+    private void HandshakeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateRtsAvailability();
+    private void Rs485ModeCheckBox_Changed(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => UpdateRtsAvailability();
+
+    private void BaudRateComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.AddedItems is [string value] && int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rate) && rate > 0)
+        {
+            baudRate = rate;
+        }
+    }
+
+    private void BaudRateComboBox_TextSubmitted(ComboBox sender, ComboBoxTextSubmittedEventArgs args)
+    {
+        if (int.TryParse(args.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var rate) && rate > 0)
+        {
+            baudRate = rate;
+            return;
+        }
+
+        sender.Text = baudRate.ToString(CultureInfo.InvariantCulture);
+        args.Handled = true;
+    }
+
+    private void SetBaudRate(int value)
+    {
+        var text = value.ToString(CultureInfo.InvariantCulture);
+        baudRate = value;
+        BaudRateComboBox.SelectedItem = BaudRateComboBox.Items.FirstOrDefault(item => (string)item == text);
+        BaudRateComboBox.Text = text;
+    }
+
+    private void UpdateRtsAvailability() => RtsToggle.IsEnabled = !Rs485Mode && Handshake is SerialHandshake.None or SerialHandshake.XOnXOff;
 
     private void UpdateProfileActions()
     {
         var selected = SelectedProfile is not null;
-        ApplyProfileButton.IsEnabled = selected;
+        ApplyProfileButton.IsEnabled = selected && serialConfigurationEnabled;
         RenameProfileButton.IsEnabled = selected;
         DeleteProfileButton.IsEnabled = selected;
     }
@@ -328,13 +356,26 @@ public sealed partial class WorkbenchPage : Page
     public bool IsLoopSending => LoopSendToggle.IsChecked == true;
     public void StopLoopSend() => LoopSendToggle.IsChecked = false;
     public void SetConnectionBusy(bool busy) => ConnectButton.IsEnabled = !busy;
-    public void SetControlActionsEnabled(bool enabled)
+    public void SetSerialConfigurationEnabled(bool enabled)
     {
-        DtrCheckBox.IsEnabled = enabled;
-        RtsCheckBox.IsEnabled = enabled;
-        ClearReceiveButton.IsEnabled = enabled;
-        ClearTransmitButton.IsEnabled = enabled;
-        BreakButton.IsEnabled = enabled;
+        serialConfigurationEnabled = enabled;
+        PortComboBox.IsEnabled = enabled;
+        RefreshPortsButton.IsEnabled = enabled;
+        BaudRateComboBox.IsEnabled = enabled;
+        MonitorFormat.IsEnabled = enabled;
+        RoleComboBox.IsEnabled = enabled;
+        DataBitsNumberBox.IsEnabled = enabled;
+        ParityComboBox.IsEnabled = enabled;
+        StopBitsComboBox.IsEnabled = enabled;
+        HandshakeComboBox.IsEnabled = enabled;
+        EncodingComboBox.IsEnabled = enabled;
+        Rs485ModeCheckBox.IsEnabled = enabled;
+        RtsBeforeSendNumberBox.IsEnabled = enabled;
+        RtsAfterSendNumberBox.IsEnabled = enabled;
+        ClearReceiveButton.IsEnabled = !enabled;
+        ClearTransmitButton.IsEnabled = !enabled;
+        BreakButton.IsEnabled = !enabled;
+        UpdateProfileActions();
     }
     public void SetConnectionStatus(string status) => ConnectionStatusText.Text = status;
     public void SetTrafficCounts(long received, long transmitted) => CountersText.Text = $"RX {received:N0} · TX {transmitted:N0}";

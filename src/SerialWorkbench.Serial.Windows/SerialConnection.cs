@@ -136,9 +136,12 @@ public sealed class SerialConnection : IAsyncDisposable
         }
 
         port.DtrEnable = lines.DtrEnable;
-        port.RtsEnable = Options.Rs485Mode ? false : lines.RtsEnable;
         dtrEnable = lines.DtrEnable;
-        rtsEnable = Options.Rs485Mode ? false : lines.RtsEnable;
+        if (!Options.Rs485Mode && Options.Handshake is SerialHandshake.None or SerialHandshake.XOnXOff)
+        {
+            port.RtsEnable = lines.RtsEnable;
+            rtsEnable = lines.RtsEnable;
+        }
     }
 
     public void ClearBuffers(bool receive, bool transmit)

@@ -1,6 +1,7 @@
 using SerialWorkbench.Application;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Ipc;
+using SerialWorkbench.Serial.Windows;
 
 namespace SerialWorkbench.Tests;
 
@@ -126,6 +127,16 @@ public sealed class ApplicationTests
         Assert.True(options.Rs485Mode);
         Assert.Equal(5, options.RtsBeforeSendMilliseconds);
         Assert.Equal(8, options.RtsAfterSendMilliseconds);
+    }
+
+    [Theory]
+    [InlineData(5, SerialStopBits.Two)]
+    [InlineData(8, SerialStopBits.OnePointFive)]
+    public async Task SerialConnectionManagerRejectsInvalidStopBits(int dataBits, SerialStopBits stopBits)
+    {
+        await using var manager = new SerialConnectionManager(new EventJournal(), new WriteLeaseManager(), (_, _) => ValueTask.CompletedTask);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => manager.OpenAsync(new SerialConnectionOptions("COM1", DataBits: dataBits, StopBits: stopBits), TestContext.Current.CancellationToken));
     }
 
     [Fact]

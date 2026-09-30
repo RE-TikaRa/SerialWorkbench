@@ -163,7 +163,7 @@ public sealed partial class MainWindow : Window
             var encodingName = workbenchPage?.SelectedEncoding.WebName ?? "utf-8";
             var options = new SerialConnectionOptions(
                 port.PortName,
-                checked((int)(workbenchPage?.BaudRate ?? 115200)),
+                workbenchPage?.BaudRate ?? 115200,
                 workbenchPage?.DataBits ?? 8,
                 workbenchPage?.Parity ?? SerialParity.None,
                 workbenchPage?.StopBits ?? SerialStopBits.One,
@@ -2060,18 +2060,7 @@ public sealed partial class MainWindow : Window
 
     private void SetSerialConfigurationEnabled(bool enabled)
     {
-        if (workbenchPage is not null)
-        {
-            workbenchPage.PortComboBox.IsEnabled = enabled;
-            workbenchPage.RefreshPortsButton.IsEnabled = enabled;
-            workbenchPage.BaudRateComboBox.IsEnabled = enabled;
-            workbenchPage.MonitorFormat.IsEnabled = enabled;
-            workbenchPage.RoleComboBox.IsEnabled = enabled;
-            workbenchPage.AdvancedExpander.IsEnabled = enabled;
-            workbenchPage.Rs485Expander.IsEnabled = enabled;
-            workbenchPage.SetControlActionsEnabled(!enabled);
-        }
-
+        workbenchPage?.SetSerialConfigurationEnabled(enabled);
         if (client is null)
         {
             return;
