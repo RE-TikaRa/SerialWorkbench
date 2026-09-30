@@ -1276,7 +1276,11 @@ public sealed partial class MainWindow : Window
         picker.FileTypeFilter.Add("*");
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
         var file = await picker.PickSingleFileAsync();
-        if (file is null) return;
+        if (file is null)
+        {
+            return;
+        }
+
         xmodemPage.SetPath(file.Path);
         xmodemPage.SetRunning(true);
         try
@@ -1288,9 +1292,19 @@ public sealed partial class MainWindow : Window
             xmodemPage.SetProgress($"{result.Blocks:N0} blocks · {result.Retries:N0} retries · {result.BytesTransferred:N0} bytes");
             xmodemPage.ShowResult(result.Success ? "文件发送完成。" : result.Error ?? "文件发送失败。", result.Success ? InfoBarSeverity.Success : InfoBarSeverity.Error);
         }
-        catch (OperationCanceledException) { xmodemPage.ShowResult("传输已停止。", InfoBarSeverity.Warning); }
-        catch (Exception ex) { xmodemPage.ShowResult(ex.Message, InfoBarSeverity.Error); }
-        finally { xmodemCancel = null; xmodemPage.SetRunning(false); }
+        catch (OperationCanceledException)
+        {
+            xmodemPage.ShowResult("传输已停止。", InfoBarSeverity.Warning);
+        }
+        catch (Exception ex)
+        {
+            xmodemPage.ShowResult(ex.Message, InfoBarSeverity.Error);
+        }
+        finally
+        {
+            xmodemCancel = null;
+            xmodemPage.SetRunning(false);
+        }
     }
 
     private async void XmodemPage_ReceiveRequested(object? sender, EventArgs e)
@@ -1305,7 +1319,11 @@ public sealed partial class MainWindow : Window
         picker.FileTypeChoices.Add("二进制文件", [".bin"]);
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
         var file = await picker.PickSaveFileAsync();
-        if (file is null) return;
+        if (file is null)
+        {
+            return;
+        }
+
         xmodemPage.SetPath(file.Path);
         xmodemPage.SetRunning(true);
         try
@@ -1317,9 +1335,19 @@ public sealed partial class MainWindow : Window
             xmodemPage.SetProgress($"{result.Result.Blocks:N0} blocks · {result.Result.Retries:N0} retries · {result.Result.BytesTransferred:N0} bytes");
             xmodemPage.ShowResult(result.Result.Success ? "文件接收完成。" : result.Result.Error ?? "文件接收失败。", result.Result.Success ? InfoBarSeverity.Success : InfoBarSeverity.Error);
         }
-        catch (OperationCanceledException) { xmodemPage.ShowResult("传输已停止。", InfoBarSeverity.Warning); }
-        catch (Exception ex) { xmodemPage.ShowResult(ex.Message, InfoBarSeverity.Error); }
-        finally { xmodemCancel = null; xmodemPage.SetRunning(false); }
+        catch (OperationCanceledException)
+        {
+            xmodemPage.ShowResult("传输已停止。", InfoBarSeverity.Warning);
+        }
+        catch (Exception ex)
+        {
+            xmodemPage.ShowResult(ex.Message, InfoBarSeverity.Error);
+        }
+        finally
+        {
+            xmodemCancel = null;
+            xmodemPage.SetRunning(false);
+        }
     }
 
     private void XmodemPage_CancelRequested(object? sender, EventArgs e) => xmodemCancel?.Invoke();
