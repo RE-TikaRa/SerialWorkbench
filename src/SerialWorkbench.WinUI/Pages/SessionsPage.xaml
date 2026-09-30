@@ -66,10 +66,10 @@
               <TextBox x:Name="SessionFilter" Grid.Column="1" PlaceholderText="筛选会话" TextChanged="SessionFilter_TextChanged" />
             </Grid>
             <ProgressRing x:Name="LoadingRing" Grid.Column="1" Width="20" Height="20" IsActive="False" />
-            <Button x:Name="RevealSessionButton" Grid.Column="2" IsEnabled="False" Click="RevealSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="在文件夹中显示">
+            <Button x:Name="RevealSessionButton" Grid.Column="2" IsEnabled="False" Click="RevealSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="在文件夹中显示" AutomationProperties.Name="在文件夹中显示">
               <SymbolIcon Symbol="Folder" />
             </Button>
-            <Button x:Name="RefreshSessionsButton" Grid.Column="3" Click="RefreshSessionsButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="刷新会话">
+            <Button x:Name="RefreshSessionsButton" Grid.Column="3" Click="RefreshSessionsButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="刷新会话" AutomationProperties.Name="刷新会话">
               <SymbolIcon Symbol="Refresh" />
             </Button>
           </Grid>
@@ -117,19 +117,19 @@
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="EventTitle" Text="选择会话以查看报文" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-            <Button x:Name="ReplaySessionButton" Grid.Column="1" IsEnabled="False" Click="ReplaySessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="回放会话">
+            <Button x:Name="ReplaySessionButton" Grid.Column="1" IsEnabled="False" Click="ReplaySessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="回放会话" AutomationProperties.Name="回放会话">
               <SymbolIcon Symbol="Play" />
             </Button>
-            <Button x:Name="ReplayPauseButton" Grid.Column="2" IsEnabled="False" Click="ReplayPauseButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="暂停回放">
+            <Button x:Name="ReplayPauseButton" Grid.Column="2" IsEnabled="False" Click="ReplayPauseButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="暂停回放" AutomationProperties.Name="暂停回放">
               <SymbolIcon x:Name="ReplayPauseIcon" Symbol="Pause" />
             </Button>
-            <Button x:Name="ReplayStopButton" Grid.Column="3" IsEnabled="False" Click="ReplayStopButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="停止回放">
+            <Button x:Name="ReplayStopButton" Grid.Column="3" IsEnabled="False" Click="ReplayStopButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="停止回放" AutomationProperties.Name="停止回放">
               <SymbolIcon Symbol="Stop" />
             </Button>
-            <Button x:Name="ExportSessionButton" Grid.Column="4" IsEnabled="False" Click="ExportSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="导出 CSV">
+            <Button x:Name="ExportSessionButton" Grid.Column="4" IsEnabled="False" Click="ExportSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="导出 CSV" AutomationProperties.Name="导出 CSV">
               <SymbolIcon Symbol="Save" />
             </Button>
-            <Button x:Name="DeleteSessionButton" Grid.Column="5" IsEnabled="False" Click="DeleteSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="删除会话">
+            <Button x:Name="DeleteSessionButton" Grid.Column="5" IsEnabled="False" Click="DeleteSessionButton_Click" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="删除会话" AutomationProperties.Name="删除会话">
               <SymbolIcon Symbol="Delete" />
             </Button>
           </Grid>
@@ -163,7 +163,7 @@
                 <DataTemplate>
                   <Grid Padding="4,5" ColumnSpacing="10">
                     <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="82" />
+                      <ColumnDefinition Width="96" />
                       <ColumnDefinition Width="36" />
                       <ColumnDefinition Width="96" />
                       <ColumnDefinition Width="*" />
@@ -185,7 +185,7 @@
                   <DataTemplate>
                     <Grid Padding="4,5" ColumnSpacing="10">
                       <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="140" />
+                        <ColumnDefinition Width="152" />
                         <ColumnDefinition Width="60" />
                         <ColumnDefinition Width="*" />
                       </Grid.ColumnDefinitions>

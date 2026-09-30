@@ -198,7 +198,6 @@ public sealed partial class ModbusPage : Page
             _ => "数量",
         };
         Quantity.Minimum = FunctionValue is 5 or 6 or 17 ? 0 : 1;
-        Quantity.IsEnabled = !multiple;
         ValuesInput.Visibility = multiple ? Visibility.Visible : Visibility.Collapsed;
         Quantity.Maximum = FunctionValue switch
         {
@@ -225,7 +224,7 @@ public sealed partial class ModbusPage : Page
             Quantity.Value = 2000;
         }
 
-        Quantity.IsEnabled = FunctionValue != 17;
+        Quantity.IsEnabled = !multiple && FunctionValue != 17;
         StartAddress.IsEnabled = FunctionValue != 17;
         UpdatePreview();
     }

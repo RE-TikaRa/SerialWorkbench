@@ -73,8 +73,8 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <NumberBox x:Name="Length" x:FieldModifier="public" Grid.ColumnSpan="3" Header="长度" Value="64" />
-            <NumberBox x:Name="Iterations" x:FieldModifier="public" Grid.Column="3" Grid.ColumnSpan="3" Header="次数" Value="1" />
+            <NumberBox x:Name="Length" x:FieldModifier="public" Grid.ColumnSpan="3" Header="长度" Value="64" Minimum="1" Maximum="16777216" SpinButtonPlacementMode="Compact" />
+            <NumberBox x:Name="Iterations" x:FieldModifier="public" Grid.Column="3" Grid.ColumnSpan="3" Header="次数" Value="1" Minimum="1" Maximum="10000" SpinButtonPlacementMode="Compact" />
             <ComboBox x:Name="Pattern" x:FieldModifier="public" Grid.Row="1" Grid.ColumnSpan="6" Header="模式" SelectedIndex="0" HorizontalAlignment="Stretch">
               <x:String>递增</x:String>
               <x:String>固定</x:String>

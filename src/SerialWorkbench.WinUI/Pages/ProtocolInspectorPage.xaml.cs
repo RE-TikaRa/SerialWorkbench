@@ -71,7 +71,11 @@ public sealed partial class ProtocolInspectorPage : Page
         var custom = TemplateSelector.SelectedIndex == 1;
         TemplateJson.Visibility = custom ? Visibility.Visible : Visibility.Collapsed;
         GenericFieldsPanel.Visibility = custom ? Visibility.Visible : Visibility.Collapsed;
+        ModbusFieldsPanel.Visibility = custom ? Visibility.Collapsed : Visibility.Visible;
     }
+
+    private void ProtocolInspectorPage_SizeChanged(object sender, SizeChangedEventArgs e) =>
+        VisualStateManager.GoToState(this, e.NewSize.Width < 641 ? "CompactPageMargins" : "StandardPageMargins", false);
 
     private static string FormatByte(byte? value) => value is { } item ? $"0x{item:X2}" : "—";
 

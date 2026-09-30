@@ -141,7 +141,7 @@ public sealed partial class SessionsPage : Page
     public void SetBusy(bool busy)
     {
         LoadingRing.IsActive = busy;
-        RefreshSessionsButton.IsEnabled = !busy;
+        RefreshSessionsButton.IsEnabled = !busy && !replayRunning;
     }
 
     public void SetEventsLoading(Guid sessionId, bool append = false)
@@ -172,6 +172,8 @@ public sealed partial class SessionsPage : Page
 
         replayRunning = running;
         SessionList.IsEnabled = !running;
+        SessionFilter.IsEnabled = !running;
+        RefreshSessionsButton.IsEnabled = !running && !LoadingRing.IsActive;
         ReplaySessionButton.IsEnabled = !running;
         ReplayPauseButton.IsEnabled = running;
         ReplayStopButton.IsEnabled = running;
@@ -203,7 +205,7 @@ public sealed partial class SessionsPage : Page
     private void ApplyFilter()
     {
         var selectedId = (SessionList.SelectedItem as SessionRow)?.Id;
-        var filter = SessionFilter?.Text.Trim();
+        var filter = SessionFilter.Text.Trim();
         var matches = string.IsNullOrEmpty(filter)
             ? allSessions
             : allSessions.Where(item => item.Title.Contains(filter, StringComparison.CurrentCultureIgnoreCase)
@@ -306,8 +308,8 @@ public sealed partial class SessionsPage : Page
     {
         RevealSessionButton.IsEnabled = session is not null;
         ReplaySessionButton.IsEnabled = session is not null && !replayRunning;
-        ReplayPauseButton.IsEnabled = false;
-        ReplayStopButton.IsEnabled = false;
+        ReplayPauseButton.IsEnabled = replayRunning;
+        ReplayStopButton.IsEnabled = replayRunning;
         ExportSessionButton.IsEnabled = session is not null;
         DeleteSessionButton.IsEnabled = session is { IsActive: false };
         LoadMoreEventsButton.IsEnabled = false;
