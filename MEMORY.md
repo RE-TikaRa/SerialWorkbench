@@ -89,7 +89,7 @@ SerialConnection.ReadLoopAsync
 
 ## 开发约束
 
-- 每完成一个完整用户功能，运行 `./eng/test.ps1`，按现有英文 Conventional Commits 风格建立单目的提交；不自动 push。
+- 每完成一个完整用户功能，运行 `./eng/test.ps1`，按 `docs/code-style.md` 使用简短中文动宾标题建立单目的提交；不自动 push。
 - 涉及实机时先重新枚举 COM，不使用历史端口号作为假设。
 - 构建、测试、发布必须使用仓库脚本和 solution 流程，不能只构建单个项目。
 - 保持 Host/IPC/WinUI/CLI 分层和现有中文文档风格。
