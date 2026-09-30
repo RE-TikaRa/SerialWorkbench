@@ -1247,6 +1247,11 @@ public sealed partial class MainWindow : Window
         try
         {
             var sequence = automationPage.Parse();
+            if (string.IsNullOrWhiteSpace(sequence.Name) || sequence.Name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                throw new InvalidDataException("序列名称不能为空或包含文件名非法字符。");
+            }
+
             var root = workspacePath["工作区：".Length..];
             var directory = Path.Combine(root, "sequences");
             Directory.CreateDirectory(directory);

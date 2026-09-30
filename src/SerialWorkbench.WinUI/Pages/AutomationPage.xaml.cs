@@ -17,7 +17,6 @@ public sealed partial class AutomationPage : Page
     public event EventHandler? SaveRequested;
     public event EventHandler? CancelRequested;
 
-    public new string Name => SequenceName.Text.Trim();
     public string DefinitionText => SequenceJson.Text;
     public void SetRunning(bool running)
     {
@@ -32,6 +31,8 @@ public sealed partial class AutomationPage : Page
         Result.IsOpen = true;
     }
     public SerialSequenceDefinition Parse() => SerialSequenceCodec.Deserialize(DefinitionText);
+    private void AutomationPage_SizeChanged(object sender, SizeChangedEventArgs e) =>
+        VisualStateManager.GoToState(this, e.NewSize.Width < 641 ? "CompactPageMargins" : "StandardPageMargins", false);
     private void RunButton_Click(object sender, RoutedEventArgs e) => RunRequested?.Invoke(this, EventArgs.Empty);
     private void SaveButton_Click(object sender, RoutedEventArgs e) => SaveRequested?.Invoke(this, EventArgs.Empty);
     private void CancelButton_Click(object sender, RoutedEventArgs e) => CancelRequested?.Invoke(this, EventArgs.Empty);
