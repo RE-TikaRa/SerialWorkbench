@@ -19,6 +19,9 @@ public sealed partial class MainWindow : Window
 {
     private const int MaxReconnectAttempts = 5;
     private const int SessionEventPageSize = 1000;
+
+    [System.Runtime.InteropServices.LibraryImport("user32.dll")]
+    private static partial uint GetDpiForWindow(nint window);
     private readonly DispatcherTimer eventTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly DispatcherTimer portRefreshTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private readonly DispatcherTimer loopSendTimer = new();
@@ -73,10 +76,20 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         currentTheme = ThemePreference.Load();
-        RootGrid.RequestedTheme = currentTheme;
+        ApplyTheme(currentTheme);
         Title = "SerialWorkbench";
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "SerialWorkbench.ico"));
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(1360, 860));
+        var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96d;
+        if (AppWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.PreferredMinimumWidth = (int)(720 * scale);
+            presenter.PreferredMinimumHeight = (int)(560 * scale);
+        }
+
+        var workArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
+        AppWindow.Resize(new Windows.Graphics.SizeInt32(
+            Math.Min((int)(1360 * scale), workArea.Width),
+            Math.Min((int)(860 * scale), workArea.Height)));
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         TrafficRows = [];
@@ -1144,6 +1157,8 @@ public sealed partial class MainWindow : Window
         var dialog = new ContentDialog
         {
             XamlRoot = page.XamlRoot,
+            Style = (Style)Application.Current.Resources["DefaultContentDialogStyle"],
+            RequestedTheme = page.ActualTheme,
             Title = "删除连接配置",
             Content = $"将删除连接配置“{profile.Name}”。当前串口连接不会断开。",
             PrimaryButtonText = "删除",
@@ -1756,8 +1771,19 @@ public sealed partial class MainWindow : Window
     private void SettingsPage_ThemeChangeRequested(object? sender, ElementTheme theme)
     {
         currentTheme = theme;
-        RootGrid.RequestedTheme = theme;
+        ApplyTheme(theme);
         ThemePreference.Save(theme);
+    }
+
+    private void ApplyTheme(ElementTheme theme)
+    {
+        RootGrid.RequestedTheme = theme;
+        AppWindow.TitleBar.PreferredTheme = theme switch
+        {
+            ElementTheme.Light => TitleBarTheme.Light,
+            ElementTheme.Dark => TitleBarTheme.Dark,
+            _ => TitleBarTheme.UseDefaultAppMode,
+        };
     }
     private void LoopbackPage_RunRequested(object? sender, EventArgs e)
     {
@@ -1999,6 +2025,8 @@ public sealed partial class MainWindow : Window
         var dialog = new ContentDialog
         {
             XamlRoot = workbenchPage.XamlRoot,
+            Style = (Style)Application.Current.Resources["DefaultContentDialogStyle"],
+            RequestedTheme = workbenchPage.ActualTheme,
             Title = title,
             Content = editor,
             PrimaryButtonText = "确定",
