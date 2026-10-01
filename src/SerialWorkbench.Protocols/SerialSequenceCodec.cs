@@ -1,5 +1,7 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Unicode;
 using SerialWorkbench.Domain;
 
 namespace SerialWorkbench.Protocols;
@@ -9,6 +11,7 @@ public static class SerialSequenceCodec
     private static readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
+        Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
         Converters = { new HexBytesConverter() },
     };
 

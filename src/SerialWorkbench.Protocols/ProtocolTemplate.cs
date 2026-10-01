@@ -76,6 +76,7 @@ public static class ProtocolTemplateCodec
     private static readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All),
         Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
     };
 

@@ -33,6 +33,16 @@ public sealed class ProtocolTests
     }
 
     [Fact]
+    public void JsonCodecsKeepChineseNamesReadable()
+    {
+        var sequence = SerialSequenceCodec.Serialize(new SerialWorkbench.Domain.SerialSequenceDefinition("新建序列", []));
+        var template = ProtocolTemplateCodec.Serialize(new ProtocolTemplateDefinition("温度传感器", null, 1, null, []));
+
+        Assert.Contains("\"name\": \"新建序列\"", sequence, StringComparison.Ordinal);
+        Assert.Contains("\"name\": \"温度传感器\"", template, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ChecksumsMatchPublishedCheckValues()
     {
         var bytes = Encoding.ASCII.GetBytes("123456789");
