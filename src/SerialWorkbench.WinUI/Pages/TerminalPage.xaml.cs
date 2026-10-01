@@ -80,7 +80,20 @@ public sealed partial class TerminalPage : Page
         SendStatus.IsOpen = true;
     }
 
+    public void HideSendResult() => SendStatus.IsOpen = false;
+
     private void SendButton_Click(object sender, RoutedEventArgs e) => SendRequested?.Invoke(this, EventArgs.Empty);
+
+    private void InputEditor_PreviewKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Enter
+            && SendButton.IsEnabled
+            && Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))
+        {
+            e.Handled = true;
+            SendRequested?.Invoke(this, EventArgs.Empty);
+        }
+    }
 
     private void ClearInputButton_Click(object sender, RoutedEventArgs e) => InputEditor.Text = "";
 

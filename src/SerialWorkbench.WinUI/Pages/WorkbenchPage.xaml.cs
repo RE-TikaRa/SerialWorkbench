@@ -27,6 +27,11 @@ public sealed partial class WorkbenchPage : Page
     public WorkbenchPage()
     {
         InitializeComponent();
+        foreach (var box in (NumberBox[])[DataBitsNumberBox, RtsBeforeSendNumberBox, RtsAfterSendNumberBox, PlotFrameLength, LoopIntervalNumberBox])
+        {
+            box.ValueChanged += NumberBoxInput.KeepLastValue;
+        }
+
         ProfileComboBox.ItemsSource = profiles;
         UpdateProfileActions();
         ViewSelector.SelectedItem = MonitorSelectorItem;
@@ -55,6 +60,7 @@ public sealed partial class WorkbenchPage : Page
     public event EventHandler? ClearReceiveRequested;
     public event EventHandler? ClearTransmitRequested;
     public event EventHandler? BreakRequested;
+    public event EventHandler? TrafficViewChanged;
 
     public void BindRows(ObservableCollection<TrafficRow> rows)
     {
@@ -98,6 +104,10 @@ public sealed partial class WorkbenchPage : Page
         MonitorEmptyDescription.Text = hasSourceRows ? "调整方向或搜索条件以查看其他报文。" : "连接设备后，收发报文会显示在这里。";
         MonitorEmptyState.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
         CopyHexButton.IsEnabled = !empty;
+        if (!empty)
+        {
+            TrafficListView.ScrollIntoView(visibleRows[^1]);
+        }
     }
 
     public IReadOnlyList<SerialProfile> Profiles => profiles;
@@ -284,6 +294,20 @@ public sealed partial class WorkbenchPage : Page
     private void BreakButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => BreakRequested?.Invoke(this, EventArgs.Empty);
     private void HandshakeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateRtsAvailability();
     private void Rs485ModeCheckBox_Changed(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => UpdateRtsAvailability();
+    private void MonitorFormat_SelectionChanged(object sender, SelectionChangedEventArgs e) => TrafficViewChanged?.Invoke(this, EventArgs.Empty);
+    private void TimestampToggle_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => TrafficViewChanged?.Invoke(this, EventArgs.Empty);
+
+    private void SendEditor_PreviewKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Enter
+            && SendButton.IsEnabled
+            && Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))
+        {
+            e.Handled = true;
+            SendRequested?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
 
     private void BaudRateComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -359,10 +383,10 @@ public sealed partial class WorkbenchPage : Page
     public void SetSerialConfigurationEnabled(bool enabled)
     {
         serialConfigurationEnabled = enabled;
+        ConnectButton.Content = enabled ? "连接" : "断开";
         PortComboBox.IsEnabled = enabled;
         RefreshPortsButton.IsEnabled = enabled;
         BaudRateComboBox.IsEnabled = enabled;
-        MonitorFormat.IsEnabled = enabled;
         RoleComboBox.IsEnabled = enabled;
         DataBitsNumberBox.IsEnabled = enabled;
         ParityComboBox.IsEnabled = enabled;
@@ -392,6 +416,51 @@ public sealed partial class WorkbenchPage : Page
         SendStatus.Message = message;
         SendStatus.Severity = severity;
         SendStatus.IsOpen = true;
+    }
+
+    public void HideSendResult() => SendStatus.IsOpen = false;
+
+    public void SetPorts(IReadOnlyList<SerialPortDescriptor> ports, SerialPreference preference)
+    {
+        var currentPort = SelectedPort;
+        var currentName = currentPort?.PortName;
+        if (SamePortSet(PortComboBox.ItemsSource as IReadOnlyList<SerialPortDescriptor>, ports))
+        {
+            return;
+        }
+
+        PortComboBox.ItemsSource = ports;
+        var target = currentPort?.DeviceInstanceId is not null
+            ? ports.FirstOrDefault(item => item.DeviceInstanceId?.Equals(currentPort.DeviceInstanceId, StringComparison.OrdinalIgnoreCase) == true)
+                ?? (currentName is not null ? ports.FirstOrDefault(item => item.PortName.Equals(currentName, StringComparison.OrdinalIgnoreCase)) : null)
+            : preference.DeviceInstanceId is not null
+                ? ports.FirstOrDefault(item => item.DeviceInstanceId?.Equals(preference.DeviceInstanceId, StringComparison.OrdinalIgnoreCase) == true)
+                    ?? (preference.PortName is not null ? ports.FirstOrDefault(item => item.PortName.Equals(preference.PortName, StringComparison.OrdinalIgnoreCase)) : null)
+                : currentName is not null
+                    ? ports.FirstOrDefault(item => item.PortName.Equals(currentName, StringComparison.OrdinalIgnoreCase))
+                    : preference.PortName is not null
+                        ? ports.FirstOrDefault(item => item.PortName.Equals(preference.PortName, StringComparison.OrdinalIgnoreCase))
+                        : null;
+        PortComboBox.SelectedItem = target ?? (ports.Count > 0 ? ports[0] : null);
+    }
+
+    private static bool SamePortSet(IReadOnlyList<SerialPortDescriptor>? current, IReadOnlyList<SerialPortDescriptor> updated)
+    {
+        if (current is null || current.Count != updated.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < current.Count; index++)
+        {
+            if (!current[index].PortName.Equals(updated[index].PortName, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(current[index].DeviceInstanceId, updated[index].DeviceInstanceId, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static string FormatBytes(long value) => value switch
@@ -482,17 +551,6 @@ public sealed partial class WorkbenchPage : Page
         VisualStateManager.GoToState(this, state, false);
         VisualStateManager.GoToState(this, e.NewSize.Width < 641 ? "CompactPageMargins" : "StandardPageMargins", false);
         VisualStateManager.GoToState(this, e.NewSize.Height < 600 ? "CompactHeight" : "StandardHeight", false);
-        UpdateConnectionViewport();
-    }
-
-    private void SendCard_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateConnectionViewport();
-
-    private void UpdateConnectionViewport()
-    {
-        var toolbarHeight = MonitorView.Visibility == Visibility.Visible ? MonitorToolbar.DesiredSize.Height : PlotToolbar.DesiredSize.Height;
-        var rowHeight = (double)Application.Current.Resources["ListViewItemMinHeight"];
-        ConnectionScrollView.MaxHeight = Math.Max(0, ActualHeight - WorkbenchLayout.Padding.Top - WorkbenchLayout.Padding.Bottom
-            - 2 * WorkbenchLayout.RowSpacing - SendCard.ActualHeight - ViewSelector.ActualHeight - toolbarHeight - rowHeight);
     }
 
     private void ApplyPlotTheme()
@@ -549,7 +607,6 @@ public sealed partial class WorkbenchPage : Page
         }
 
         viewSelectionInitialized = true;
-        UpdateConnectionViewport();
     }
 
     private void PlotClearButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)

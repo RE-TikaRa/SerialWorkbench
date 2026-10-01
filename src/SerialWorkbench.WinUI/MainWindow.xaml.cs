@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -193,10 +194,6 @@ public sealed partial class MainWindow : Window
             var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(options), CancellationToken.None);
             connectionContexts[connection.Id] = new ConnectionContext(connection);
             ActivateConnection(connection.Id);
-            if (workbenchPage is not null)
-            {
-                workbenchPage.ConnectButton.Content = "断开";
-            }
             workbenchPage?.SetConnectionStatus($"{port.PortName} · {options.BaudRate:N0} baud");
             SetSerialConfigurationEnabled(false);
             await RefreshStatusAsync();
@@ -239,7 +236,7 @@ public sealed partial class MainWindow : Window
                 : encoding.GetBytes(sendText + GetLineEnding(lineEndingIndex));
             data = AppendChecksum(data, workbenchPage?.SendChecksumIndex ?? 0);
             await client.SendAsync(new SendRequest(current, data, "winui.send"), CancellationToken.None);
-            workbenchPage?.ShowSendResult($"已发送 {data.Length:N0} 字节。", InfoBarSeverity.Success);
+            workbenchPage?.HideSendResult();
             return true;
         }
         catch (Exception ex)
@@ -320,6 +317,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var anyEvents = false;
+            var currentEvents = false;
             foreach (var context in connectionContexts.Values.ToArray())
             {
                 var isCurrent = context.Snapshot.Id == connectionId;
@@ -327,11 +325,6 @@ public sealed partial class MainWindow : Window
                 foreach (var item in events)
                 {
                     anyEvents = true;
-                    if (isCurrent && paused)
-                    {
-                        continue;
-                    }
-
                     context.LastSequence = Math.Max(context.LastSequence, item.Sequence);
                     var encoding = Encoding.GetEncoding(context.Snapshot.Options.EncodingName);
                     var row = TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, encoding, workbenchPage?.ShowTimestamp ?? true, context.TextDecoder);
@@ -343,6 +336,7 @@ public sealed partial class MainWindow : Window
 
                     if (isCurrent)
                     {
+                        currentEvents = true;
                         lastSequence = context.LastSequence;
                         terminalPage?.AppendRow(row);
                         if (item.Direction == SerialDirection.Receive)
@@ -355,10 +349,9 @@ public sealed partial class MainWindow : Window
 
             if (anyEvents)
             {
-                UpdateTrafficPresentation();
-                if (TrafficRows.Count > 0 && !paused)
+                if (currentEvents && !paused)
                 {
-                    workbenchPage?.TrafficListView.ScrollIntoView(TrafficRows[^1]);
+                    UpdateTrafficPresentation();
                 }
 
                 await RefreshStatusAsync();
@@ -456,10 +449,6 @@ public sealed partial class MainWindow : Window
         currentTrafficBytes = context.CurrentTrafficBytes;
         workbenchPage?.BindRows(TrafficRows);
         terminalPage?.BindRows(TrafficRows);
-        if (workbenchPage is not null)
-        {
-            workbenchPage.ConnectButton.Content = "断开";
-        }
         workbenchPage?.ApplySerialProfile(new SerialProfile(
             context.Snapshot.Options.Role.ToString(),
             context.Snapshot.Options.PortName,
@@ -496,7 +485,6 @@ public sealed partial class MainWindow : Window
         workbenchPage?.StopLoopSend();
         if (workbenchPage is not null)
         {
-            workbenchPage.ConnectButton.Content = "连接";
             workbenchPage.SetConnectionStatus("未连接串口");
             workbenchPage.SetTrafficCounts(0, 0);
             workbenchPage.SetPauseState(false, 0);
@@ -558,6 +546,10 @@ public sealed partial class MainWindow : Window
         if (paused)
         {
             pauseBaselineBytes = currentTrafficBytes;
+        }
+        else
+        {
+            UpdateTrafficPresentation();
         }
 
         workbenchPage?.SetPauseState(paused, 0);
@@ -691,6 +683,8 @@ public sealed partial class MainWindow : Window
                 page.ClearTransmitRequested += WorkbenchPage_ClearTransmitRequested;
                 page.BreakRequested -= WorkbenchPage_BreakRequested;
                 page.BreakRequested += WorkbenchPage_BreakRequested;
+                page.TrafficViewChanged -= WorkbenchPage_TrafficViewChanged;
+                page.TrafficViewChanged += WorkbenchPage_TrafficViewChanged;
                 break;
             case LoopbackPage page:
                 loopbackPage = page;
@@ -896,28 +890,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var ports = await client.ListPortsAsync(CancellationToken.None);
-            var combo = workbenchPage.PortComboBox;
-            var currentPort = combo.SelectedItem as SerialPortDescriptor;
-            var currentName = currentPort?.PortName;
-            if (SamePortSet(combo.ItemsSource as IReadOnlyList<SerialPortDescriptor>, ports))
-            {
-                await TryReconnectAsync(ports).ConfigureAwait(true);
-                return;
-            }
-
-            combo.ItemsSource = ports;
-            var target = currentPort?.DeviceInstanceId is not null
-                ? ports.FirstOrDefault(item => item.DeviceInstanceId?.Equals(currentPort.DeviceInstanceId, StringComparison.OrdinalIgnoreCase) == true)
-                    ?? (currentName is not null ? ports.FirstOrDefault(item => item.PortName.Equals(currentName, StringComparison.OrdinalIgnoreCase)) : null)
-                : serialPreference.DeviceInstanceId is not null
-                    ? ports.FirstOrDefault(item => item.DeviceInstanceId?.Equals(serialPreference.DeviceInstanceId, StringComparison.OrdinalIgnoreCase) == true)
-                        ?? (serialPreference.PortName is not null ? ports.FirstOrDefault(item => item.PortName.Equals(serialPreference.PortName, StringComparison.OrdinalIgnoreCase)) : null)
-                    : currentName is not null
-                        ? ports.FirstOrDefault(item => item.PortName.Equals(currentName, StringComparison.OrdinalIgnoreCase))
-                        : serialPreference.PortName is not null
-                            ? ports.FirstOrDefault(item => item.PortName.Equals(serialPreference.PortName, StringComparison.OrdinalIgnoreCase))
-                            : null;
-            combo.SelectedItem = target ?? (ports.Count > 0 ? ports[0] : null);
+            workbenchPage.SetPorts(ports, serialPreference);
             await TryReconnectAsync(ports).ConfigureAwait(true);
         }
         catch (Exception ex)
@@ -985,27 +958,42 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private static bool SamePortSet(IReadOnlyList<SerialPortDescriptor>? current, IReadOnlyList<SerialPortDescriptor> updated)
-    {
-        if (current is null || current.Count != updated.Count)
-        {
-            return false;
-        }
-
-        for (var index = 0; index < current.Count; index++)
-        {
-            if (!current[index].PortName.Equals(updated[index].PortName, StringComparison.OrdinalIgnoreCase)
-                || !string.Equals(current[index].DeviceInstanceId, updated[index].DeviceInstanceId, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     private void WorkbenchPage_ConnectRequested(object? sender, EventArgs e) => ConnectButton_Click(this, new RoutedEventArgs());
     private void WorkbenchPage_PauseRequested(object? sender, EventArgs e) => PauseButton_Click(this, new RoutedEventArgs());
+    private void WorkbenchPage_TrafficViewChanged(object? sender, EventArgs e)
+    {
+        if (workbenchPage is null)
+        {
+            return;
+        }
+
+        var text = workbenchPage.MonitorFormatIndex == 1;
+        var showTime = workbenchPage.ShowTimestamp;
+        foreach (var context in connectionContexts.Values)
+        {
+            RenderTrafficRows(context.TrafficRows, Encoding.GetEncoding(context.Snapshot.Options.EncodingName), text, showTime);
+        }
+
+        if (connectionContexts.Values.All(context => !ReferenceEquals(context.TrafficRows, TrafficRows)))
+        {
+            RenderTrafficRows(TrafficRows, workbenchPage.SelectedEncoding, text, showTime);
+        }
+
+        if (!paused)
+        {
+            UpdateTrafficPresentation();
+        }
+    }
+
+    private static void RenderTrafficRows(IEnumerable<TrafficRow> rows, Encoding encoding, bool text, bool showTime)
+    {
+        var decoder = encoding.GetDecoder();
+        foreach (var row in rows)
+        {
+            row.Render(text, encoding, showTime, decoder);
+        }
+    }
+
     private void WorkbenchPage_ClearRequested(object? sender, EventArgs e) => ClearButton_Click(this, new RoutedEventArgs());
     private void WorkbenchPage_CopyHexRequested(object? sender, EventArgs e) => CopyHexButton_Click(this, new RoutedEventArgs());
     private void WorkbenchPage_SendRequested(object? sender, EventArgs e)
@@ -1205,7 +1193,7 @@ public sealed partial class MainWindow : Window
                 : (workbenchPage?.SelectedEncoding ?? Encoding.UTF8).GetBytes(input + GetLineEnding(terminalPage.LineEndingIndex));
             await client.SendAsync(new SendRequest(current, data, "terminal.send"), CancellationToken.None);
             terminalPage.AddHistory(input);
-            terminalPage.ShowSendResult($"已发送 {data.Length:N0} 字节。", InfoBarSeverity.Success);
+            terminalPage.HideSendResult();
         }
         catch (Exception ex)
         {
@@ -1472,6 +1460,10 @@ public sealed partial class MainWindow : Window
         var events = Array.Empty<SerialTrafficEvent>();
         var current = 0;
         long sequence = 0;
+        var replayRows = new ObservableCollection<TrafficRow>();
+        TrafficRows = replayRows;
+        workbenchPage?.BindRows(replayRows);
+        terminalPage?.BindRows(replayRows);
         try
         {
             events = [.. await client.ReadAllSessionEventsAsync(sessionId, cancellation.Token)];
@@ -1489,11 +1481,11 @@ public sealed partial class MainWindow : Window
                 await WaitReplayIfPausedAsync(cancellation.Token);
                 cancellation.Token.ThrowIfCancellationRequested();
                 var row = TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, workbenchPage?.SelectedEncoding ?? Encoding.UTF8, workbenchPage?.ShowTimestamp ?? true);
-                TrafficRows.Add(row);
+                replayRows.Add(row);
                 terminalPage?.AppendRow(row);
-                while (TrafficRows.Count > 20_000)
+                while (replayRows.Count > 20_000)
                 {
-                    TrafficRows.RemoveAt(0);
+                    replayRows.RemoveAt(0);
                 }
 
                 current = index + 1;
@@ -1501,7 +1493,6 @@ public sealed partial class MainWindow : Window
                 replayCurrent = current;
                 replaySequence = sequence;
                 UpdateTrafficPresentation();
-                workbenchPage?.TrafficListView.ScrollIntoView(TrafficRows[^1]);
                 sessionsPage.SetReplayState(sessionId, true, IsReplayPaused(), current, sequence, events.Length);
             }
 
@@ -1527,6 +1518,13 @@ public sealed partial class MainWindow : Window
                     replayPaused = false;
                     SignalReplayStateChanged();
                 }
+            }
+
+            if (connectionId is { } active && connectionContexts.TryGetValue(active, out var context))
+            {
+                TrafficRows = context.TrafficRows;
+                workbenchPage?.BindRows(TrafficRows);
+                terminalPage?.BindRows(TrafficRows);
             }
 
             cancellation.Dispose();
@@ -2198,48 +2196,54 @@ internal sealed class ConnectionContext(ConnectionSnapshot snapshot)
     public long CurrentTrafficBytes { get; set; }
 }
 
-public sealed class TrafficRow(
-    string time,
-    string display,
-    string hex,
-    string source,
-    bool isReceive,
-    Visibility receiveVisibility,
-    Visibility transmitVisibility,
-    Visibility timeVisibility)
+public sealed class TrafficRow : INotifyPropertyChanged
 {
-    public string Time { get; } = time;
+    private readonly byte[] data;
 
-    public string Display { get; } = display;
+    private TrafficRow(SerialTrafficEvent item)
+    {
+        data = item.Data;
+        IsReceive = item.Direction == SerialDirection.Receive;
+        Time = item.Utc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
+        Hex = Convert.ToHexString(item.Data);
+        Source = item.Source;
+        ReceiveVisibility = IsReceive ? Visibility.Visible : Visibility.Collapsed;
+        TransmitVisibility = IsReceive ? Visibility.Collapsed : Visibility.Visible;
+    }
 
-    public string Hex { get; } = hex;
+    public event PropertyChangedEventHandler? PropertyChanged;
 
-    public string Source { get; } = source;
+    public string Time { get; }
 
-    public bool IsReceive { get; } = isReceive;
+    public string Display { get; private set; } = "";
 
-    public Visibility ReceiveVisibility { get; } = receiveVisibility;
+    public string Hex { get; }
 
-    public Visibility TransmitVisibility { get; } = transmitVisibility;
+    public string Source { get; }
 
-    public Visibility TimeVisibility { get; } = timeVisibility;
+    public bool IsReceive { get; }
+
+    public Visibility ReceiveVisibility { get; }
+
+    public Visibility TransmitVisibility { get; }
+
+    public Visibility TimeVisibility { get; private set; }
 
     public static TrafficRow From(SerialTrafficEvent item, bool text, Encoding encoding, bool showTime, Decoder? decoder = null)
     {
-        var hex = Convert.ToHexString(item.Data);
-        var display = text
-            ? DecodeText(item.Data, encoding, item.Direction == SerialDirection.Receive ? decoder : null)
-            : Protocols.HexCodec.Format(item.Data);
-        var receive = item.Direction == SerialDirection.Receive;
-        return new TrafficRow(
-            item.Utc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
-            display,
-            hex,
-            item.Source,
-            receive,
-            receive ? Visibility.Visible : Visibility.Collapsed,
-            receive ? Visibility.Collapsed : Visibility.Visible,
-            showTime ? Visibility.Visible : Visibility.Collapsed);
+        var row = new TrafficRow(item);
+        row.Render(text, encoding, showTime, decoder);
+        return row;
+    }
+
+    public void Render(bool text, Encoding encoding, bool showTime, Decoder? decoder)
+    {
+        Display = text
+            ? DecodeText(data, encoding, IsReceive ? decoder : null)
+            : Protocols.HexCodec.Format(data);
+        TimeVisibility = showTime ? Visibility.Visible : Visibility.Collapsed;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Display)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TimeVisibility)));
     }
 
     private static string DecodeText(byte[] data, Encoding encoding, Decoder? decoder)

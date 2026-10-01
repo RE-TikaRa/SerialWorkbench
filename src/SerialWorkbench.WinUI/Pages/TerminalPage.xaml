@@ -78,7 +78,7 @@
           </ComboBox>
           <ComboBox x:Name="HistoryComboBox" Grid.Column="4" Grid.ColumnSpan="2" Header="历史" PlaceholderText="选择历史输入" SelectionChanged="HistoryComboBox_SelectionChanged" HorizontalAlignment="Stretch" />
         </Grid>
-        <TextBox x:Name="InputEditor" AcceptsReturn="True" Header="输入" PlaceholderText="输入文本或 HEX 数据" TextWrapping="Wrap" MinHeight="88" />
+        <TextBox x:Name="InputEditor" AcceptsReturn="True" Header="输入" PlaceholderText="输入文本或 HEX 数据" TextWrapping="Wrap" MinHeight="88" PreviewKeyDown="InputEditor_PreviewKeyDown" />
         <InfoBar x:Name="SendStatus" IsOpen="False" IsClosable="True" Visibility="{x:Bind SendStatus.IsOpen, Mode=OneWay}" />
         <Grid ColumnSpacing="8">
           <Grid.ColumnDefinitions>
@@ -90,7 +90,7 @@
           <Button x:Name="ClearOutputButton" Content="清空终端" Click="ClearOutputButton_Click" HorizontalAlignment="Left" />
           <Button x:Name="ClearInputButton" Grid.Column="1" Content="清空输入" Click="ClearInputButton_Click" />
           <Button x:Name="CopyOutputButton" Grid.Column="2" Content="复制响应" Click="CopyOutputButton_Click" />
-          <Button x:Name="SendButton" Grid.Column="3" Content="发送" Click="SendButton_Click" Style="{StaticResource AccentButtonStyle}" />
+          <Button x:Name="SendButton" Grid.Column="3" Content="发送" Click="SendButton_Click" Style="{StaticResource AccentButtonStyle}" ToolTipService.ToolTip="发送 (Ctrl+Enter)" />
         </Grid>
       </StackPanel>
     </Border>
