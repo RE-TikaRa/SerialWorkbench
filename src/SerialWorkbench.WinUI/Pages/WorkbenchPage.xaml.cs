@@ -19,6 +19,7 @@ public sealed partial class WorkbenchPage : Page
     private ThemeSettings? themeSettings;
     private bool viewSelectionInitialized;
     private bool serialConfigurationEnabled = true;
+    private bool renamingProfile;
     private int baudRate = 115200;
     private readonly ObservableCollection<SerialProfile> profiles = new(SerialProfileStore.Load());
     private readonly ObservableCollection<TrafficRow> visibleRows = [];
@@ -52,8 +53,8 @@ public sealed partial class WorkbenchPage : Page
     public event EventHandler? RefreshPortsRequested;
     public event EventHandler? LoopSendStarted;
     public event EventHandler? LoopSendStopped;
-    public event EventHandler? ProfileNewRequested;
-    public event EventHandler? ProfileRenameRequested;
+    public event EventHandler<string>? ProfileNewRequested;
+    public event EventHandler<string>? ProfileRenameRequested;
     public event EventHandler? ProfileDeleteRequested;
     public event EventHandler? ProfileApplyRequested;
     public event EventHandler? ControlLinesChangedRequested;
@@ -283,11 +284,64 @@ public sealed partial class WorkbenchPage : Page
 
     private void ApplyProfileButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ProfileApplyRequested?.Invoke(this, EventArgs.Empty);
 
-    private void NewProfileButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ProfileNewRequested?.Invoke(this, EventArgs.Empty);
+    private async void AdvancedButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        AdvancedDialog.XamlRoot = XamlRoot;
+        AdvancedDialog.RequestedTheme = ActualTheme;
+        await AdvancedDialog.ShowAsync();
+    }
 
-    private void RenameProfileButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ProfileRenameRequested?.Invoke(this, EventArgs.Empty);
+    private void NewProfileButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ShowProfileNameFlyout(NewProfileButton, false, "");
 
-    private void DeleteProfileButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ProfileDeleteRequested?.Invoke(this, EventArgs.Empty);
+    private void RenameProfileButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ShowProfileNameFlyout(RenameProfileButton, true, SelectedProfile?.Name ?? "");
+
+    private void ShowProfileNameFlyout(FrameworkElement target, bool rename, string name)
+    {
+        renamingProfile = rename;
+        ProfileNameBox.Text = name;
+        ProfileNameError.Visibility = Visibility.Collapsed;
+        ProfileNameFlyout.ShowAt(target);
+    }
+
+    private void ProfileNameBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Enter)
+        {
+            e.Handled = true;
+            SaveProfileName();
+        }
+    }
+
+    private void SaveProfileNameButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => SaveProfileName();
+
+    private void SaveProfileName()
+    {
+        var name = ProfileNameBox.Text.Trim();
+        var current = renamingProfile ? SelectedProfile : null;
+        var error = name.Length == 0
+            ? "配置名称不能为空。"
+            : profiles.Any(item => item != current && item.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                ? $"连接配置“{name}”已经存在。"
+                : null;
+        if (error is not null)
+        {
+            ProfileNameError.Text = error;
+            ProfileNameError.Visibility = Visibility.Visible;
+            return;
+        }
+
+        ProfileNameFlyout.Hide();
+        (renamingProfile ? ProfileRenameRequested : ProfileNewRequested)?.Invoke(this, name);
+    }
+
+    private void DeleteProfileFlyout_Opening(object sender, object e) =>
+        DeleteProfileText.Text = $"将删除连接配置“{SelectedProfile?.Name}”。当前串口连接不会断开。";
+
+    private void ConfirmDeleteProfileButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        DeleteProfileFlyout.Hide();
+        ProfileDeleteRequested?.Invoke(this, EventArgs.Empty);
+    }
     private void ControlLineToggle_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ControlLinesChangedRequested?.Invoke(this, EventArgs.Empty);
     private void ClearReceiveButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ClearReceiveRequested?.Invoke(this, EventArgs.Empty);
     private void ClearTransmitButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ClearTransmitRequested?.Invoke(this, EventArgs.Empty);

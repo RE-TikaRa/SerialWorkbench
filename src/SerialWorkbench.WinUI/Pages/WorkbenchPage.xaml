@@ -152,94 +152,7 @@
             <x:String>HEX</x:String>
             <x:String>文本</x:String>
           </ComboBox>
-          <DropDownButton x:Name="AdvancedButton" Grid.Row="1" Grid.Column="4" Margin="0,12,0,0" Content="高级参数" VerticalAlignment="Bottom">
-            <DropDownButton.Flyout>
-              <Flyout x:Name="AdvancedFlyout" Placement="BottomEdgeAlignedRight">
-                <Flyout.FlyoutPresenterStyle>
-                  <Style TargetType="FlyoutPresenter" BasedOn="{StaticResource DefaultFlyoutPresenterStyle}">
-                    <Setter Property="MaxWidth" Value="600" />
-                  </Style>
-                </Flyout.FlyoutPresenterStyle>
-                <StackPanel Width="520" Spacing="{StaticResource CardContentSpacing}">
-                  <Grid ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="Auto" />
-                      <ColumnDefinition Width="Auto" />
-                      <ColumnDefinition Width="Auto" />
-                      <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <ComboBox x:Name="ProfileComboBox" Header="连接配置" DisplayMemberPath="Name" PlaceholderText="选择配置" SelectionChanged="ProfileComboBox_SelectionChanged" HorizontalAlignment="Stretch" />
-                    <Button x:Name="ApplyProfileButton" Grid.Column="1" Content="应用" Click="ApplyProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
-                    <Button x:Name="NewProfileButton" Grid.Column="2" Content="新建" Click="NewProfileButton_Click" VerticalAlignment="Bottom" />
-                    <Button x:Name="RenameProfileButton" Grid.Column="3" Content="重命名" Click="RenameProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
-                    <Button x:Name="DeleteProfileButton" Grid.Column="4" Content="删除" Click="DeleteProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
-                  </Grid>
-                  <TextBlock Text="串口参数" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                  <Grid ColumnSpacing="12" RowSpacing="12">
-                    <Grid.RowDefinitions>
-                      <RowDefinition Height="Auto" />
-                      <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <NumberBox x:Name="DataBitsNumberBox" Header="数据位" Value="8" Minimum="5" Maximum="8" SpinButtonPlacementMode="Compact" />
-                    <ComboBox x:Name="ParityComboBox" Grid.Column="1" Header="校验" SelectedIndex="0" HorizontalAlignment="Stretch">
-                      <x:String>无</x:String>
-                      <x:String>奇校验</x:String>
-                      <x:String>偶校验</x:String>
-                      <x:String>标记</x:String>
-                      <x:String>空格</x:String>
-                    </ComboBox>
-                    <ComboBox x:Name="StopBitsComboBox" Grid.Column="2" Header="停止位" SelectedIndex="0" HorizontalAlignment="Stretch">
-                      <x:String>1</x:String>
-                      <x:String>1.5</x:String>
-                      <x:String>2</x:String>
-                    </ComboBox>
-                    <ComboBox x:Name="HandshakeComboBox" Grid.Row="1" Header="流控" HorizontalAlignment="Stretch" SelectionChanged="HandshakeComboBox_SelectionChanged">
-                      <x:String>无</x:String>
-                      <x:String>XON/XOFF</x:String>
-                      <x:String>RTS</x:String>
-                      <x:String>RTS + XON/XOFF</x:String>
-                    </ComboBox>
-                    <ComboBox x:Name="EncodingComboBox" Grid.Row="1" Grid.Column="1" Header="编码" SelectedIndex="0" HorizontalAlignment="Stretch">
-                      <x:String>UTF-8</x:String>
-                      <x:String>ASCII</x:String>
-                      <x:String>GBK</x:String>
-                      <x:String>UTF-16 LE</x:String>
-                    </ComboBox>
-                    <ComboBox x:Name="RoleComboBox" Grid.Row="1" Grid.Column="2" Header="逻辑角色" SelectedIndex="0" HorizontalAlignment="Stretch">
-                      <x:String>DUT</x:String>
-                      <x:String>DEBUG</x:String>
-                      <x:String>CONTROLLER</x:String>
-                      <x:String>LOOPBACK</x:String>
-                    </ComboBox>
-                  </Grid>
-                  <TextBlock Text="控制线" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <ToggleButton x:Name="DtrToggle" Content="DTR" Click="ControlLineToggle_Click" />
-                    <ToggleButton x:Name="RtsToggle" Content="RTS" Click="ControlLineToggle_Click" />
-                    <Button x:Name="ClearReceiveButton" Content="清空 RX" Click="ClearReceiveButton_Click" IsEnabled="False" />
-                    <Button x:Name="ClearTransmitButton" Content="清空 TX" Click="ClearTransmitButton_Click" IsEnabled="False" />
-                    <Button x:Name="BreakButton" Content="BREAK" Click="BreakButton_Click" IsEnabled="False" />
-                  </StackPanel>
-                  <TextBlock Text="RS-485 半双工" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                  <CheckBox x:Name="Rs485ModeCheckBox" Content="启用 RTS 方向控制" Checked="Rs485ModeCheckBox_Changed" Unchecked="Rs485ModeCheckBox_Changed" />
-                  <Grid ColumnSpacing="12">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <NumberBox x:Name="RtsBeforeSendNumberBox" Header="发送前延时(ms)" Value="0" Minimum="0" Maximum="60000" SpinButtonPlacementMode="Compact" />
-                    <NumberBox x:Name="RtsAfterSendNumberBox" Grid.Column="1" Header="发送后延时(ms)" Value="0" Minimum="0" Maximum="60000" SpinButtonPlacementMode="Compact" />
-                  </Grid>
-                </StackPanel>
-              </Flyout>
-            </DropDownButton.Flyout>
-          </DropDownButton>
+          <Button x:Name="AdvancedButton" Grid.Row="1" Grid.Column="4" Margin="0,12,0,0" Content="高级参数" Click="AdvancedButton_Click" VerticalAlignment="Bottom" />
           <Button x:Name="ConnectButton" Grid.Row="1" Grid.Column="5" Margin="0,12,0,0" Content="连接" Click="ConnectButton_Click" Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Bottom" />
           <TextBlock x:Name="ConnectionStatusText" Grid.Row="2" Grid.ColumnSpan="6" Margin="0,8,0,0" Text="正在连接服务…" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
         </Grid>
@@ -397,5 +310,107 @@
         </StackPanel>
       </Border>
     </Grid>
+    <ContentDialog x:Name="AdvancedDialog" Title="高级参数" CloseButtonText="完成" Style="{StaticResource DefaultContentDialogStyle}">
+      <ContentDialog.Resources>
+        <x:Double x:Key="ContentDialogMaxWidth">600</x:Double>
+      </ContentDialog.Resources>
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Width="520" Spacing="{StaticResource CardContentSpacing}">
+          <Grid ColumnSpacing="8">
+            <FlyoutBase.AttachedFlyout>
+              <Flyout x:Name="ProfileNameFlyout">
+                <StackPanel Width="280" Spacing="8">
+                  <TextBox x:Name="ProfileNameBox" Header="配置名称" PlaceholderText="输入配置名称" KeyDown="ProfileNameBox_KeyDown" />
+                  <TextBlock x:Name="ProfileNameError" Foreground="{ThemeResource SystemFillColorCriticalBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
+                  <Button Content="保存" Click="SaveProfileNameButton_Click" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Right" />
+                </StackPanel>
+              </Flyout>
+            </FlyoutBase.AttachedFlyout>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ComboBox x:Name="ProfileComboBox" Header="连接配置" DisplayMemberPath="Name" PlaceholderText="选择配置" SelectionChanged="ProfileComboBox_SelectionChanged" HorizontalAlignment="Stretch" />
+            <Button x:Name="ApplyProfileButton" Grid.Column="1" Content="应用" Click="ApplyProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
+            <Button x:Name="NewProfileButton" Grid.Column="2" Content="新建" Click="NewProfileButton_Click" VerticalAlignment="Bottom" />
+            <Button x:Name="RenameProfileButton" Grid.Column="3" Content="重命名" Click="RenameProfileButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />
+            <Button x:Name="DeleteProfileButton" Grid.Column="4" Content="删除" IsEnabled="False" VerticalAlignment="Bottom">
+              <Button.Flyout>
+                <Flyout x:Name="DeleteProfileFlyout" Opening="DeleteProfileFlyout_Opening">
+                  <StackPanel Width="280" Spacing="8">
+                    <TextBlock x:Name="DeleteProfileText" TextWrapping="Wrap" />
+                    <Button Content="删除" Click="ConfirmDeleteProfileButton_Click" HorizontalAlignment="Right" />
+                  </StackPanel>
+                </Flyout>
+              </Button.Flyout>
+            </Button>
+          </Grid>
+          <TextBlock Text="串口参数" Style="{StaticResource BodyStrongTextBlockStyle}" />
+          <Grid ColumnSpacing="12" RowSpacing="12">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <NumberBox x:Name="DataBitsNumberBox" Header="数据位" Value="8" Minimum="5" Maximum="8" SpinButtonPlacementMode="Compact" />
+            <ComboBox x:Name="ParityComboBox" Grid.Column="1" Header="校验" SelectedIndex="0" HorizontalAlignment="Stretch">
+              <x:String>无</x:String>
+              <x:String>奇校验</x:String>
+              <x:String>偶校验</x:String>
+              <x:String>标记</x:String>
+              <x:String>空格</x:String>
+            </ComboBox>
+            <ComboBox x:Name="StopBitsComboBox" Grid.Column="2" Header="停止位" SelectedIndex="0" HorizontalAlignment="Stretch">
+              <x:String>1</x:String>
+              <x:String>1.5</x:String>
+              <x:String>2</x:String>
+            </ComboBox>
+            <ComboBox x:Name="HandshakeComboBox" Grid.Row="1" Header="流控" HorizontalAlignment="Stretch" SelectionChanged="HandshakeComboBox_SelectionChanged">
+              <x:String>无</x:String>
+              <x:String>XON/XOFF</x:String>
+              <x:String>RTS</x:String>
+              <x:String>RTS + XON/XOFF</x:String>
+            </ComboBox>
+            <ComboBox x:Name="EncodingComboBox" Grid.Row="1" Grid.Column="1" Header="编码" SelectedIndex="0" HorizontalAlignment="Stretch">
+              <x:String>UTF-8</x:String>
+              <x:String>ASCII</x:String>
+              <x:String>GBK</x:String>
+              <x:String>UTF-16 LE</x:String>
+            </ComboBox>
+            <ComboBox x:Name="RoleComboBox" Grid.Row="1" Grid.Column="2" Header="逻辑角色" SelectedIndex="0" HorizontalAlignment="Stretch">
+              <x:String>DUT</x:String>
+              <x:String>DEBUG</x:String>
+              <x:String>CONTROLLER</x:String>
+              <x:String>LOOPBACK</x:String>
+            </ComboBox>
+          </Grid>
+          <TextBlock Text="控制线" Style="{StaticResource BodyStrongTextBlockStyle}" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ToggleButton x:Name="DtrToggle" Content="DTR" Click="ControlLineToggle_Click" />
+            <ToggleButton x:Name="RtsToggle" Content="RTS" Click="ControlLineToggle_Click" />
+            <Button x:Name="ClearReceiveButton" Content="清空 RX" Click="ClearReceiveButton_Click" IsEnabled="False" />
+            <Button x:Name="ClearTransmitButton" Content="清空 TX" Click="ClearTransmitButton_Click" IsEnabled="False" />
+            <Button x:Name="BreakButton" Content="BREAK" Click="BreakButton_Click" IsEnabled="False" />
+          </StackPanel>
+          <TextBlock Text="RS-485 半双工" Style="{StaticResource BodyStrongTextBlockStyle}" />
+          <CheckBox x:Name="Rs485ModeCheckBox" Content="启用 RTS 方向控制" Checked="Rs485ModeCheckBox_Changed" Unchecked="Rs485ModeCheckBox_Changed" />
+          <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <NumberBox x:Name="RtsBeforeSendNumberBox" Header="发送前延时(ms)" Value="0" Minimum="0" Maximum="60000" SpinButtonPlacementMode="Compact" />
+            <NumberBox x:Name="RtsAfterSendNumberBox" Grid.Column="1" Header="发送后延时(ms)" Value="0" Minimum="0" Maximum="60000" SpinButtonPlacementMode="Compact" />
+          </Grid>
+        </StackPanel>
+      </ScrollViewer>
+    </ContentDialog>
   </Grid>
 </Page>

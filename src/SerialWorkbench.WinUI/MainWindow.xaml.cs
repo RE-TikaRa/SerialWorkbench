@@ -1085,22 +1085,10 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async void WorkbenchPage_ProfileNewRequested(object? sender, EventArgs e)
+    private void WorkbenchPage_ProfileNewRequested(object? sender, string name)
     {
         if (workbenchPage is not { } page)
         {
-            return;
-        }
-
-        var name = await PromptProfileNameAsync("新建连接配置", "");
-        if (name is null)
-        {
-            return;
-        }
-
-        if (page.Profiles.Any(item => item.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-        {
-            ShowError($"连接配置“{name}”已经存在。");
             return;
         }
 
@@ -1110,22 +1098,10 @@ public sealed partial class MainWindow : Window
         page.AddProfile(profile);
     }
 
-    private async void WorkbenchPage_ProfileRenameRequested(object? sender, EventArgs e)
+    private void WorkbenchPage_ProfileRenameRequested(object? sender, string name)
     {
-        if (workbenchPage is not { } page || page.SelectedProfile is not { } current)
+        if (workbenchPage is not { } page || page.SelectedProfile is not { } current || name.Equals(current.Name, StringComparison.Ordinal))
         {
-            return;
-        }
-
-        var name = await PromptProfileNameAsync("重命名连接配置", current.Name);
-        if (name is null || name.Equals(current.Name, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        if (page.Profiles.Any(item => item != current && item.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-        {
-            ShowError($"连接配置“{name}”已经存在。");
             return;
         }
 
@@ -1135,25 +1111,9 @@ public sealed partial class MainWindow : Window
         page.ReplaceProfile(renamed);
     }
 
-    private async void WorkbenchPage_ProfileDeleteRequested(object? sender, EventArgs e)
+    private void WorkbenchPage_ProfileDeleteRequested(object? sender, EventArgs e)
     {
         if (workbenchPage is not { } page || page.SelectedProfile is not { } profile)
-        {
-            return;
-        }
-
-        var dialog = new ContentDialog
-        {
-            XamlRoot = page.XamlRoot,
-            Style = (Style)Application.Current.Resources["DefaultContentDialogStyle"],
-            RequestedTheme = page.ActualTheme,
-            Title = "删除连接配置",
-            Content = $"将删除连接配置“{profile.Name}”。当前串口连接不会断开。",
-            PrimaryButtonText = "删除",
-            CloseButtonText = "取消",
-            DefaultButton = ContentDialogButton.Close,
-        };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
         {
             return;
         }
@@ -2005,45 +1965,6 @@ public sealed partial class MainWindow : Window
         }
 
         await ChangeWorkspaceAsync(folder.Path);
-    }
-
-    private async Task<string?> PromptProfileNameAsync(string title, string initialName)
-    {
-        if (workbenchPage is null)
-        {
-            return null;
-        }
-
-        var editor = new TextBox
-        {
-            Text = initialName,
-            PlaceholderText = "配置名称",
-            MinWidth = 320,
-        };
-        var dialog = new ContentDialog
-        {
-            XamlRoot = workbenchPage.XamlRoot,
-            Style = (Style)Application.Current.Resources["DefaultContentDialogStyle"],
-            RequestedTheme = workbenchPage.ActualTheme,
-            Title = title,
-            Content = editor,
-            PrimaryButtonText = "确定",
-            CloseButtonText = "取消",
-            DefaultButton = ContentDialogButton.Primary,
-        };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
-        {
-            return null;
-        }
-
-        var name = editor.Text.Trim();
-        if (name.Length == 0)
-        {
-            ShowError("配置名称不能为空。");
-            return null;
-        }
-
-        return name;
     }
 
     private async Task ChangeWorkspaceAsync(string? path)
