@@ -8,7 +8,12 @@ public sealed partial class LoopbackPage : Page
     private const double SplitLayoutWidth = 960;
     private const double WideLayoutWidth = 1200;
 
-    public LoopbackPage() => InitializeComponent();
+    public LoopbackPage()
+    {
+        InitializeComponent();
+        Length.ValueChanged += NumberBoxInput.KeepLastValue;
+        Iterations.ValueChanged += NumberBoxInput.KeepLastValue;
+    }
     public event EventHandler? RunRequested;
     public event EventHandler? CancelRequested;
     public int LengthValue => checked((int)Length.Value);

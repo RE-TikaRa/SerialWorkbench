@@ -319,7 +319,7 @@ public sealed partial class SessionsPage : Page
         Events.Clear();
         LoopbackResults.Clear();
         LoopbackEmptyState.Visibility = Visibility.Visible;
-        EventTitle.Text = session is null ? "选择会话以查看报文" : session.Title;
+        EventTitle.Text = session is null ? "会话报文" : session.Title;
         EventsEmptyState.Text = session is null ? "选择会话以查看报文" : "正在读取会话…";
         EventsEmptyState.Visibility = Visibility.Visible;
     }

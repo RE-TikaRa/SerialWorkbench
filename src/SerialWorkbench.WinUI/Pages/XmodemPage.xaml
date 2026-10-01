@@ -35,6 +35,7 @@
           <TextBlock Text="XMODEM-CRC 文件传输" Style="{StaticResource BodyStrongTextBlockStyle}" />
           <TextBlock Text="使用当前串口连接传输文件，传输过程与普通发送互斥。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
           <TextBox x:Name="FilePath" Header="文件" IsReadOnly="True" />
+          <ProgressBar x:Name="TransferProgress" IsIndeterminate="True" Visibility="Collapsed" />
           <Grid ColumnSpacing="8">
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto" />

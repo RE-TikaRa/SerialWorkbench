@@ -166,7 +166,7 @@
               <NumberBox x:Name="ScanInterval" x:FieldModifier="public" Grid.Column="4" Header="间隔(ms)" Value="0" Minimum="0" Maximum="600000" SpinButtonPlacementMode="Compact" />
             </Grid>
             <StackPanel Orientation="Horizontal" Spacing="8">
-              <Button x:Name="ScanButton" x:FieldModifier="public" Content="开始扫描" Click="ScanButton_Click" Style="{StaticResource AccentButtonStyle}" />
+              <Button x:Name="ScanButton" x:FieldModifier="public" Content="开始扫描" Click="ScanButton_Click" />
               <Button x:Name="CancelScanButton" x:FieldModifier="public" Content="停止" Click="CancelScanButton_Click" IsEnabled="False" />
               <TextBlock x:Name="ScanStatusText" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>
@@ -221,7 +221,7 @@
                   <NumberBox x:Name="PollTimeout" x:FieldModifier="public" Grid.Row="2" Grid.ColumnSpan="6" Margin="0,12,0,0" Header="超时(ms)" Value="2000" Minimum="1" Maximum="600000" SpinButtonPlacementMode="Compact" />
                 </Grid>
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button x:Name="PollButton" x:FieldModifier="public" Content="开始轮询" Click="PollButton_Click" Style="{StaticResource AccentButtonStyle}" />
+                  <Button x:Name="PollButton" x:FieldModifier="public" Content="开始轮询" Click="PollButton_Click" />
                   <Button x:Name="CancelPollButton" x:FieldModifier="public" Content="停止" Click="CancelPollButton_Click" IsEnabled="False" />
                   <TextBlock x:Name="PollStatusText" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </StackPanel>

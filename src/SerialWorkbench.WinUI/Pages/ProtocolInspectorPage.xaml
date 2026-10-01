@@ -55,21 +55,21 @@
             <ColumnDefinition Width="*" />
           </Grid.ColumnDefinitions>
           <TextBlock Text="类型" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-          <TextBlock x:Name="KindText" Grid.Column="1" />
+          <TextBlock x:Name="KindText" Text="—" Grid.Column="1" />
           <TextBlock Grid.Column="2" Text="地址" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-          <TextBlock x:Name="AddressText" Grid.Column="3" />
+          <TextBlock x:Name="AddressText" Text="—" Grid.Column="3" />
           <TextBlock Grid.Row="1" Text="功能码" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-          <TextBlock x:Name="FunctionText" Grid.Row="1" Grid.Column="1" />
+          <TextBlock x:Name="FunctionText" Text="—" Grid.Row="1" Grid.Column="1" />
           <TextBlock Grid.Row="1" Grid.Column="2" Text="帧长度" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-          <TextBlock x:Name="LengthText" Grid.Row="1" Grid.Column="3" />
+          <TextBlock x:Name="LengthText" Text="—" Grid.Row="1" Grid.Column="3" />
           <TextBlock Grid.Row="2" Text="CRC 计算值" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-          <TextBlock x:Name="CalculatedCrcText" Grid.Row="2" Grid.Column="1" />
+          <TextBlock x:Name="CalculatedCrcText" Text="—" Grid.Row="2" Grid.Column="1" />
           <TextBlock Grid.Row="2" Grid.Column="2" Text="CRC 实际值" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-          <TextBlock x:Name="ActualCrcText" Grid.Row="2" Grid.Column="3" />
+          <TextBlock x:Name="ActualCrcText" Text="—" Grid.Row="2" Grid.Column="3" />
           <TextBlock Grid.Row="3" Text="异常码" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-          <TextBlock x:Name="ExceptionText" Grid.Row="3" Grid.Column="1" />
+          <TextBlock x:Name="ExceptionText" Text="—" Grid.Row="3" Grid.Column="1" />
           <TextBlock Grid.Row="3" Grid.Column="2" Text="字节数" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-          <TextBlock x:Name="ByteCountText" Grid.Row="3" Grid.Column="3" />
+          <TextBlock x:Name="ByteCountText" Text="—" Grid.Row="3" Grid.Column="3" />
         </Grid>
       </Border>
       <InfoBar x:Name="Result" Grid.Row="2" IsOpen="False" IsClosable="True" Visibility="{x:Bind Result.IsOpen, Mode=OneWay}" />

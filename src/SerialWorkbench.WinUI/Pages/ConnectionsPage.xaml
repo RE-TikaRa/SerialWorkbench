@@ -66,7 +66,7 @@
           <x:String>LOOPBACK</x:String>
         </ComboBox>
         <NumberBox x:Name="BaudRateNumberBox" Grid.Column="2" Header="波特率" Value="115200" Minimum="1" Maximum="4000000" SpinButtonPlacementMode="Compact" />
-        <Button x:Name="OpenButton" Grid.Column="3" Content="打开连接" Click="OpenButton_Click" VerticalAlignment="Bottom" />
+        <Button x:Name="OpenButton" Grid.Column="3" Content="打开连接" Click="OpenButton_Click" VerticalAlignment="Bottom" ToolTipService.ToolTip="以 8N1、无流控打开，编码沿用工作台设置" />
       </Grid>
       <Button x:Name="RefreshButton" Grid.Column="1" Content="刷新" Click="RefreshButton_Click" VerticalAlignment="Bottom" />
       <Button x:Name="CloseButton" Grid.Column="2" Content="关闭连接" Click="CloseButton_Click" IsEnabled="False" VerticalAlignment="Bottom" />

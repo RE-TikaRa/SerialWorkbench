@@ -17,6 +17,11 @@ public sealed partial class ModbusPage : Page
     public ModbusPage()
     {
         InitializeComponent();
+        foreach (var box in (NumberBox[])[ScanFrom, ScanTo, ScanAddress, ScanTimeout, ScanInterval, PollSlave, PollAddress, PollQuantity, PollCount, PollInterval, PollTimeout])
+        {
+            box.ValueChanged += NumberBoxInput.KeepLastValue;
+        }
+
         FunctionCode.SelectedIndex = 0;
     }
 
@@ -229,7 +234,16 @@ public sealed partial class ModbusPage : Page
         UpdatePreview();
     }
 
-    private void SlaveAddress_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) => UpdatePreview();
+    private void SlaveAddress_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (double.IsNaN(args.NewValue))
+        {
+            sender.Value = args.OldValue;
+            return;
+        }
+
+        UpdatePreview();
+    }
 
     private void ValuesInput_TextChanged(object sender, TextChangedEventArgs e) => UpdatePreview();
 

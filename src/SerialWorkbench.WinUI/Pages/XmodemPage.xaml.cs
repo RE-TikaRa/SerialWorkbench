@@ -24,6 +24,7 @@ public sealed partial class XmodemPage : Page
         SendButton.IsEnabled = !running;
         ReceiveButton.IsEnabled = !running;
         CancelButton.IsEnabled = running;
+        TransferProgress.Visibility = running ? Visibility.Visible : Visibility.Collapsed;
     }
     private void XmodemPage_SizeChanged(object sender, SizeChangedEventArgs e)
     {
