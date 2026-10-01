@@ -2086,16 +2086,17 @@ public sealed partial class MainWindow : Window
             SerialPreferenceStore.Save(workbenchPage.ReadSerialPreference(workbenchPage.SelectedPort?.PortName));
         }
 
-        if (client is null)
+        if (client is not { } closingClient)
         {
             return;
         }
 
+        client = null;
         foreach (var id in connectionContexts.Keys.ToArray())
         {
             try
             {
-                await client.CloseConnectionAsync(id, CancellationToken.None);
+                await closingClient.CloseConnectionAsync(id, CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -2103,7 +2104,7 @@ public sealed partial class MainWindow : Window
             }
         }
 
-        await client.DisposeAsync();
+        await closingClient.DisposeAsync();
         connectionContexts.Clear();
         connectionId = null;
         loopbackCancel = null;
