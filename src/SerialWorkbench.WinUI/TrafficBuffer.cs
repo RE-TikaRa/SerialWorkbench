@@ -98,7 +98,7 @@ public sealed class TrafficBuffer(Encoding encoding, int capacity = 20_000)
     {
         if (!text)
         {
-            var row = new TrafficRow(item);
+            var row = new TrafficRow(item, encoding);
             row.AppendData(item.Data);
             Rows.Add(row);
             changed.Add(row);
@@ -153,7 +153,7 @@ public sealed class TrafficBuffer(Encoding encoding, int capacity = 20_000)
             {
                 if (currentRow is null)
                 {
-                    currentRow = new TrafficRow(stream.PendingEvent ?? item, stream.PendingEvent is null ? index : stream.PendingOffset);
+                    currentRow = new TrafficRow(stream.PendingEvent ?? item, encoding, stream.PendingEvent is null ? index : stream.PendingOffset);
                     Rows.Add(currentRow);
                 }
 
@@ -191,8 +191,9 @@ public sealed partial class TrafficRow : INotifyPropertyChanged
     private readonly List<byte> data = [];
     private readonly StringBuilder content = new();
 
-    internal TrafficRow(SerialTrafficEvent item, int byteOffset = 0)
+    internal TrafficRow(SerialTrafficEvent item, Encoding encoding, int byteOffset = 0)
     {
+        Encoding = encoding;
         Identity = new TrafficRowIdentity(item.ConnectionId, item.Sequence, byteOffset);
         IsReceive = item.Direction == SerialDirection.Receive;
         Time = item.Utc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
@@ -201,6 +202,7 @@ public sealed partial class TrafficRow : INotifyPropertyChanged
 
     private TrafficRow(TrafficRow row)
     {
+        Encoding = row.Encoding;
         Identity = row.Identity;
         IsReceive = row.IsReceive;
         Time = row.Time;
@@ -222,6 +224,9 @@ public sealed partial class TrafficRow : INotifyPropertyChanged
     public bool IsReceive { get; }
     public bool IsTransmit => !IsReceive;
     public bool ShowTimestamp { get; private set; }
+
+    internal Encoding Encoding { get; }
+    internal ReadOnlySpan<byte> Data => CollectionsMarshal.AsSpan(data);
 
     public TrafficRow Snapshot() => new(this);
 

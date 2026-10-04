@@ -10,6 +10,7 @@ public sealed class TrafficCopyMenu
 {
     private readonly ListView list;
     private readonly MenuFlyoutItem copyItem = new() { Text = "复制所选", Icon = new SymbolIcon(Symbol.Copy) };
+    private readonly MenuFlyoutSubItem formatItem = new() { Text = "复制为" };
     private readonly MenuFlyoutItem selectAllItem = new() { Text = "全选" };
     private readonly MenuFlyoutItem clearSelectionItem = new() { Text = "清除选择" };
     private readonly KeyboardAccelerator copyShortcut;
@@ -19,6 +20,21 @@ public sealed class TrafficCopyMenu
         this.list = list;
         var menu = new MenuFlyout();
         menu.Items.Add(copyItem);
+        menu.Items.Add(formatItem);
+        (string Text, TrafficCopyFormat Format)[] formats =
+        [
+            ("文本（保留行尾）", TrafficCopyFormat.Text),
+            ("HEX（空格分隔）", TrafficCopyFormat.Hex),
+            ("连续 HEX", TrafficCopyFormat.CompactHex),
+            ("带时间、方向和来源", TrafficCopyFormat.Log),
+        ];
+        foreach (var (text, format) in formats)
+        {
+            var item = new MenuFlyoutItem { Text = text, Tag = format };
+            item.Click += CopyFormatItem_Click;
+            formatItem.Items.Add(item);
+        }
+
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(selectAllItem);
         menu.Items.Add(clearSelectionItem);
@@ -82,19 +98,28 @@ public sealed class TrafficCopyMenu
         var count = list.SelectedItems.Count;
         copyItem.Text = count == 0 ? "复制所选" : $"复制所选（{count} 条）";
         copyItem.IsEnabled = count != 0;
+        formatItem.IsEnabled = count != 0;
         clearSelectionItem.IsEnabled = count != 0;
         copyShortcut.IsEnabled = count != 0;
     }
 
-    private void CopyItem_Click(object sender, RoutedEventArgs e) => CopySelection();
+    private void CopyItem_Click(object sender, RoutedEventArgs e) => CopySelection(TrafficCopyFormat.CurrentDisplay);
+
+    private void CopyFormatItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem { Tag: TrafficCopyFormat format })
+        {
+            CopySelection(format);
+        }
+    }
 
     private void CopyShortcut_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        CopySelection();
+        CopySelection(TrafficCopyFormat.CurrentDisplay);
         args.Handled = true;
     }
 
-    private void CopySelection()
+    private void CopySelection(TrafficCopyFormat format)
     {
         var rows = TrafficSelection.GetSelectedRows(list.Items.OfType<TrafficRow>(), CaptureSelection());
         if (rows.Count == 0)
@@ -103,7 +128,7 @@ public sealed class TrafficCopyMenu
         }
 
         var package = new DataPackage();
-        package.SetText(string.Join(Environment.NewLine, rows.Select(static row => row.Display)));
+        package.SetText(TrafficCopyFormatter.Format(rows, format));
         Clipboard.SetContent(package);
     }
 
