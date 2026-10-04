@@ -6,6 +6,7 @@
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../src/SerialWorkbench.WinUI/TrafficBuffer.cs" Link="TrafficBuffer.cs" />
     <PackageReference Include="xunit.v3.mtp-v2" />
     <ProjectReference Include="../../src/SerialWorkbench.Application/SerialWorkbench.Application.csproj" />
     <ProjectReference Include="../../src/SerialWorkbench.Domain/SerialWorkbench.Domain.csproj" />

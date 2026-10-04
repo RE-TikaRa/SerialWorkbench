@@ -73,6 +73,14 @@ public sealed partial class WorkbenchPage : Page
 
     public IReadOnlyList<TrafficRow> VisibleRows => visibleRows;
 
+    public void FreezeRows()
+    {
+        for (var index = 0; index < visibleRows.Count; index++)
+        {
+            visibleRows[index] = visibleRows[index].Snapshot();
+        }
+    }
+
     public void RefreshTrafficFilter()
     {
         var query = TrafficSearch.Text.Trim();

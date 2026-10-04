@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using SerialWorkbench.WinUI;
@@ -8,6 +9,7 @@ namespace SerialWorkbench.WinUI.Pages;
 public sealed partial class TerminalPage : Page
 {
     private readonly ObservableCollection<string> history = [];
+    private ObservableCollection<TrafficRow>? sourceRows;
 
     public TerminalPage()
     {
@@ -16,6 +18,7 @@ public sealed partial class TerminalPage : Page
     }
 
     public event EventHandler? SendRequested;
+    public event EventHandler? ClearRequested;
 
     public ObservableCollection<TrafficRow> Rows { get; } = [];
 
@@ -31,24 +34,46 @@ public sealed partial class TerminalPage : Page
         InputEditor.MaxHeight = Math.Max(InputEditor.MinHeight, e.NewSize.Height / 3);
     }
 
-    public void BindRows(IEnumerable<TrafficRow> source)
+    public void BindRows(ObservableCollection<TrafficRow> source)
     {
+        if (sourceRows is not null)
+        {
+            sourceRows.CollectionChanged -= SourceRows_CollectionChanged;
+        }
+
+        sourceRows = source;
         Rows.Clear();
         foreach (var row in source)
         {
             Rows.Add(row);
         }
 
+        sourceRows.CollectionChanged += SourceRows_CollectionChanged;
         UpdateEmptyState();
         ScrollLatest();
     }
 
-    public void AppendRow(TrafficRow row)
+    private void SourceRows_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        Rows.Add(row);
-        while (Rows.Count > 20_000)
+        if (e.Action == NotifyCollectionChangedAction.Reset)
         {
-            Rows.RemoveAt(0);
+            Rows.Clear();
+        }
+
+        if (e.OldItems is not null)
+        {
+            foreach (TrafficRow row in e.OldItems)
+            {
+                Rows.Remove(row);
+            }
+        }
+
+        if (e.NewItems is not null)
+        {
+            foreach (TrafficRow row in e.NewItems)
+            {
+                Rows.Add(row);
+            }
         }
 
         UpdateEmptyState();
@@ -106,6 +131,7 @@ public sealed partial class TerminalPage : Page
 
     private void ClearOutputButton_Click(object sender, RoutedEventArgs e)
     {
+        ClearRequested?.Invoke(this, EventArgs.Empty);
         Rows.Clear();
         UpdateEmptyState();
     }

@@ -39,7 +39,8 @@ public sealed partial class MainWindow : Window
     private long currentTrafficBytes;
     private bool polling;
     private bool portRefreshing;
-    private Decoder? textDecoder;
+    private TrafficBuffer trafficBuffer = new(Encoding.UTF8);
+    private TrafficBuffer terminalBuffer = new(Encoding.UTF8);
     private ElementTheme currentTheme;
     private bool workspaceSelected;
     private string workspacePath = "尚未选择工作区";
@@ -93,7 +94,7 @@ public sealed partial class MainWindow : Window
             Math.Min((int)(860 * scale), workArea.Height)));
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
-        TrafficRows = [];
+        TrafficRows = trafficBuffer.Rows;
         UpdateTrafficPresentation();
         ContentFrame.Navigate(typeof(WorkbenchPage), null, new SuppressNavigationTransitionInfo());
         Navigation.SelectedItem = Navigation.MenuItems[0];
@@ -322,23 +323,21 @@ public sealed partial class MainWindow : Window
             {
                 var isCurrent = context.Snapshot.Id == connectionId;
                 var events = await client.ReadEventsAsync(new EventQuery(context.LastSequence, 1000, context.Snapshot.Id), CancellationToken.None);
+                var encoding = Encoding.GetEncoding(context.Snapshot.Options.EncodingName);
+                var text = workbenchPage?.MonitorFormatIndex == 1;
+                var showTime = workbenchPage?.ShowTimestamp ?? true;
+                context.TrafficBuffer.SetPresentation(encoding, text, showTime);
+                context.TerminalBuffer.SetPresentation(encoding, text, showTime);
+                context.TrafficBuffer.Append(events);
+                context.TerminalBuffer.Append(events);
                 foreach (var item in events)
                 {
                     anyEvents = true;
                     context.LastSequence = Math.Max(context.LastSequence, item.Sequence);
-                    var encoding = Encoding.GetEncoding(context.Snapshot.Options.EncodingName);
-                    var row = TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, encoding, workbenchPage?.ShowTimestamp ?? true, context.TextDecoder);
-                    context.TrafficRows.Add(row);
-                    while (context.TrafficRows.Count > 20_000)
-                    {
-                        context.TrafficRows.RemoveAt(0);
-                    }
-
                     if (isCurrent)
                     {
                         currentEvents = true;
                         lastSequence = context.LastSequence;
-                        terminalPage?.AppendRow(row);
                         if (item.Direction == SerialDirection.Receive)
                         {
                             workbenchPage?.AppendWaveform(item.Data);
@@ -441,14 +440,15 @@ public sealed partial class MainWindow : Window
 
         SaveCurrentContext();
         connectionId = id;
-        TrafficRows = context.TrafficRows;
+        trafficBuffer = context.TrafficBuffer;
+        terminalBuffer = context.TerminalBuffer;
+        TrafficRows = trafficBuffer.Rows;
         lastSequence = context.LastSequence;
-        textDecoder = context.TextDecoder;
         paused = context.Paused;
         pauseBaselineBytes = context.PauseBaselineBytes;
         currentTrafficBytes = context.CurrentTrafficBytes;
         workbenchPage?.BindRows(TrafficRows);
-        terminalPage?.BindRows(TrafficRows);
+        terminalPage?.BindRows(terminalBuffer.Rows);
         workbenchPage?.ApplySerialProfile(new SerialProfile(
             context.Snapshot.Options.Role.ToString(),
             context.Snapshot.Options.PortName,
@@ -474,14 +474,15 @@ public sealed partial class MainWindow : Window
     private void ResetCurrentConnection()
     {
         connectionId = null;
-        textDecoder = null;
-        TrafficRows = [];
+        trafficBuffer = new TrafficBuffer(Encoding.UTF8);
+        terminalBuffer = new TrafficBuffer(Encoding.UTF8);
+        TrafficRows = trafficBuffer.Rows;
         lastSequence = 0;
         currentTrafficBytes = 0;
         pauseBaselineBytes = 0;
         paused = false;
         workbenchPage?.BindRows(TrafficRows);
-        terminalPage?.BindRows(TrafficRows);
+        terminalPage?.BindRows(terminalBuffer.Rows);
         workbenchPage?.StopLoopSend();
         if (workbenchPage is not null)
         {
@@ -546,6 +547,7 @@ public sealed partial class MainWindow : Window
         if (paused)
         {
             pauseBaselineBytes = currentTrafficBytes;
+            workbenchPage?.FreezeRows();
         }
         else
         {
@@ -590,7 +592,15 @@ public sealed partial class MainWindow : Window
 
     private void ClearButton_Click(object sender, RoutedEventArgs e)
     {
-        TrafficRows.Clear();
+        if (ReferenceEquals(TrafficRows, trafficBuffer.Rows))
+        {
+            trafficBuffer.Clear();
+        }
+        else
+        {
+            TrafficRows.Clear();
+        }
+
         UpdateTrafficPresentation();
     }
 
@@ -707,9 +717,11 @@ public sealed partial class MainWindow : Window
                 break;
             case TerminalPage page:
                 terminalPage = page;
-                page.BindRows(TrafficRows);
+                page.BindRows(replayCancellation is null ? terminalBuffer.Rows : TrafficRows);
                 page.SendRequested -= TerminalPage_SendRequested;
                 page.SendRequested += TerminalPage_SendRequested;
+                page.ClearRequested -= TerminalPage_ClearRequested;
+                page.ClearRequested += TerminalPage_ClearRequested;
                 break;
             case AutomationPage page:
                 automationPage = page;
@@ -971,10 +983,20 @@ public sealed partial class MainWindow : Window
         var showTime = workbenchPage.ShowTimestamp;
         foreach (var context in connectionContexts.Values)
         {
-            RenderTrafficRows(context.TrafficRows, Encoding.GetEncoding(context.Snapshot.Options.EncodingName), text, showTime);
+            var encoding = Encoding.GetEncoding(context.Snapshot.Options.EncodingName);
+            context.TrafficBuffer.SetPresentation(encoding, text, showTime);
+            context.TerminalBuffer.SetPresentation(encoding, text, showTime);
         }
 
-        if (connectionContexts.Values.All(context => !ReferenceEquals(context.TrafficRows, TrafficRows)))
+        if (ReferenceEquals(TrafficRows, trafficBuffer.Rows))
+        {
+            var encoding = connectionId is { } id && connectionContexts.TryGetValue(id, out var context)
+                ? Encoding.GetEncoding(context.Snapshot.Options.EncodingName)
+                : workbenchPage.SelectedEncoding;
+            trafficBuffer.SetPresentation(encoding, text, showTime);
+            terminalBuffer.SetPresentation(encoding, text, showTime);
+        }
+        else
         {
             RenderTrafficRows(TrafficRows, workbenchPage.SelectedEncoding, text, showTime);
         }
@@ -1130,6 +1152,8 @@ public sealed partial class MainWindow : Window
             workbenchPage.ApplySerialProfile(profile);
         }
     }
+
+    private void TerminalPage_ClearRequested(object? sender, EventArgs e) => terminalBuffer.Clear();
 
     private async void TerminalPage_SendRequested(object? sender, EventArgs e)
     {
@@ -1442,7 +1466,6 @@ public sealed partial class MainWindow : Window
                 cancellation.Token.ThrowIfCancellationRequested();
                 var row = TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, workbenchPage?.SelectedEncoding ?? Encoding.UTF8, workbenchPage?.ShowTimestamp ?? true);
                 replayRows.Add(row);
-                terminalPage?.AppendRow(row);
                 while (replayRows.Count > 20_000)
                 {
                     replayRows.RemoveAt(0);
@@ -1482,9 +1505,11 @@ public sealed partial class MainWindow : Window
 
             if (connectionId is { } active && connectionContexts.TryGetValue(active, out var context))
             {
-                TrafficRows = context.TrafficRows;
+                trafficBuffer = context.TrafficBuffer;
+                terminalBuffer = context.TerminalBuffer;
+                TrafficRows = trafficBuffer.Rows;
                 workbenchPage?.BindRows(TrafficRows);
-                terminalPage?.BindRows(TrafficRows);
+                terminalPage?.BindRows(terminalBuffer.Rows);
             }
 
             cancellation.Dispose();
@@ -2027,7 +2052,6 @@ public sealed partial class MainWindow : Window
         connectionContexts.Clear();
         connectionId = null;
         loopbackCancel = null;
-        textDecoder = null;
         replayCancellation?.Dispose();
         modbusScanCancellation?.Dispose();
         modbusPollCancellation?.Dispose();
@@ -2104,11 +2128,11 @@ internal sealed class ConnectionContext(ConnectionSnapshot snapshot)
 {
     public ConnectionSnapshot Snapshot { get; set; } = snapshot;
 
-    public ObservableCollection<TrafficRow> TrafficRows { get; } = [];
+    public TrafficBuffer TrafficBuffer { get; } = new(Encoding.GetEncoding(snapshot.Options.EncodingName));
+
+    public TrafficBuffer TerminalBuffer { get; } = new(Encoding.GetEncoding(snapshot.Options.EncodingName));
 
     public long LastSequence { get; set; }
-
-    public Decoder? TextDecoder { get; } = Encoding.GetEncoding(snapshot.Options.EncodingName).GetDecoder();
 
     public bool Paused { get; set; }
 
@@ -2117,66 +2141,11 @@ internal sealed class ConnectionContext(ConnectionSnapshot snapshot)
     public long CurrentTrafficBytes { get; set; }
 }
 
-public sealed class TrafficRow : INotifyPropertyChanged
+public sealed partial class TrafficRow
 {
-    private readonly byte[] data;
+    public Visibility ReceiveVisibility => IsReceive ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility TransmitVisibility => IsTransmit ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility TimeVisibility => ShowTimestamp ? Visibility.Visible : Visibility.Collapsed;
 
-    private TrafficRow(SerialTrafficEvent item)
-    {
-        data = item.Data;
-        IsReceive = item.Direction == SerialDirection.Receive;
-        Time = item.Utc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
-        Hex = Convert.ToHexString(item.Data);
-        Source = item.Source;
-        ReceiveVisibility = IsReceive ? Visibility.Visible : Visibility.Collapsed;
-        TransmitVisibility = IsReceive ? Visibility.Collapsed : Visibility.Visible;
-    }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    public string Time { get; }
-
-    public string Display { get; private set; } = "";
-
-    public string Hex { get; }
-
-    public string Source { get; }
-
-    public bool IsReceive { get; }
-
-    public Visibility ReceiveVisibility { get; }
-
-    public Visibility TransmitVisibility { get; }
-
-    public Visibility TimeVisibility { get; private set; }
-
-    public static TrafficRow From(SerialTrafficEvent item, bool text, Encoding encoding, bool showTime, Decoder? decoder = null)
-    {
-        var row = new TrafficRow(item);
-        row.Render(text, encoding, showTime, decoder);
-        return row;
-    }
-
-    public void Render(bool text, Encoding encoding, bool showTime, Decoder? decoder)
-    {
-        Display = text
-            ? DecodeText(data, encoding, IsReceive ? decoder : null)
-            : Protocols.HexCodec.Format(data);
-        TimeVisibility = showTime ? Visibility.Visible : Visibility.Collapsed;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Display)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TimeVisibility)));
-    }
-
-    private static string DecodeText(byte[] data, Encoding encoding, Decoder? decoder)
-    {
-        if (decoder is null)
-        {
-            return encoding.GetString(data);
-        }
-
-        var charCount = decoder.GetCharCount(data, 0, data.Length, false);
-        var chars = new char[charCount];
-        decoder.GetChars(data, 0, data.Length, chars, 0, false);
-        return new string(chars);
-    }
+    partial void OnRefreshed() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TimeVisibility)));
 }
