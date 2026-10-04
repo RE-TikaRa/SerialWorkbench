@@ -230,34 +230,5 @@ public sealed partial class TrafficRow : INotifyPropertyChanged
         OnRefreshed();
     }
 
-    public static TrafficRow From(SerialTrafficEvent item, bool text, Encoding encoding, bool showTime, Decoder? decoder = null)
-    {
-        var row = new TrafficRow(item);
-        row.AppendData(item.Data);
-        row.Render(text, encoding, showTime, decoder);
-        return row;
-    }
-
-    public void Render(bool text, Encoding encoding, bool showTime, Decoder? decoder)
-    {
-        var bytes = CollectionsMarshal.AsSpan(data);
-        Display = text
-            ? IsReceive && decoder is not null ? DecodeText(bytes, decoder) : encoding.GetString(bytes)
-            : HexCodec.Format(bytes);
-        Hex = Convert.ToHexString(bytes);
-        ShowTimestamp = showTime;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Display)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Hex)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowTimestamp)));
-        OnRefreshed();
-    }
-
     partial void OnRefreshed();
-
-    private static string DecodeText(ReadOnlySpan<byte> data, Decoder decoder)
-    {
-        var chars = new char[decoder.GetCharCount(data, false)];
-        decoder.GetChars(data, chars, false);
-        return new string(chars);
-    }
 }

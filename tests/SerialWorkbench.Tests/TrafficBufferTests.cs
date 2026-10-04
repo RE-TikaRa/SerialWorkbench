@@ -139,6 +139,51 @@ public sealed class TrafficBufferTests
     }
 
     [Fact]
+    public void ConnectionChangesPreserveIndependentDecoderState()
+    {
+        var buffer = CreateBuffer(Encoding.UTF8);
+        var otherConnection = Guid.Parse("9d28b731-de93-482c-aa47-8c0b7cd6ba80");
+        var first = "温"u8.ToArray();
+        var second = "湿"u8.ToArray();
+        buffer.Append([
+            CreateEvent(1, first[..1]),
+            CreateEvent(2, second[..1]) with { ConnectionId = otherConnection },
+            CreateEvent(3, first[1..]),
+            CreateEvent(4, second[1..]) with { ConnectionId = otherConnection },
+        ]);
+
+        Assert.Equal(["温", "湿"], buffer.Rows.Select(static row => row.Display));
+        Assert.Equal(Convert.ToHexString(first), buffer.Rows[0].Hex);
+        Assert.Equal(Convert.ToHexString(second), buffer.Rows[1].Hex);
+    }
+
+    [Fact]
+    public void EventByEventReplayMatchesBatchReception()
+    {
+        var events = new[]
+        {
+            CreateEvent(1, [0xE6]),
+            CreateEvent(2, "温度"u8[1..].ToArray()),
+            CreateEvent(3, "=25.6\r"u8.ToArray()),
+            CreateEvent(4, "\n湿度=40%"u8.ToArray()),
+            CreateEvent(5, "read\r\n"u8.ToArray(), SerialDirection.Transmit),
+            CreateEvent(6, "完成"u8.ToArray()),
+        };
+        var live = CreateBuffer(Encoding.UTF8);
+        var replay = CreateBuffer(Encoding.UTF8);
+        live.Append(events);
+        foreach (var item in events)
+        {
+            replay.Append([item]);
+        }
+
+        Assert.Equal(live.Rows.Select(static row => row.Display), replay.Rows.Select(static row => row.Display));
+        Assert.Equal(live.Rows.Select(static row => row.Hex), replay.Rows.Select(static row => row.Hex));
+        Assert.Equal(live.Rows.Select(static row => row.Time), replay.Rows.Select(static row => row.Time));
+        Assert.Equal(live.Rows.Select(static row => row.IsReceive), replay.Rows.Select(static row => row.IsReceive));
+    }
+
+    [Fact]
     public void SwitchingTextAndHexRebuildsFromUnmodifiedEvents()
     {
         var buffer = new TrafficBuffer(Encoding.UTF8);

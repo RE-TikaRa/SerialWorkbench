@@ -94,7 +94,6 @@ public sealed partial class MainWindow : Window
             Math.Min((int)(860 * scale), workArea.Height)));
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
-        TrafficRows = trafficBuffer.Rows;
         UpdateTrafficPresentation();
         ContentFrame.Navigate(typeof(WorkbenchPage), null, new SuppressNavigationTransitionInfo());
         Navigation.SelectedItem = Navigation.MenuItems[0];
@@ -105,7 +104,7 @@ public sealed partial class MainWindow : Window
         Activated += MainWindow_Activated;
     }
 
-    public ObservableCollection<TrafficRow> TrafficRows { get; private set; }
+    public ObservableCollection<TrafficRow> TrafficRows => trafficBuffer.Rows;
 
     private async void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
     {
@@ -442,7 +441,6 @@ public sealed partial class MainWindow : Window
         connectionId = id;
         trafficBuffer = context.TrafficBuffer;
         terminalBuffer = context.TerminalBuffer;
-        TrafficRows = trafficBuffer.Rows;
         lastSequence = context.LastSequence;
         paused = context.Paused;
         pauseBaselineBytes = context.PauseBaselineBytes;
@@ -476,7 +474,6 @@ public sealed partial class MainWindow : Window
         connectionId = null;
         trafficBuffer = new TrafficBuffer(Encoding.UTF8);
         terminalBuffer = new TrafficBuffer(Encoding.UTF8);
-        TrafficRows = trafficBuffer.Rows;
         lastSequence = 0;
         currentTrafficBytes = 0;
         pauseBaselineBytes = 0;
@@ -592,15 +589,7 @@ public sealed partial class MainWindow : Window
 
     private void ClearButton_Click(object sender, RoutedEventArgs e)
     {
-        if (ReferenceEquals(TrafficRows, trafficBuffer.Rows))
-        {
-            trafficBuffer.Clear();
-        }
-        else
-        {
-            TrafficRows.Clear();
-        }
-
+        trafficBuffer.Clear();
         UpdateTrafficPresentation();
     }
 
@@ -717,7 +706,7 @@ public sealed partial class MainWindow : Window
                 break;
             case TerminalPage page:
                 terminalPage = page;
-                page.BindRows(replayCancellation is null ? terminalBuffer.Rows : TrafficRows);
+                page.BindRows(terminalBuffer.Rows);
                 page.SendRequested -= TerminalPage_SendRequested;
                 page.SendRequested += TerminalPage_SendRequested;
                 page.ClearRequested -= TerminalPage_ClearRequested;
@@ -988,31 +977,15 @@ public sealed partial class MainWindow : Window
             context.TerminalBuffer.SetPresentation(encoding, text, showTime);
         }
 
-        if (ReferenceEquals(TrafficRows, trafficBuffer.Rows))
-        {
-            var encoding = connectionId is { } id && connectionContexts.TryGetValue(id, out var context)
-                ? Encoding.GetEncoding(context.Snapshot.Options.EncodingName)
-                : workbenchPage.SelectedEncoding;
-            trafficBuffer.SetPresentation(encoding, text, showTime);
-            terminalBuffer.SetPresentation(encoding, text, showTime);
-        }
-        else
-        {
-            RenderTrafficRows(TrafficRows, workbenchPage.SelectedEncoding, text, showTime);
-        }
+        var currentEncoding = replayCancellation is null && connectionId is { } id && connectionContexts.TryGetValue(id, out var current)
+            ? Encoding.GetEncoding(current.Snapshot.Options.EncodingName)
+            : workbenchPage.SelectedEncoding;
+        trafficBuffer.SetPresentation(currentEncoding, text, showTime);
+        terminalBuffer.SetPresentation(currentEncoding, text, showTime);
 
         if (!paused)
         {
             UpdateTrafficPresentation();
-        }
-    }
-
-    private static void RenderTrafficRows(IEnumerable<TrafficRow> rows, Encoding encoding, bool text, bool showTime)
-    {
-        var decoder = encoding.GetDecoder();
-        foreach (var row in rows)
-        {
-            row.Render(text, encoding, showTime, decoder);
         }
     }
 
@@ -1444,10 +1417,12 @@ public sealed partial class MainWindow : Window
         var events = Array.Empty<SerialTrafficEvent>();
         var current = 0;
         long sequence = 0;
-        var replayRows = new ObservableCollection<TrafficRow>();
-        TrafficRows = replayRows;
-        workbenchPage?.BindRows(replayRows);
-        terminalPage?.BindRows(replayRows);
+        var replayBuffer = new TrafficBuffer(workbenchPage?.SelectedEncoding ?? Encoding.UTF8);
+        var replayTerminalBuffer = new TrafficBuffer(workbenchPage?.SelectedEncoding ?? Encoding.UTF8);
+        trafficBuffer = replayBuffer;
+        terminalBuffer = replayTerminalBuffer;
+        workbenchPage?.BindRows(replayBuffer.Rows);
+        terminalPage?.BindRows(replayTerminalBuffer.Rows);
         try
         {
             events = [.. await client.ReadAllSessionEventsAsync(sessionId, cancellation.Token)];
@@ -1464,12 +1439,13 @@ public sealed partial class MainWindow : Window
 
                 await WaitReplayIfPausedAsync(cancellation.Token);
                 cancellation.Token.ThrowIfCancellationRequested();
-                var row = TrafficRow.From(item, workbenchPage?.MonitorFormatIndex == 1, workbenchPage?.SelectedEncoding ?? Encoding.UTF8, workbenchPage?.ShowTimestamp ?? true);
-                replayRows.Add(row);
-                while (replayRows.Count > 20_000)
-                {
-                    replayRows.RemoveAt(0);
-                }
+                var encoding = workbenchPage?.SelectedEncoding ?? Encoding.UTF8;
+                var text = workbenchPage?.MonitorFormatIndex == 1;
+                var showTime = workbenchPage?.ShowTimestamp ?? true;
+                replayBuffer.SetPresentation(encoding, text, showTime);
+                replayTerminalBuffer.SetPresentation(encoding, text, showTime);
+                replayBuffer.Append([item]);
+                replayTerminalBuffer.Append([item]);
 
                 current = index + 1;
                 sequence = item.Sequence;
@@ -1507,7 +1483,6 @@ public sealed partial class MainWindow : Window
             {
                 trafficBuffer = context.TrafficBuffer;
                 terminalBuffer = context.TerminalBuffer;
-                TrafficRows = trafficBuffer.Rows;
                 workbenchPage?.BindRows(TrafficRows);
                 terminalPage?.BindRows(terminalBuffer.Rows);
             }

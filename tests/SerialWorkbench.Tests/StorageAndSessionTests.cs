@@ -1,8 +1,10 @@
+using System.Text;
 using Microsoft.Data.Sqlite;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Host;
 using SerialWorkbench.Sessions;
 using SerialWorkbench.Storage;
+using SerialWorkbench.WinUI;
 
 namespace SerialWorkbench.Tests;
 
@@ -85,6 +87,38 @@ public sealed class StorageAndSessionTests
         Assert.Equal(3, loopbackHistory.Result.SentBytes);
         await store.DeleteAsync(session.Id, cancellationToken);
         Assert.Empty(await store.ListAsync(cancellationToken));
+    }
+
+    [Fact]
+    public async Task SessionReplayRestoresTextLinesWithoutChangingRawEvents()
+    {
+        var paths = new ApplicationPaths(CreateArtifactDirectory("text-replay-app"));
+        paths.EnsureWritable();
+        var connectionId = Guid.NewGuid();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var bytes = "温度=25.6°C\r\n湿度=40%\r\n"u8.ToArray();
+        var original = bytes.Select((value, index) => CreateEvent(index + 1, connectionId, SerialDirection.Receive, [value])).ToArray();
+        await using var store = new SessionStore(paths);
+        await store.AppendManyAsync(original, cancellationToken);
+        await store.CompleteAsync(cancellationToken);
+        var session = Assert.Single(await store.ListAsync(cancellationToken));
+        var events = await store.ReadAllEventsAsync(session.Id, cancellationToken);
+        var replay = new TrafficBuffer(Encoding.UTF8);
+        replay.SetPresentation(Encoding.UTF8, true, true);
+        foreach (var item in events)
+        {
+            replay.Append([item]);
+        }
+
+        Assert.Equal(["温度=25.6°C", "湿度=40%"], replay.Rows.Select(static row => row.Display));
+        Assert.Equal(Convert.ToHexString(bytes), string.Concat(replay.Rows.Select(static row => row.Hex)));
+        replay.SetPresentation(Encoding.UTF8, false, true);
+        Assert.Equal(original.Select(static item => Convert.ToHexString(item.Data)), replay.Rows.Select(static row => row.Hex));
+        Assert.Equal(original.Select(static item => item.Sequence), events.Select(static item => item.Sequence));
+        Assert.Equal(original.Select(static item => item.Utc), events.Select(static item => item.Utc));
+        Assert.Equal(bytes, events.SelectMany(static item => item.Data));
+        Assert.Equal(original.Length, session.EventCount);
+        Assert.Equal(bytes.Length, session.RawByteCount);
     }
 
     [Fact]
