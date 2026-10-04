@@ -15,6 +15,7 @@ public sealed class HostRuntime : IAsyncDisposable
     private readonly Channel<SerialTrafficEvent> sessionEvents = Channel.CreateUnbounded<SerialTrafficEvent>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
     private readonly Task sessionWriter;
     private readonly object sessionQueueGate = new();
+    private readonly SemaphoreSlim connectionGate = new(1, 1);
     private TaskCompletionSource<bool> sessionFlushed = CompletedSignal();
     private long pendingSessionEvents;
     private Exception? sessionWriterError;
@@ -69,37 +70,80 @@ public sealed class HostRuntime : IAsyncDisposable
     {
         if (Interlocked.Decrement(ref clientCount) == 0)
         {
-            Interlocked.Exchange(ref idleSinceUnixMilliseconds, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            Interlocked.Exchange(ref idleSinceUnixMilliseconds, 0);
         }
     }
 
     public bool ShouldStopAfterIdle(TimeSpan idleTimeout)
     {
-        if (ClientCount != 0)
+        if (ClientCount != 0 || Connections.GetSnapshots().Count != 0 || Leases.ActiveCount != 0)
         {
+            Interlocked.Exchange(ref idleSinceUnixMilliseconds, 0);
             return false;
         }
 
+        Interlocked.CompareExchange(ref idleSinceUnixMilliseconds, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), 0);
         var idleSince = Interlocked.Read(ref idleSinceUnixMilliseconds);
         return idleSince != 0 && DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeMilliseconds(idleSince) >= idleTimeout;
     }
 
     public void RequestStop() => stopping.Cancel();
 
+    public async Task<ConnectionSnapshot> OpenConnectionAsync(OpenConnectionRequest request, CancellationToken cancellationToken)
+    {
+        await connectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await Sessions.EnsureSessionAsync(cancellationToken).ConfigureAwait(false);
+            return await Connections.OpenAsync(request.Options, cancellationToken, request.ReuseExisting).ConfigureAwait(false);
+        }
+        finally
+        {
+            connectionGate.Release();
+        }
+    }
+
+    public async Task CloseConnectionAsync(Guid connectionId, CancellationToken cancellationToken)
+    {
+        await connectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await Connections.CloseAsync(connectionId).ConfigureAwait(false);
+            if (Connections.GetSnapshots().Count == 0)
+            {
+                await FlushSessionEventsAsync(cancellationToken).ConfigureAwait(false);
+                await Sessions.CompleteAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            Interlocked.Exchange(ref idleSinceUnixMilliseconds, 0);
+        }
+        finally
+        {
+            connectionGate.Release();
+        }
+    }
+
     public async Task SetWorkspaceAsync(string? workspaceRoot, CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (Connections.GetSnapshots().Count != 0)
+        await connectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            throw new InvalidOperationException("Close all serial connections before changing the workspace.");
-        }
+            if (Connections.GetSnapshots().Count != 0)
+            {
+                throw new InvalidOperationException("Close all serial connections before changing the workspace.");
+            }
 
-        var nextPaths = Paths.WithWorkspace(workspaceRoot);
-        nextPaths.EnsureWritable();
-        await FlushSessionEventsAsync(cancellationToken).ConfigureAwait(false);
-        await Sessions.DisposeAsync().ConfigureAwait(false);
-        Paths = nextPaths;
-        Sessions = new SessionStore(nextPaths);
+            var nextPaths = Paths.WithWorkspace(workspaceRoot);
+            nextPaths.EnsureWritable();
+            await FlushSessionEventsAsync(cancellationToken).ConfigureAwait(false);
+            await Sessions.DisposeAsync().ConfigureAwait(false);
+            Paths = nextPaths;
+            Sessions = new SessionStore(nextPaths);
+        }
+        finally
+        {
+            connectionGate.Release();
+        }
     }
 
     public async ValueTask DisposeAsync()
@@ -111,6 +155,7 @@ public sealed class HostRuntime : IAsyncDisposable
         await sessionWriter.ConfigureAwait(false);
         await Sessions.DisposeAsync().ConfigureAwait(false);
         stopping.Dispose();
+        connectionGate.Dispose();
     }
 
     public async Task FlushSessionEventsAsync(CancellationToken cancellationToken)

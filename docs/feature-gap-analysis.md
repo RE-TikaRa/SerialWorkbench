@@ -52,6 +52,7 @@ Host 持有串口句柄、写入租约、原始事件和 SQLite 会话。WinUI �
 - 连接管理页显示连接打开以来的平均 RX/TX 字节速率。
 - Host 状态显示会话事件实际写入速率。
 - CLI 端口、Host、工作区、发送、监视、回环、Modbus、会话和 XMODEM 命令。
+- CLI 持久连接管理，以及通过 `--connection` 使用现有共享连接；桌面退出保留连接，Host 在连接或写入任务存在时保持运行。
 - self-contained `win-x64` 便携发布。
 
 ## 仍可增强的功能

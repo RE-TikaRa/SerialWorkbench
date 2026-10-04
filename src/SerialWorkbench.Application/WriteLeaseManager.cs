@@ -5,6 +5,17 @@ public sealed class WriteLeaseManager
     private readonly Dictionary<Guid, LeaseState> leases = [];
     private readonly object gate = new();
 
+    public int ActiveCount
+    {
+        get
+        {
+            lock (gate)
+            {
+                return leases.Count;
+            }
+        }
+    }
+
     public WriteLease Acquire(Guid connectionId, string owner)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);

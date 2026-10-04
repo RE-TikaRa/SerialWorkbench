@@ -316,6 +316,7 @@ public sealed partial class MainWindow : Window
         polling = true;
         try
         {
+            await RefreshStatusAsync();
             var anyEvents = false;
             var currentEvents = false;
             foreach (var context in connectionContexts.Values.ToArray())
@@ -353,7 +354,6 @@ public sealed partial class MainWindow : Window
                     UpdateTrafficPresentation();
                 }
 
-                await RefreshStatusAsync();
             }
         }
         catch (Exception ex)
@@ -379,6 +379,10 @@ public sealed partial class MainWindow : Window
 
         var status = await client.GetStatusAsync(CancellationToken.None);
         SyncConnectionContexts(status.Connections);
+        if (connectionId is null && status.Connections.FirstOrDefault(static item => item.State == ConnectionState.Open) is { } shared)
+        {
+            ActivateConnection(shared.Id);
+        }
         var connection = status.Connections.FirstOrDefault(item => item.Id == connectionId);
         if (connectionId is { } current && (connection is null || connection.State is ConnectionState.Faulted or ConnectionState.Closed))
         {
@@ -2003,6 +2007,7 @@ public sealed partial class MainWindow : Window
         xmodemCancel?.Invoke();
         modbusScanCancellation?.Cancel();
         modbusPollCancellation?.Cancel();
+        sequenceCancel?.Invoke();
         if (workbenchPage is not null)
         {
             SerialPreferenceStore.Save(workbenchPage.ReadSerialPreference(workbenchPage.SelectedPort?.PortName));
@@ -2014,18 +2019,6 @@ public sealed partial class MainWindow : Window
         }
 
         client = null;
-        foreach (var id in connectionContexts.Keys.ToArray())
-        {
-            try
-            {
-                await closingClient.CloseConnectionAsync(id, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(ex);
-            }
-        }
-
         await closingClient.DisposeAsync();
         connectionContexts.Clear();
         connectionId = null;

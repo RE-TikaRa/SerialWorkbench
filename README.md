@@ -43,7 +43,11 @@ serial-workbench.exe      命令行程序
 SerialWorkbench.Host.exe  串口和会话服务
 ```
 
-桌面程序和 CLI 通过 Windows 命名管道连接 Host。一个应用目录对应一个 Host 实例，同一串口不能被重复打开。发送、回环、Modbus、自动化和 XMODEM 操作通过连接写入租约串行执行。
+桌面程序和 CLI 通过 Windows 命名管道连接 Host。一个应用目录对应一个 Host 实例，连接由 Host 持有。相同参数打开同一串口时复用 `connectionId`；关闭桌面窗口保留共享连接。发送、回环、Modbus、自动化和 XMODEM 操作通过连接写入租约协调，连接占用时新的写入立即失败。
+
+`connections open --port COM16` 创建持久连接，`connections list` 查询连接标识，`connections close --id CONNECTION_ID` 明确关闭。发送、监视、Modbus 和 XMODEM 命令可通过 `--connection CONNECTION_ID` 使用现有连接，命令结束后保留连接。使用 `--port` 的一次性命令创建并关闭自己的临时连接。
+
+Host 在存在客户端、连接或写入任务时保持运行；全部结束后等待 30 秒退出。
 
 ## 获取可运行版本
 

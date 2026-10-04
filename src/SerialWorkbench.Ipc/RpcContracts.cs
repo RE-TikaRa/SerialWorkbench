@@ -5,7 +5,7 @@ namespace SerialWorkbench.Ipc;
 public static class RpcProtocol
 {
     public const int MajorVersion = 1;
-    public const int MinorVersion = 1;
+    public const int MinorVersion = 2;
 }
 
 public sealed record HandshakeRequest(int MajorVersion, int MinorVersion, string ClientName, string Culture);
@@ -24,7 +24,7 @@ public sealed record HostStatusDto(
     long PendingSessionEvents = 0,
     double SessionEventPersistenceEventsPerSecond = 0);
 
-public sealed record OpenConnectionRequest(SerialConnectionOptions Options);
+public sealed record OpenConnectionRequest(SerialConnectionOptions Options, bool ReuseExisting = true);
 
 public sealed record SendRequest(Guid ConnectionId, byte[] Data, string Source = "manual");
 

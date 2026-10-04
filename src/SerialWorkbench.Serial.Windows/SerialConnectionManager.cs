@@ -16,10 +16,11 @@ public sealed class SerialConnectionManager(
     Func<SerialTrafficEvent, CancellationToken, ValueTask> persist) : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<Guid, SerialConnection> connections = [];
+    private readonly SemaphoreSlim connectionGate = new(1, 1);
 
     public IReadOnlyList<ConnectionSnapshot> GetSnapshots() => connections.Values.Select(static item => item.GetSnapshot()).OrderBy(static item => item.Options.PortName).ToArray();
 
-    public async Task<ConnectionSnapshot> OpenAsync(SerialConnectionOptions options, CancellationToken cancellationToken)
+    public async Task<ConnectionSnapshot> OpenAsync(SerialConnectionOptions options, CancellationToken cancellationToken, bool reuseExisting = true)
     {
         if (options.RtsBeforeSendMilliseconds is < 0 or > 60_000)
         {
@@ -36,36 +37,59 @@ public sealed class SerialConnectionManager(
             throw new ArgumentOutOfRangeException(nameof(options), options.StopBits, $"{options.StopBits} stop bits cannot be used with {options.DataBits} data bits.");
         }
 
-        if (connections.Values.Any(item => string.Equals(item.Options.PortName, options.PortName, StringComparison.OrdinalIgnoreCase)))
-        {
-            throw new InvalidOperationException($"{options.PortName} is already open.");
-        }
-
-        var connection = new SerialConnection(Guid.NewGuid(), options, journal, persist);
-        if (!connections.TryAdd(connection.Id, connection))
-        {
-            await connection.DisposeAsync().ConfigureAwait(false);
-            throw new InvalidOperationException("Unable to register serial connection.");
-        }
-
+        await connectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-            return connection.GetSnapshot();
+            var existing = connections.Values.FirstOrDefault(item => string.Equals(item.Options.PortName, options.PortName, StringComparison.OrdinalIgnoreCase));
+            if (existing is not null)
+            {
+                if (reuseExisting && existing.State == ConnectionState.Open
+                    && options with { PortName = existing.Options.PortName, DeviceInstanceId = existing.Options.DeviceInstanceId } == existing.Options)
+                {
+                    return existing.GetSnapshot();
+                }
+
+                throw new InvalidOperationException($"{options.PortName} is already open with connectionId {existing.Id}.");
+            }
+
+            var connection = new SerialConnection(Guid.NewGuid(), options, journal, persist);
+            if (!connections.TryAdd(connection.Id, connection))
+            {
+                await connection.DisposeAsync().ConfigureAwait(false);
+                throw new InvalidOperationException("Unable to register serial connection.");
+            }
+
+            try
+            {
+                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+                return connection.GetSnapshot();
+            }
+            catch
+            {
+                connections.TryRemove(connection.Id, out _);
+                await connection.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
         }
-        catch
+        finally
         {
-            connections.TryRemove(connection.Id, out _);
-            await connection.DisposeAsync().ConfigureAwait(false);
-            throw;
+            connectionGate.Release();
         }
     }
 
     public async Task CloseAsync(Guid id)
     {
-        if (connections.TryRemove(id, out var connection))
+        await connectionGate.WaitAsync().ConfigureAwait(false);
+        try
         {
-            await connection.DisposeAsync().ConfigureAwait(false);
+            if (connections.TryRemove(id, out var connection))
+            {
+                await connection.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            connectionGate.Release();
         }
     }
 
@@ -452,6 +476,8 @@ public sealed class SerialConnectionManager(
         {
             await CloseAsync(id).ConfigureAwait(false);
         }
+
+        connectionGate.Dispose();
     }
 
     private SerialConnection Get(Guid id) => connections.TryGetValue(id, out var connection)

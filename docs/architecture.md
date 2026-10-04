@@ -10,7 +10,7 @@ serial-workbench.exe ┘                              ├─ 写入租约
 
 ```
 
-`SerialWorkbench.Host.exe` 独占串口连接、写入租约、实时事件、会话写入和工作区状态。WinUI 与 CLI 通过版本化本机 RPC 共享 Host 状态。同一应用目录对应一个 Host 实例，最后一个客户端断开后保留 30 秒重连时间。
+`SerialWorkbench.Host.exe` 独占串口连接、写入租约、实时事件、会话写入和工作区状态。WinUI 与 CLI 通过版本化本机 RPC 共享 Host 状态。同一应用目录对应一个 Host 实例。有客户端、连接或写入任务时保持运行；全部结束后等待 30 秒退出。客户端退出释放 RPC 通道，共享连接由明确的关闭操作结束。
 
 ## 项目边界
 

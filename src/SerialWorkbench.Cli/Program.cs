@@ -79,6 +79,15 @@ static async Task<int> RunAsync(IHostRpc client, Arguments arguments, string out
         case "ports list":
             WriteResult(output, "ports.list", await client.ListPortsAsync(cancellationToken).ConfigureAwait(false));
             return 0;
+        case "connections list":
+            WriteResult(output, "connections.list", (await client.GetStatusAsync(cancellationToken).ConfigureAwait(false)).Connections);
+            return 0;
+        case "connections open":
+            WriteResult(output, "connections.open", await client.OpenConnectionAsync(new OpenConnectionRequest(ReadSerialOptions(arguments)), cancellationToken).ConfigureAwait(false));
+            return 0;
+        case "connections close":
+            WriteResult(output, "connections.close", await client.CloseConnectionAsync(ParseGuid(arguments.Get("--id"), "--id"), cancellationToken).ConfigureAwait(false));
+            return 0;
         case "workspace show":
             WriteResult(output, "workspace.show", await client.GetStatusAsync(cancellationToken).ConfigureAwait(false));
             return 0;
@@ -333,7 +342,7 @@ static async Task<int> XmodemSendAsync(IHostRpc client, Arguments arguments, str
     }
     finally
     {
-        await client.CloseConnectionAsync(connection.Id, CancellationToken.None).ConfigureAwait(false);
+        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
     }
 }
 
@@ -354,7 +363,7 @@ static async Task<int> XmodemReceiveAsync(IHostRpc client, Arguments arguments, 
     }
     finally
     {
-        await client.CloseConnectionAsync(connection.Id, CancellationToken.None).ConfigureAwait(false);
+        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
     }
 }
 
@@ -516,7 +525,7 @@ static async Task<int> SendAsync(IHostRpc client, Arguments arguments, string ou
     }
     finally
     {
-        await client.CloseConnectionAsync(connection.Id, CancellationToken.None).ConfigureAwait(false);
+        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
     }
 }
 
@@ -553,7 +562,7 @@ static async Task<int> MonitorAsync(IHostRpc client, Arguments arguments, string
     }
     finally
     {
-        await client.CloseConnectionAsync(connection.Id, CancellationToken.None).ConfigureAwait(false);
+        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
     }
 }
 
@@ -576,7 +585,7 @@ static async Task<int> LoopbackAsync(IHostRpc client, Arguments arguments, strin
     }
     finally
     {
-        await client.CloseConnectionAsync(connection.Id, CancellationToken.None).ConfigureAwait(false);
+        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
     }
 }
 
@@ -599,7 +608,7 @@ static async Task<int> ModbusReadAsync(IHostRpc client, Arguments arguments, str
     }
     finally
     {
-        await client.CloseConnectionAsync(connection.Id, CancellationToken.None).ConfigureAwait(false);
+        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
     }
 }
 
@@ -628,7 +637,7 @@ static async Task<int> ModbusWriteAsync(IHostRpc client, Arguments arguments, st
     }
     finally
     {
-        await client.CloseConnectionAsync(connection.Id, CancellationToken.None).ConfigureAwait(false);
+        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
     }
 }
 
@@ -686,7 +695,7 @@ static async Task<int> ModbusScanAsync(IHostRpc client, Arguments arguments, str
     }
     finally
     {
-        await client.CloseConnectionAsync(connection.Id, CancellationToken.None).ConfigureAwait(false);
+        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
     }
 }
 
@@ -769,7 +778,7 @@ static async Task<int> ModbusPollAsync(IHostRpc client, Arguments arguments, str
     }
     finally
     {
-        await client.CloseConnectionAsync(connection.Id, CancellationToken.None).ConfigureAwait(false);
+        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
     }
 }
 
@@ -933,10 +942,26 @@ static ushort ValidateReadQuantity(ushort quantity, byte function)
         : throw new ArgumentOutOfRangeException(nameof(quantity), quantity, $"Read quantity must be between 1 and {maximum}.");
 }
 
-static Task<ConnectionSnapshot> OpenAsync(IHostRpc client, Arguments arguments, CancellationToken cancellationToken)
+static async Task<ConnectionSnapshot> OpenAsync(IHostRpc client, Arguments arguments, CancellationToken cancellationToken)
+{
+    if (arguments.Get("--connection") is { } id)
+    {
+        var connectionId = ParseGuid(id, "--connection");
+        var status = await client.GetStatusAsync(cancellationToken).ConfigureAwait(false);
+        return status.Connections.FirstOrDefault(item => item.Id == connectionId)
+            ?? throw new KeyNotFoundException($"Connection {connectionId} was not found.");
+    }
+
+    return await client.OpenConnectionAsync(new OpenConnectionRequest(ReadSerialOptions(arguments), false), cancellationToken).ConfigureAwait(false);
+}
+
+static Task CloseTemporaryConnectionAsync(IHostRpc client, Arguments arguments, Guid connectionId) =>
+    arguments.Has("--connection") ? Task.CompletedTask : client.CloseConnectionAsync(connectionId, CancellationToken.None);
+
+static SerialConnectionOptions ReadSerialOptions(Arguments arguments)
 {
     var port = arguments.Get("--port") ?? throw new ArgumentException("--port is required.");
-    var options = new SerialConnectionOptions(
+    return new SerialConnectionOptions(
         port,
         arguments.GetInt("--baud", 115200),
         arguments.GetInt("--data-bits", 8),
@@ -951,7 +976,6 @@ static Task<ConnectionSnapshot> OpenAsync(IHostRpc client, Arguments arguments, 
         arguments.Has("--rs485"),
         arguments.GetInt("--rts-before", 0),
         arguments.GetInt("--rts-after", 0));
-    return client.OpenConnectionAsync(new OpenConnectionRequest(options), cancellationToken);
 }
 
 static string ParseLineEnding(string? value) => value?.ToLowerInvariant() switch
@@ -993,6 +1017,10 @@ static void PrintHelp()
         SerialWorkbench CLI
 
         serial-workbench ports list [--output text|json]
+        serial-workbench connections list
+        serial-workbench connections open --port <port> [--baud 115200]
+        serial-workbench connections close --id CONNECTION_ID
+        Device commands accept --connection CONNECTION_ID to use a shared connection instead of --port.
         serial-workbench host status|stop
         serial-workbench workspace show|clear
         serial-workbench workspace set --path PATH
