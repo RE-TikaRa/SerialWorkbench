@@ -8,4 +8,8 @@
     <ProjectReference Include="../SerialWorkbench.Modbus/SerialWorkbench.Modbus.csproj" />
     <ProjectReference Include="../SerialWorkbench.Protocols/SerialWorkbench.Protocols.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Spectre.Console" />
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
 </Project>

@@ -55,6 +55,7 @@ Host 持有串口句柄、写入租约、原始事件和 SQLite 会话。WinUI �
 - CLI 持久连接管理，以及通过 `--connection` 使用现有共享连接；桌面退出保留连接，Host 在连接或写入任务存在时保持运行。
 - Host 任务标识、进度、明确取消、结果持久化和请求身份去重；客户端意外断开保留任务，Host 重启标记中断且不重放设备操作。
 - 实时事件提供流标识、最早和最新序号、过滤后的连续游标及缺失区间；CLI 监视通过长轮询获取数据。
+- CLI 使用 System.CommandLine 处理带类型的参数、Help、补全建议和 Response File，使用 Spectre.Console 呈现文本结果，并提供自动化序列入口。
 - self-contained `win-x64` 便携发布。
 
 ## 仍可增强的功能

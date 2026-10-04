@@ -287,6 +287,8 @@ utc,direction,source,hex,byte_count
 
 ## CLI
 
+命令、参数类型、Help、补全建议和 Response File 由 System.CommandLine 提供。各命令使用 `--help` 查看参数，`serial-workbench @commands.rsp` 从文件读取参数；布尔开关可与带空格的文本参数同时使用。文本结果使用 Spectre.Console 的表格和面板呈现，协议检查无需启动 Host。
+
 在 `publish/win-x64/` 目录执行 `serial-workbench.exe`。CLI 会自动启动同目录的 Host。
 
 ### 端口和 Host

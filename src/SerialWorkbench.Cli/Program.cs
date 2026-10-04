@@ -1,6 +1,9 @@
+using System.CommandLine;
+using System.CommandLine.Help;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using SerialWorkbench.Cli;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Ipc;
 using SerialWorkbench.Modbus;
@@ -9,65 +12,72 @@ using StreamJsonRpc;
 
 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-var parsed = Arguments.Parse(args);
-if (parsed.Positionals.Count == 0 || parsed.Has("--help") || parsed.Has("-h"))
+var catalog = new CommandCatalog();
+catalog.Root.SetAction(_ => catalog.Root.Parse(["--help"]).Invoke());
+foreach (var definition in catalog.Commands)
 {
-    PrintHelp();
-    return parsed.Positionals.Count == 0 ? 2 : 0;
+    definition.Command.SetAction((result, token) => ExecuteCommandAsync(definition.Bind(result), token));
 }
 
-var output = parsed.Get("--output") ?? "text";
-if (output is not ("text" or "json" or "jsonl"))
+var parsed = catalog.Root.Parse(args);
+var frameworkAction = catalog.Root.Options.Where(static option => option is HelpOption or VersionOption)
+    .Any(option => parsed.GetResult(option) is { Implicit: false })
+    || catalog.Root.Directives.Any(directive => parsed.GetResult(directive) is not null);
+if (parsed.Errors.Count > 0 && !frameworkAction)
 {
-    WriteError(output, "SWB-ARGUMENT", "--output must be text, json, or jsonl.");
+    var requestedOutput = parsed.GetResult("--output") is { Tokens.Count: > 0 } outputResult ? outputResult.Tokens[0].Value : null;
+    WriteError(requestedOutput is "json" or "jsonl" ? requestedOutput : "text", "SWB-ARGUMENT", string.Join(Environment.NewLine, parsed.Errors.Select(static error => error.Message)));
     return 2;
 }
-var culture = parsed.Get("--culture") ?? CultureInfo.CurrentUICulture.Name;
-var applicationRoot = parsed.Get("--app-root") ?? AppContext.BaseDirectory;
 
-using var cancellation = new CancellationTokenSource();
-Console.CancelKeyPress += (_, eventArgs) =>
-{
-    eventArgs.Cancel = true;
-    cancellation.Cancel();
-};
+return await parsed.InvokeAsync(new InvocationConfiguration { EnableDefaultExceptionHandler = false }).ConfigureAwait(false);
 
-try
+static async Task<int> ExecuteCommandAsync(CommandArguments arguments, CancellationToken cancellationToken)
 {
-    await using var client = await HostEndpoint.ConnectAsync(applicationRoot, true, cancellation.Token).ConfigureAwait(false);
-    var handshake = await client.HandshakeAsync(new HandshakeRequest(RpcProtocol.MajorVersion, RpcProtocol.MinorVersion, "cli", culture), cancellation.Token).ConfigureAwait(false);
-    if (!handshake.Accepted)
+    var output = arguments.Get("--output") ?? "text";
+    var culture = arguments.Get("--culture") ?? CultureInfo.CurrentUICulture.Name;
+    var applicationRoot = arguments.Get("--app-root") ?? AppContext.BaseDirectory;
+    try
     {
-        WriteError(output, "SWB-IPC-VERSION", handshake.Error ?? "IPC version mismatch.");
+        if (arguments.CommandId == "protocol.inspect")
+        {
+            return InspectProtocol(arguments, output);
+        }
+
+        await using var client = await HostEndpoint.ConnectAsync(applicationRoot, true, cancellationToken).ConfigureAwait(false);
+        var handshake = await client.HandshakeAsync(new HandshakeRequest(RpcProtocol.MajorVersion, RpcProtocol.MinorVersion, "cli", culture), cancellationToken).ConfigureAwait(false);
+        if (!handshake.Accepted)
+        {
+            WriteError(output, "SWB-IPC-VERSION", handshake.Error ?? "IPC version mismatch.");
+            return 3;
+        }
+
+        return await RunAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
+    }
+    catch (OperationCanceledException)
+    {
+        WriteError(output, "SWB-CANCELLED", "Task cancelled.");
+        return 5;
+    }
+    catch (TimeoutException ex)
+    {
+        WriteError(output, "SWB-TIMEOUT", ex.Message);
+        return 4;
+    }
+    catch (Exception ex) when (ex is FormatException or OverflowException or JsonException)
+    {
+        WriteError(output, "SWB-ARGUMENT", ex.Message);
+        return 2;
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or KeyNotFoundException or RemoteInvocationException)
+    {
+        WriteError(output, "SWB-RUNTIME", ex.Message);
         return 3;
     }
-
-    return await RunAsync(client, parsed, output, cancellation.Token).ConfigureAwait(false);
 }
-catch (OperationCanceledException)
+static async Task<int> RunAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
 {
-    WriteError(output, "SWB-CANCELLED", "Task cancelled.");
-    return 5;
-}
-catch (TimeoutException ex)
-{
-    WriteError(output, "SWB-TIMEOUT", ex.Message);
-    return 4;
-}
-catch (Exception ex) when (ex is FormatException or OverflowException)
-{
-    WriteError(output, "SWB-ARGUMENT", ex.Message);
-    return 2;
-}
-catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or KeyNotFoundException or RemoteInvocationException)
-{
-    WriteError(output, "SWB-RUNTIME", ex.Message);
-    return 3;
-}
-
-static async Task<int> RunAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
-{
-    var command = string.Join(' ', arguments.Positionals.Take(2)).ToLowerInvariant();
+    var command = arguments.CommandId.Replace('.', ' ');
     switch (command)
     {
         case "host status":
@@ -143,10 +153,23 @@ static async Task<int> RunAsync(IHostRpc client, Arguments arguments, string out
             return await XmodemSendAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "xmodem receive":
             return await XmodemReceiveAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
+        case "sequence run":
+            var sequencePath = arguments.Get("--file") ?? throw new ArgumentException("--file is required.");
+            var sequenceDefinition = SerialSequenceCodec.Deserialize(await File.ReadAllTextAsync(sequencePath, cancellationToken).ConfigureAwait(false));
+            var sequenceConnection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                WriteResult(output, "sequence.run", await client.RunSequenceAsync(sequenceConnection.Id, sequenceDefinition, cancellationToken).ConfigureAwait(false));
+                return 0;
+            }
+            finally
+            {
+                await CloseTemporaryConnectionAsync(client, arguments, sequenceConnection.Id).ConfigureAwait(false);
+            }
         case "protocol inspect":
             return InspectProtocol(arguments, output);
         default:
-            WriteError(output, "SWB-ARGUMENT", $"Unknown command: {string.Join(' ', arguments.Positionals)}");
+            WriteError(output, "SWB-ARGUMENT", $"Unknown command: {arguments.CommandId}");
             return 2;
     }
 }
@@ -158,7 +181,7 @@ static async Task<int> ListSessionsAsync(IHostRpc client, string output, Cancell
     return 0;
 }
 
-static async Task<int> ShowSessionAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+static async Task<int> ShowSessionAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
 {
     var sessionId = ParseGuid(arguments.Get("--id"), "--id");
     var sessions = await client.ListSessionsAsync(cancellationToken).ConfigureAwait(false);
@@ -170,7 +193,7 @@ static async Task<int> ShowSessionAsync(IHostRpc client, Arguments arguments, st
     return 0;
 }
 
-static async Task<int> ExportSessionAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+static async Task<int> ExportSessionAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
 {
     var sessionId = ParseGuid(arguments.Get("--id"), "--id");
     var path = arguments.Get("--file") ?? throw new ArgumentException("sessions export requires --file.");
@@ -308,7 +331,7 @@ static string CsvField(string value) =>
         ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\""
         : value;
 
-static SessionEventQuery CreateSessionEventQuery(Arguments arguments, Guid sessionId) =>
+static SessionEventQuery CreateSessionEventQuery(CommandArguments arguments, Guid sessionId) =>
     new(
         sessionId,
         Direction: ParseDirection(arguments.Get("--direction")),
@@ -339,7 +362,7 @@ static string? ParseHexFilter(string? value)
     return Convert.ToHexString(data);
 }
 
-static async Task<int> DeleteSessionAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+static async Task<int> DeleteSessionAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
 {
     var sessionId = ParseGuid(arguments.Get("--id"), "--id");
     var result = await client.DeleteSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
@@ -347,7 +370,7 @@ static async Task<int> DeleteSessionAsync(IHostRpc client, Arguments arguments, 
     return result.Success ? 0 : 3;
 }
 
-static async Task<int> XmodemSendAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+static async Task<int> XmodemSendAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
 {
     var path = arguments.Get("--file") ?? throw new ArgumentException("xmodem send requires --file.");
     var data = await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
@@ -364,7 +387,7 @@ static async Task<int> XmodemSendAsync(IHostRpc client, Arguments arguments, str
     }
 }
 
-static async Task<int> XmodemReceiveAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+static async Task<int> XmodemReceiveAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
 {
     var path = arguments.Get("--file") ?? throw new ArgumentException("xmodem receive requires --file.");
     var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
@@ -385,100 +408,45 @@ static async Task<int> XmodemReceiveAsync(IHostRpc client, Arguments arguments, 
     }
 }
 
-static int InspectProtocol(Arguments arguments, string output)
+static int InspectProtocol(CommandArguments arguments, string output)
 {
     var frame = HexCodec.Parse(arguments.Get("--hex") ?? throw new ArgumentException("protocol inspect requires --hex."));
     if (arguments.Get("--template") is { } templatePath)
     {
         var template = ProtocolTemplateCodec.Deserialize(File.ReadAllText(templatePath));
-        var templateInspection = ProtocolTemplateParser.Inspect(template, frame);
-        var templateValue = new
+        var inspection = ProtocolTemplateParser.Inspect(template, frame);
+        WriteResult(output, "protocol.inspect", new
         {
-            valid = templateInspection.IsValid,
-            template = templateInspection.Template,
-            frameLength = templateInspection.FrameLength,
-            expectedLength = templateInspection.ExpectedLength,
-            checksumValid = templateInspection.ChecksumValid,
-            fields = templateInspection.Fields,
-            error = templateInspection.Error,
-        };
-
-        if (output is "json" or "jsonl")
-        {
-            WriteResult(output, "protocol.inspect", templateValue);
-        }
-        else
-        {
-            Console.WriteLine($"Template: {templateValue.template}");
-            Console.WriteLine($"Valid: {templateValue.valid}");
-            Console.WriteLine($"Length: {templateValue.frameLength} / {templateValue.expectedLength?.ToString(CultureInfo.InvariantCulture) ?? "?"}");
-            if (templateValue.checksumValid is { } checksumValid)
-            {
-                Console.WriteLine($"Checksum: {checksumValid}");
-            }
-
-            foreach (var field in templateValue.fields)
-            {
-                Console.WriteLine($"{field.Name}: {field.Value} ({field.Hex})");
-            }
-
-            if (templateValue.error is { } error)
-            {
-                Console.WriteLine($"Error: {error}");
-            }
-        }
-
-        return templateValue.valid ? 0 : 1;
+            valid = inspection.IsValid,
+            template = inspection.Template,
+            frameLength = inspection.FrameLength,
+            expectedLength = inspection.ExpectedLength,
+            checksumValid = inspection.ChecksumValid,
+            fields = inspection.Fields,
+            error = inspection.Error,
+        });
+        return inspection.IsValid ? 0 : 1;
     }
 
-    var inspection = ModbusRtuCodec.Inspect(frame);
-    var value = new
+    var modbus = ModbusRtuCodec.Inspect(frame);
+    WriteResult(output, "protocol.inspect", new
     {
-        valid = inspection.IsValid,
-        kind = inspection.Kind,
-        address = inspection.Address,
-        functionCode = inspection.FunctionCode,
-        exceptionCode = inspection.ExceptionCode,
-        frameLength = inspection.FrameLength,
-        expectedLength = inspection.ExpectedLength,
-        byteCount = inspection.ByteCount,
-        dataAddress = inspection.DataAddress,
-        registerValue = inspection.Value,
-        calculatedCrc = inspection.CalculatedCrc,
-        actualCrc = inspection.ActualCrc,
-        error = inspection.Error,
-    };
-
-    if (output is "json" or "jsonl")
-    {
-        WriteResult(output, "protocol.inspect", value);
-    }
-    else
-    {
-        Console.WriteLine($"Kind: {value.kind}");
-        Console.WriteLine($"Valid: {value.valid}");
-        Console.WriteLine($"Address: {FormatByte(value.address)}");
-        Console.WriteLine($"Function: {FormatByte(value.functionCode)}");
-        Console.WriteLine($"Length: {value.frameLength} / {value.expectedLength?.ToString(CultureInfo.InvariantCulture) ?? "?"}");
-        Console.WriteLine($"CRC: {FormatUShort(value.calculatedCrc)} / {FormatUShort(value.actualCrc)}");
-        if (value.exceptionCode is { } exceptionCode)
-        {
-            Console.WriteLine($"Exception: 0x{exceptionCode:X2}");
-        }
-
-        if (value.error is { } error)
-        {
-            Console.WriteLine($"Error: {error}");
-        }
-    }
-
-    return value.valid ? 0 : 1;
+        valid = modbus.IsValid,
+        kind = modbus.Kind,
+        address = modbus.Address,
+        functionCode = modbus.FunctionCode,
+        exceptionCode = modbus.ExceptionCode,
+        frameLength = modbus.FrameLength,
+        expectedLength = modbus.ExpectedLength,
+        byteCount = modbus.ByteCount,
+        dataAddress = modbus.DataAddress,
+        registerValue = modbus.Value,
+        calculatedCrc = modbus.CalculatedCrc,
+        actualCrc = modbus.ActualCrc,
+        error = modbus.Error,
+    });
+    return modbus.IsValid ? 0 : 1;
 }
-
-static string FormatByte(byte? value) => value is { } item ? $"0x{item:X2}" : "(none)";
-
-static string FormatUShort(ushort? value) => value is { } item ? $"0x{item:X4}" : "(none)";
-
 static void WriteTransferResult(string output, string command, string path, XmodemTransferResult result, int? receivedBytes = null)
 {
     var value = new
@@ -493,33 +461,18 @@ static void WriteTransferResult(string output, string command, string path, Xmod
         error = result.Error,
     };
 
-    if (output is "json" or "jsonl")
-    {
-        WriteResult(output, command, value);
-        return;
-    }
-
-    Console.WriteLine($"File: {path}");
-    Console.WriteLine($"Result: {(result.Success ? "success" : "failed")}");
-    Console.WriteLine($"Bytes: {result.BytesTransferred:N0}");
-    Console.WriteLine($"Blocks: {result.Blocks:N0}");
-    Console.WriteLine($"Retries: {result.Retries:N0}");
-    Console.WriteLine($"Duration: {result.Duration.TotalMilliseconds:N0} ms");
-    if (result.Error is { } error)
-    {
-        Console.WriteLine($"Error: {error}");
-    }
+    WriteResult(output, command, value);
 }
 
 static int TransferExitCode(XmodemTransferResult result) => result.Success
     ? 0
-    : result.Error?.Contains("timed out", StringComparison.OrdinalIgnoreCase) == true ? 4 : 3;
+    : result.ErrorCode == "TIMEOUT" ? 4 : 3;
 
 static Guid ParseGuid(string? value, string name) => Guid.TryParse(value, out var result)
     ? result
     : throw new ArgumentException($"{name} is required and must be a valid GUID.");
 
-static async Task<int> SendAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+static async Task<int> SendAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
 {
     var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
     try
@@ -547,7 +500,7 @@ static async Task<int> SendAsync(IHostRpc client, Arguments arguments, string ou
     }
 }
 
-static async Task<int> MonitorAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+static async Task<int> MonitorAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
 {
     var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
     var seconds = arguments.GetInt("--seconds", 10);
@@ -594,7 +547,7 @@ static async Task<int> MonitorAsync(IHostRpc client, Arguments arguments, string
     }
 }
 
-static async Task<int> LoopbackAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+static async Task<int> LoopbackAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
 {
     var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
     try
@@ -617,7 +570,7 @@ static async Task<int> LoopbackAsync(IHostRpc client, Arguments arguments, strin
     }
 }
 
-static async Task<int> ModbusReadAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+static async Task<int> ModbusReadAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
 {
     var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
     try
@@ -640,7 +593,7 @@ static async Task<int> ModbusReadAsync(IHostRpc client, Arguments arguments, str
     }
 }
 
-static async Task<int> ModbusWriteAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+static async Task<int> ModbusWriteAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
 {
     var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
     try
@@ -669,7 +622,7 @@ static async Task<int> ModbusWriteAsync(IHostRpc client, Arguments arguments, st
     }
 }
 
-static async Task<int> ModbusScanAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+static async Task<int> ModbusScanAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
 {
     var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
     try
@@ -686,7 +639,7 @@ static async Task<int> ModbusScanAsync(IHostRpc client, Arguments arguments, str
     }
 }
 
-static async Task<int> ModbusPollAsync(IHostRpc client, Arguments arguments, string output, CancellationToken cancellationToken)
+static async Task<int> ModbusPollAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
 {
     var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
     try
@@ -715,7 +668,7 @@ static async Task<int> ModbusPollAsync(IHostRpc client, Arguments arguments, str
 static async Task<int> RunModbusAsync(
     IHostRpc client,
     ConnectionSnapshot connection,
-    Arguments arguments,
+    CommandArguments arguments,
     string output,
     CancellationToken cancellationToken,
     string command,
@@ -745,42 +698,7 @@ static async Task<int> RunModbusAsync(
         error = result.Error,
     };
 
-    if (output is "json" or "jsonl")
-    {
-        WriteResult(output, command, value);
-    }
-    else
-    {
-        Console.WriteLine($"Request: {value.requestFrame}");
-        Console.WriteLine($"Response: {(string.IsNullOrEmpty(value.responseFrame) ? "(none)" : value.responseFrame)}");
-        Console.WriteLine($"Result: {(value.success ? "success" : "failed")}");
-        Console.WriteLine($"Duration: {value.durationMilliseconds:N0} ms");
-        if (value.registers.Length > 0)
-        {
-            Console.WriteLine($"Registers: {string.Join(' ', value.registers.Select(static item => $"0x{item:X4}"))}");
-        }
-
-        if (value.bits is { Length: > 0 } bits)
-        {
-            Console.WriteLine($"Bits: {string.Join(' ', bits.Select(static item => item ? '1' : '0'))}");
-        }
-
-        if (value.address is { } address && value.registerValue is { } registerValue)
-        {
-            Console.WriteLine($"Address: 0x{address:X4}");
-            Console.WriteLine($"Value: 0x{registerValue:X4}");
-        }
-
-        if (value.exceptionCode is { } exceptionCode)
-        {
-            Console.WriteLine($"Exception: 0x{exceptionCode:X2}");
-        }
-
-        if (value.error is { } error)
-        {
-            Console.WriteLine($"Error: {error}");
-        }
-    }
+    WriteResult(output, command, value);
 
     return ModbusExitCode(result);
 }
@@ -797,7 +715,7 @@ static int ModbusExitCode(ModbusTransactionResult result)
         return 1;
     }
 
-    if (result.Error?.Contains("Timed out", StringComparison.OrdinalIgnoreCase) == true)
+    if (result.ErrorCode == "TIMEOUT")
     {
         return 4;
     }
@@ -805,7 +723,7 @@ static int ModbusExitCode(ModbusTransactionResult result)
     return 3;
 }
 
-static byte GetByte(Arguments arguments, string name, int defaultValue)
+static byte GetByte(CommandArguments arguments, string name, int defaultValue)
 {
     var value = arguments.GetInt(name, defaultValue);
     return value is >= byte.MinValue and <= byte.MaxValue
@@ -813,7 +731,7 @@ static byte GetByte(Arguments arguments, string name, int defaultValue)
         : throw new ArgumentOutOfRangeException(name, value, $"{name} must be between {byte.MinValue} and {byte.MaxValue}.");
 }
 
-static ushort GetUShort(Arguments arguments, string name)
+static ushort GetUShort(CommandArguments arguments, string name)
 {
     var value = arguments.GetInt(name, -1);
     return value is >= ushort.MinValue and <= ushort.MaxValue
@@ -821,7 +739,7 @@ static ushort GetUShort(Arguments arguments, string name)
         : throw new ArgumentException($"{name} is required and must be between {ushort.MinValue} and {ushort.MaxValue}.");
 }
 
-static bool GetCoilValue(Arguments arguments)
+static bool GetCoilValue(CommandArguments arguments)
 {
     var value = GetUShort(arguments, "--value");
     return value switch
@@ -872,7 +790,7 @@ static ushort ValidateReadQuantity(ushort quantity, byte function)
         : throw new ArgumentOutOfRangeException(nameof(quantity), quantity, $"Read quantity must be between 1 and {maximum}.");
 }
 
-static async Task<ConnectionSnapshot> OpenAsync(IHostRpc client, Arguments arguments, CancellationToken cancellationToken)
+static async Task<ConnectionSnapshot> OpenAsync(IHostRpc client, CommandArguments arguments, CancellationToken cancellationToken)
 {
     if (arguments.Get("--connection") is { } id)
     {
@@ -885,10 +803,10 @@ static async Task<ConnectionSnapshot> OpenAsync(IHostRpc client, Arguments argum
     return await client.OpenConnectionAsync(new OpenConnectionRequest(ReadSerialOptions(arguments), false), cancellationToken).ConfigureAwait(false);
 }
 
-static Task CloseTemporaryConnectionAsync(IHostRpc client, Arguments arguments, Guid connectionId) =>
+static Task CloseTemporaryConnectionAsync(IHostRpc client, CommandArguments arguments, Guid connectionId) =>
     arguments.Has("--connection") ? Task.CompletedTask : client.CloseConnectionAsync(connectionId, CancellationToken.None);
 
-static SerialConnectionOptions ReadSerialOptions(Arguments arguments)
+static SerialConnectionOptions ReadSerialOptions(CommandArguments arguments)
 {
     var port = arguments.Get("--port") ?? throw new ArgumentException("--port is required.");
     return new SerialConnectionOptions(
@@ -925,7 +843,7 @@ static void WriteResult(string output, string command, object value)
         return;
     }
 
-    Console.WriteLine(JsonSerializer.Serialize(value, CliJson.Options));
+    ConsoleOutput.Write(command, value);
 }
 
 static void WriteError(string output, string code, string message)
@@ -941,84 +859,12 @@ static void WriteError(string output, string code, string message)
     }
 }
 
-static void PrintHelp()
-{
-    Console.WriteLine("""
-        SerialWorkbench CLI
-
-        serial-workbench ports list [--output text|json]
-        serial-workbench connections list
-        serial-workbench connections open --port <port> [--baud 115200]
-        serial-workbench connections close --id CONNECTION_ID
-        serial-workbench operations start --connection CONNECTION_ID --kind COMMAND [--parameters JSON | --file PATH] [--request-id ID]
-        serial-workbench operations list|show|result|cancel [--id OPERATION_ID]
-        Device commands accept --connection CONNECTION_ID to use a shared connection instead of --port.
-        serial-workbench host status|stop
-        serial-workbench workspace show|clear
-        serial-workbench workspace set --path PATH
-        serial-workbench sessions list|show|export|delete
-        serial-workbench sessions show --id SESSION_ID [--output json]
-        serial-workbench sessions export --id SESSION_ID --file PATH [--format csv|jsonl|text|hex|binary] [--direction all|rx|tx] [--source SOURCE] [--hex HEX]
-        serial-workbench sessions delete --id SESSION_ID
-        serial-workbench send --port <port> (--text TEXT | --hex HEX) [--baud 115200]
-        serial-workbench monitor --port <port> [--seconds 10] [--direction all|rx|tx] [--source SOURCE] [--output text|jsonl]
-        serial-workbench loopback run --port <port> [--baud 115200] [--length 4096] [--iterations 1]
-        serial-workbench modbus read --port <port> --slave 1 --address 0 --quantity 1 [--function 1|2|3|4|17]
-        serial-workbench modbus write --port <port> --slave 1 --address 0 (--value VALUE | --values VALUES) [--function 5|6|15|16]
-        serial-workbench modbus scan --port <port> [--from 1] [--to 247] [--address 0] [--timeout 200]
-        serial-workbench modbus poll --port <port> --slave 1 --address 0 --quantity 1 [--function 1|2|3|4] [--count 10] [--interval 1000]
-        serial-workbench xmodem send --port <port> --file PATH [--baud 115200]
-        serial-workbench xmodem receive --port <port> --file PATH [--baud 115200]
-        serial-workbench protocol inspect --hex HEX [--template PATH] [--output text|json]
-        """);
-}
-
 file static class CliJson
 {
     public static JsonSerializerOptions Options { get; } = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
     };
-}
-
-file sealed class Arguments
-{
-    private readonly Dictionary<string, string?> options = new(StringComparer.OrdinalIgnoreCase);
-
-    public List<string> Positionals { get; } = [];
-
-    public static Arguments Parse(string[] values)
-    {
-        var result = new Arguments();
-        for (var index = 0; index < values.Length; index++)
-        {
-            var value = values[index];
-            if (!value.StartsWith('-'))
-            {
-                result.Positionals.Add(value);
-                continue;
-            }
-
-            if (index + 1 < values.Length && !values[index + 1].StartsWith('-'))
-            {
-                result.options[value] = values[++index];
-            }
-            else
-            {
-                result.options[value] = null;
-            }
-        }
-
-        return result;
-    }
-
-    public bool Has(string name) => options.ContainsKey(name);
-
-    public string? Get(string name) => options.GetValueOrDefault(name);
-
-    public int GetInt(string name, int defaultValue) => Get(name) is { } text
-        ? int.Parse(text, CultureInfo.InvariantCulture)
-        : defaultValue;
 }
 
 file sealed class ActionProgress<T>(Action<T> report) : IProgress<T>
