@@ -57,7 +57,9 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
             runtime.Journal.LatestSequence,
             runtime.PendingSessionEvents,
             runtime.SessionEventPersistenceEventsPerSecond,
-            runtime.Operations.ActiveCount);
+            runtime.Operations.ActiveCount,
+            runtime.Journal.EarliestSequence,
+            runtime.Journal.StreamId);
 
     public Task<IReadOnlyList<SerialPortDescriptor>> ListPortsAsync(CancellationToken cancellationToken) =>
         SerialPortCatalog.GetPortsAsync(cancellationToken);
@@ -101,6 +103,10 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(runtime.Journal.ReadAfter(query.AfterSequence, query.MaximumCount, query.ConnectionId, query.Direction, query.SourceContains));
     }
+
+    public Task<EventBatch> ReadEventBatchAsync(EventQuery query, CancellationToken cancellationToken) =>
+        runtime.Journal.ReadBatchAsync(query.AfterSequence, query.MaximumCount, query.ConnectionId, query.Direction,
+            query.SourceContains, query.StreamId, query.WaitMilliseconds, cancellationToken);
 
     public Task<IReadOnlyList<SessionDescriptor>> ListSessionsAsync(CancellationToken cancellationToken) =>
         runtime.Sessions.ListAsync(cancellationToken);

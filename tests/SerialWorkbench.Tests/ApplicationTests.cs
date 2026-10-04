@@ -79,6 +79,38 @@ public sealed class ApplicationTests
     }
 
     [Fact]
+    public async Task EventCursorReportsRetainedRangeAndAdvancesPastFilteredEvents()
+    {
+        var journal = new EventJournal(2);
+        var connectionId = Guid.NewGuid();
+        journal.Append(connectionId, SerialDirection.Receive, [1], "serial");
+        journal.Append(connectionId, SerialDirection.Transmit, [2], "send");
+        journal.Append(connectionId, SerialDirection.Receive, [3], "serial");
+
+        var batch = await journal.ReadBatchAsync(0, 10, connectionId, SerialDirection.Transmit, null, journal.StreamId, 0, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new EventGap(1, 1), batch.Gap);
+        Assert.Equal(2, batch.EarliestSequence);
+        Assert.Equal(3, batch.NextSequence);
+        Assert.Equal(2, Assert.Single(batch.Events).Sequence);
+        var reset = await journal.ReadBatchAsync(3, 10, null, null, null, Guid.NewGuid(), 0, TestContext.Current.CancellationToken);
+        Assert.True(reset.ResetRequired);
+        Assert.Equal([2, 3], reset.Events.Select(static item => item.Sequence));
+    }
+
+    [Fact]
+    public async Task ConcurrentEventsKeepSequenceOrderAndWakeWaitingReaders()
+    {
+        var journal = new EventJournal();
+        var waiting = journal.ReadBatchAsync(0, 1000, null, null, null, journal.StreamId, 30_000, TestContext.Current.CancellationToken);
+        await Task.WhenAll(Enumerable.Range(0, 1000).Select(index => Task.Run(() =>
+            journal.Append(Guid.Empty, SerialDirection.Receive, [(byte)index], "test"), TestContext.Current.CancellationToken)));
+
+        Assert.NotEmpty((await waiting).Events);
+        Assert.Equal(Enumerable.Range(1, 1000).Select(static value => (long)value), journal.ReadAfter(0, 1000).Select(static item => item.Sequence));
+    }
+
+    [Fact]
     public void PipeNameIsStableForEquivalentApplicationPaths()
     {
         var first = HostEndpoint.GetPipeName(@"C:\Apps\SerialWorkbench");

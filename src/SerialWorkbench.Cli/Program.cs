@@ -552,15 +552,24 @@ static async Task<int> MonitorAsync(IHostRpc client, Arguments arguments, string
     var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
     var seconds = arguments.GetInt("--seconds", 10);
     var deadline = DateTime.UtcNow.AddSeconds(seconds);
-    long sequence = 0;
+    var status = await client.GetStatusAsync(cancellationToken).ConfigureAwait(false);
+    var sequence = status.LatestEventSequence;
+    var streamId = status.EventStreamId;
     var direction = ParseDirection(arguments.Get("--direction"));
     var source = arguments.Get("--source");
     try
     {
         while (DateTime.UtcNow < deadline)
         {
-            var events = await client.ReadEventsAsync(new EventQuery(sequence, 1000, connection.Id, direction, source), cancellationToken).ConfigureAwait(false);
-            foreach (var item in events)
+            var remaining = Math.Max(0, (int)(deadline - DateTime.UtcNow).TotalMilliseconds);
+            var batch = await client.ReadEventBatchAsync(new EventQuery(sequence, 1000, connection.Id, direction, source, streamId,
+                Math.Min(remaining, 1000)), cancellationToken).ConfigureAwait(false);
+            if (batch.Gap is not null || batch.ResetRequired)
+            {
+                WriteResult(output, "monitor.gap", new { batch.StreamId, batch.Gap, batch.ResetRequired });
+            }
+
+            foreach (var item in batch.Events)
             {
                 sequence = Math.Max(sequence, item.Sequence);
                 if (output == "jsonl")
@@ -573,7 +582,8 @@ static async Task<int> MonitorAsync(IHostRpc client, Arguments arguments, string
                 }
             }
 
-            await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+            sequence = batch.NextSequence;
+            streamId = batch.StreamId;
         }
 
         return 0;

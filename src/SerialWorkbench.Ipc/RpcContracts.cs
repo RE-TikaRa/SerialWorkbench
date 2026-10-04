@@ -5,7 +5,7 @@ namespace SerialWorkbench.Ipc;
 public static class RpcProtocol
 {
     public const int MajorVersion = 1;
-    public const int MinorVersion = 3;
+    public const int MinorVersion = 4;
 }
 
 public sealed record HandshakeRequest(int MajorVersion, int MinorVersion, string ClientName, string Culture);
@@ -23,7 +23,9 @@ public sealed record HostStatusDto(
     long LatestEventSequence = 0,
     long PendingSessionEvents = 0,
     double SessionEventPersistenceEventsPerSecond = 0,
-    int ActiveOperationCount = 0);
+    int ActiveOperationCount = 0,
+    long EarliestEventSequence = 1,
+    Guid? EventStreamId = null);
 
 public sealed record OpenConnectionRequest(SerialConnectionOptions Options, bool ReuseExisting = true);
 
@@ -34,7 +36,9 @@ public sealed record EventQuery(
     int MaximumCount = 1000,
     Guid? ConnectionId = null,
     SerialDirection? Direction = null,
-    string? SourceContains = null);
+    string? SourceContains = null,
+    Guid? StreamId = null,
+    int WaitMilliseconds = 0);
 
 public sealed record SessionEventQuery(
     Guid SessionId,
@@ -80,6 +84,8 @@ public interface IHostRpc
     Task<RpcResult> SendBreakAsync(Guid connectionId, int durationMilliseconds, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<SerialTrafficEvent>> ReadEventsAsync(EventQuery query, CancellationToken cancellationToken);
+
+    Task<EventBatch> ReadEventBatchAsync(EventQuery query, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<SessionDescriptor>> ListSessionsAsync(CancellationToken cancellationToken);
 

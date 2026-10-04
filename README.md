@@ -64,6 +64,8 @@ serial-workbench operations start --connection CONNECTION_ID --kind modbus.poll 
 
 连接被占用时返回 `CONNECTION_BUSY`，包含占用任务标识。Host 重启后未完成任务标为 `Interrupted`，执行结果为 `Unknown`，设备操作不自动重放。
 
+实时事件包含流标识和递增游标。监视从当前最新事件开始，通过长轮询接收新增数据；过滤未命中的事件同样推进游标。保留区间被截断时返回缺失序号范围，Host 事件流变化时要求重置游标。
+
 ## 获取可运行版本
 
 运行 `eng/publish.ps1` 后，完整的 self-contained 便携版位于：
