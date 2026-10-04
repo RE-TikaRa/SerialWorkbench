@@ -144,6 +144,7 @@ public sealed partial class WorkbenchPage : Page
     public int RtsBeforeSendMilliseconds => checked((int)RtsBeforeSendNumberBox.Value);
     public int RtsAfterSendMilliseconds => checked((int)RtsAfterSendNumberBox.Value);
     public int MonitorFormatIndex => MonitorFormat.SelectedIndex;
+    public int HexReceiveGapMilliseconds => checked((int)HexReceiveGapNumberBox.Value);
     public Encoding SelectedEncoding => EncodingComboBox.SelectedIndex switch
     {
         1 => Encoding.ASCII,
@@ -174,6 +175,7 @@ public sealed partial class WorkbenchPage : Page
         RtsBeforeSendNumberBox.Value = preference.RtsBeforeSendMilliseconds;
         RtsAfterSendNumberBox.Value = preference.RtsAfterSendMilliseconds;
         MonitorFormat.SelectedIndex = preference.MonitorFormatIndex;
+        HexReceiveGapNumberBox.Value = preference.HexReceiveGapMilliseconds;
         SendFormat.SelectedIndex = preference.SendFormatIndex;
         SendLineEnding.SelectedIndex = preference.SendLineEndingIndex;
         SendChecksum.SelectedIndex = preference.SendChecksumIndex;
@@ -283,7 +285,8 @@ public sealed partial class WorkbenchPage : Page
         SelectedPort?.DeviceInstanceId,
         Rs485Mode,
         RtsBeforeSendMilliseconds,
-        RtsAfterSendMilliseconds);
+        RtsAfterSendMilliseconds,
+        HexReceiveGapMilliseconds);
 
     private void ConnectButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ConnectRequested?.Invoke(this, EventArgs.Empty);
     private void RefreshPortsButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => RefreshPortsRequested?.Invoke(this, EventArgs.Empty);
@@ -365,6 +368,16 @@ public sealed partial class WorkbenchPage : Page
     private void HandshakeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateRtsAvailability();
     private void Rs485ModeCheckBox_Changed(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => UpdateRtsAvailability();
     private void MonitorFormat_SelectionChanged(object sender, SelectionChangedEventArgs e) => TrafficViewChanged?.Invoke(this, EventArgs.Empty);
+    private void HexReceiveGapNumberBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (double.IsNaN(args.NewValue))
+        {
+            NumberBoxInput.KeepLastValue(sender, args);
+            return;
+        }
+
+        TrafficViewChanged?.Invoke(this, EventArgs.Empty);
+    }
     private void TimestampToggle_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => TrafficViewChanged?.Invoke(this, EventArgs.Empty);
 
     private void SendEditor_PreviewKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)

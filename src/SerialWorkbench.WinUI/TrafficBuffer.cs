@@ -16,14 +16,23 @@ public sealed class TrafficBuffer(Encoding encoding, int capacity = 20_000)
     private Encoding encoding = encoding;
     private bool text;
     private bool showTime = true;
+    private int hexReceiveGapMilliseconds = 10;
+    private SerialTrafficEvent? lastHexEvent;
     private (Guid ConnectionId, SerialDirection Direction, string Source)? currentStream;
     private TrafficRow? currentRow;
 
     public ObservableCollection<TrafficRow> Rows { get; } = [];
 
-    public void SetPresentation(Encoding encoding, bool text, bool showTime)
+    public void SetPresentation(Encoding encoding, bool text, bool showTime, int hexReceiveGapMilliseconds = 10)
     {
-        var rebuild = this.encoding.CodePage != encoding.CodePage || this.text != text;
+        if (hexReceiveGapMilliseconds is < 0 or > 60_000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(hexReceiveGapMilliseconds), hexReceiveGapMilliseconds, "HEX receive gap must be between 0 and 60000 milliseconds.");
+        }
+
+        var rebuild = this.encoding.CodePage != encoding.CodePage || this.text != text
+            || !text && this.hexReceiveGapMilliseconds != hexReceiveGapMilliseconds;
+        this.hexReceiveGapMilliseconds = hexReceiveGapMilliseconds;
         if (!rebuild && this.showTime == showTime)
         {
             return;
@@ -73,6 +82,7 @@ public sealed class TrafficBuffer(Encoding encoding, int capacity = 20_000)
         streams.Clear();
         currentStream = null;
         currentRow = null;
+        lastHexEvent = null;
         Rows.Clear();
     }
 
@@ -81,6 +91,7 @@ public sealed class TrafficBuffer(Encoding encoding, int capacity = 20_000)
         streams.Clear();
         currentStream = null;
         currentRow = null;
+        lastHexEvent = null;
         Rows.Clear();
         var changed = new HashSet<TrafficRow>();
         foreach (var item in events)
@@ -98,9 +109,24 @@ public sealed class TrafficBuffer(Encoding encoding, int capacity = 20_000)
     {
         if (!text)
         {
-            var row = new TrafficRow(item, encoding);
+            TrafficRow row;
+            if (hexReceiveGapMilliseconds != 0 && currentRow is { } pending && lastHexEvent is { } previous
+                && item.Direction == SerialDirection.Receive && previous.Direction == SerialDirection.Receive
+                && item.ConnectionId == previous.ConnectionId && item.Source == previous.Source
+                && item.Data.Length != 0 && previous.Data.Length != 0
+                && item.Utc >= previous.Utc && item.Utc - previous.Utc <= TimeSpan.FromMilliseconds(hexReceiveGapMilliseconds))
+            {
+                row = pending;
+            }
+            else
+            {
+                row = new TrafficRow(item, encoding);
+                currentRow = row;
+                Rows.Add(row);
+            }
+
             row.AppendData(item.Data);
-            Rows.Add(row);
+            lastHexEvent = item;
             changed.Add(row);
             return;
         }

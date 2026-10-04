@@ -30,6 +30,7 @@ public sealed class TrafficCopyTests
     {
         var encoding = Encoding.GetEncoding(encodingName);
         var buffer = new TrafficBuffer(encoding);
+        buffer.SetPresentation(encoding, false, true, 0);
         var bytes = encoding.GetBytes(text);
         buffer.Append(bytes.Select((value, index) => CreateEvent(index + 1, [value])).ToArray());
 

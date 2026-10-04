@@ -325,8 +325,9 @@ public sealed partial class MainWindow : Window
                 var encoding = Encoding.GetEncoding(context.Snapshot.Options.EncodingName);
                 var text = workbenchPage?.MonitorFormatIndex == 1;
                 var showTime = workbenchPage?.ShowTimestamp ?? true;
-                context.TrafficBuffer.SetPresentation(encoding, text, showTime);
-                context.TerminalBuffer.SetPresentation(encoding, text, showTime);
+                var hexReceiveGap = workbenchPage?.HexReceiveGapMilliseconds ?? 10;
+                context.TrafficBuffer.SetPresentation(encoding, text, showTime, hexReceiveGap);
+                context.TerminalBuffer.SetPresentation(encoding, text, showTime, hexReceiveGap);
                 context.TrafficBuffer.Append(events);
                 context.TerminalBuffer.Append(events);
                 foreach (var item in events)
@@ -970,18 +971,19 @@ public sealed partial class MainWindow : Window
 
         var text = workbenchPage.MonitorFormatIndex == 1;
         var showTime = workbenchPage.ShowTimestamp;
+        var hexReceiveGap = workbenchPage.HexReceiveGapMilliseconds;
         foreach (var context in connectionContexts.Values)
         {
             var encoding = Encoding.GetEncoding(context.Snapshot.Options.EncodingName);
-            context.TrafficBuffer.SetPresentation(encoding, text, showTime);
-            context.TerminalBuffer.SetPresentation(encoding, text, showTime);
+            context.TrafficBuffer.SetPresentation(encoding, text, showTime, hexReceiveGap);
+            context.TerminalBuffer.SetPresentation(encoding, text, showTime, hexReceiveGap);
         }
 
         var currentEncoding = replayCancellation is null && connectionId is { } id && connectionContexts.TryGetValue(id, out var current)
             ? Encoding.GetEncoding(current.Snapshot.Options.EncodingName)
             : workbenchPage.SelectedEncoding;
-        trafficBuffer.SetPresentation(currentEncoding, text, showTime);
-        terminalBuffer.SetPresentation(currentEncoding, text, showTime);
+        trafficBuffer.SetPresentation(currentEncoding, text, showTime, hexReceiveGap);
+        terminalBuffer.SetPresentation(currentEncoding, text, showTime, hexReceiveGap);
 
         if (!paused)
         {
@@ -1442,8 +1444,9 @@ public sealed partial class MainWindow : Window
                 var encoding = workbenchPage?.SelectedEncoding ?? Encoding.UTF8;
                 var text = workbenchPage?.MonitorFormatIndex == 1;
                 var showTime = workbenchPage?.ShowTimestamp ?? true;
-                replayBuffer.SetPresentation(encoding, text, showTime);
-                replayTerminalBuffer.SetPresentation(encoding, text, showTime);
+                var hexReceiveGap = workbenchPage?.HexReceiveGapMilliseconds ?? 10;
+                replayBuffer.SetPresentation(encoding, text, showTime, hexReceiveGap);
+                replayTerminalBuffer.SetPresentation(encoding, text, showTime, hexReceiveGap);
                 replayBuffer.Append([item]);
                 replayTerminalBuffer.Append([item]);
 

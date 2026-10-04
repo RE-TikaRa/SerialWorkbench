@@ -25,7 +25,8 @@ public sealed record SerialPreference(
     string? DeviceInstanceId = null,
     bool Rs485Mode = false,
     int RtsBeforeSendMilliseconds = 0,
-    int RtsAfterSendMilliseconds = 0);
+    int RtsAfterSendMilliseconds = 0,
+    int HexReceiveGapMilliseconds = 10);
 
 public sealed record SerialProfile(
     string Name,

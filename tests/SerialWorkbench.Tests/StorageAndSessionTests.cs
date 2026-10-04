@@ -112,7 +112,7 @@ public sealed class StorageAndSessionTests
 
         Assert.Equal(["温度=25.6°C", "湿度=40%"], replay.Rows.Select(static row => row.Display));
         Assert.Equal(Convert.ToHexString(bytes), string.Concat(replay.Rows.Select(static row => row.Hex)));
-        replay.SetPresentation(Encoding.UTF8, false, true);
+        replay.SetPresentation(Encoding.UTF8, false, true, 0);
         Assert.Equal(original.Select(static item => Convert.ToHexString(item.Data)), replay.Rows.Select(static row => row.Hex));
         Assert.Equal(original.Select(static item => item.Sequence), events.Select(static item => item.Sequence));
         Assert.Equal(original.Select(static item => item.Utc), events.Select(static item => item.Utc));

@@ -348,6 +348,8 @@
               </Button.Flyout>
             </Button>
           </Grid>
+          <NumberBox x:Name="HexReceiveGapNumberBox" Header="HEX 接收分行间隔(ms)" Value="10" Minimum="0" Maximum="60000" SpinButtonPlacementMode="Compact" ValueChanged="HexReceiveGapNumberBox_ValueChanged" />
+          <TextBlock Text="间隔内的连续接收数据合并显示；0 表示按原始读取块分行。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
           <TextBlock Text="串口参数" Style="{StaticResource BodyStrongTextBlockStyle}" />
           <Grid ColumnSpacing="12" RowSpacing="12">
             <Grid.RowDefinitions>

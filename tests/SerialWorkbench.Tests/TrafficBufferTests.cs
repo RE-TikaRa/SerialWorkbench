@@ -187,6 +187,7 @@ public sealed class TrafficBufferTests
     public void SwitchingTextAndHexRebuildsFromUnmodifiedEvents()
     {
         var buffer = new TrafficBuffer(Encoding.UTF8);
+        buffer.SetPresentation(Encoding.UTF8, false, true, 0);
         var bytes = "温度\r\n湿度"u8.ToArray();
         var events = new[] { CreateEvent(1, bytes[..1]), CreateEvent(2, bytes[1..5]), CreateEvent(3, bytes[5..]) };
         buffer.Append(events);
@@ -194,7 +195,7 @@ public sealed class TrafficBufferTests
         Assert.Equal(events.Select(static item => Convert.ToHexString(item.Data)), buffer.Rows.Select(static row => row.Hex));
         buffer.SetPresentation(Encoding.UTF8, true, true);
         Assert.Equal(["温度", "湿度"], buffer.Rows.Select(static row => row.Display));
-        buffer.SetPresentation(Encoding.UTF8, false, false);
+        buffer.SetPresentation(Encoding.UTF8, false, false, 0);
 
         Assert.Equal(events.Select(static item => Convert.ToHexString(item.Data)), buffer.Rows.Select(static row => row.Hex));
         Assert.All(buffer.Rows, static row => Assert.False(row.ShowTimestamp));
@@ -241,7 +242,7 @@ public sealed class TrafficBufferTests
         }
 
         Assert.Equal("BCD", Assert.Single(buffer.Rows).Display);
-        buffer.SetPresentation(Encoding.UTF8, false, true);
+        buffer.SetPresentation(Encoding.UTF8, false, true, 0);
         Assert.Equal(["42", "43", "44"], buffer.Rows.Select(static row => row.Hex));
     }
 

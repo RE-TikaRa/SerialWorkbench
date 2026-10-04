@@ -13,7 +13,7 @@ public sealed class TrafficSelectionTests
     [Fact]
     public void AppendedRowsKeepExistingItemsWithoutResettingTheList()
     {
-        var buffer = new TrafficBuffer(Encoding.UTF8);
+        var buffer = CreateRawBuffer();
         buffer.Append([CreateEvent(1, "A"), CreateEvent(2, "B")]);
         var visible = new ObservableCollection<TrafficRow>(buffer.Rows);
         var selected = visible[1];
@@ -30,7 +30,7 @@ public sealed class TrafficSelectionTests
     [Fact]
     public void FilteringPreservesTheOrderOfRemainingSelectedRows()
     {
-        var buffer = new TrafficBuffer(Encoding.UTF8);
+        var buffer = CreateRawBuffer();
         buffer.Append([CreateEvent(1, "A"), CreateEvent(2, "B"), CreateEvent(3, "C")]);
         var visible = new ObservableCollection<TrafficRow>(buffer.Rows);
         var selected = new HashSet<TrafficRowIdentity> { visible[2].Identity, visible[0].Identity };
@@ -44,7 +44,7 @@ public sealed class TrafficSelectionTests
     [Fact]
     public void ReorderingRowsPreservesItemsAndUsesTheDisplayedCopyOrder()
     {
-        var buffer = new TrafficBuffer(Encoding.UTF8);
+        var buffer = CreateRawBuffer();
         buffer.Append([CreateEvent(1, "A"), CreateEvent(2, "B"), CreateEvent(3, "C")]);
         var visible = new ObservableCollection<TrafficRow>(buffer.Rows);
         var selected = new HashSet<TrafficRowIdentity> { visible[0].Identity, visible[2].Identity };
@@ -58,7 +58,7 @@ public sealed class TrafficSelectionTests
     [Fact]
     public void SelectionIdentitiesSurviveHistoryRebuildsAndSnapshots()
     {
-        var buffer = new TrafficBuffer(Encoding.UTF8, 2);
+        var buffer = CreateRawBuffer(2);
         buffer.Append([CreateEvent(1, "A"), CreateEvent(2, "B")]);
         var original = buffer.Rows[1];
         var selected = new HashSet<TrafficRowIdentity> { original.Identity };
@@ -88,4 +88,11 @@ public sealed class TrafficSelectionTests
 
     private static SerialTrafficEvent CreateEvent(long sequence, string text) =>
         new(sequence, DateTimeOffset.UnixEpoch.AddMilliseconds(sequence), sequence, ConnectionId, SerialDirection.Receive, Encoding.UTF8.GetBytes(text), "serial");
+
+    private static TrafficBuffer CreateRawBuffer(int capacity = 20_000)
+    {
+        var buffer = new TrafficBuffer(Encoding.UTF8, capacity);
+        buffer.SetPresentation(Encoding.UTF8, false, true, 0);
+        return buffer;
+    }
 }
