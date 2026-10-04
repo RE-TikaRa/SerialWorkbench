@@ -132,7 +132,8 @@ public sealed record LoopbackResult(
     int? FirstDifferenceIndex,
     byte? ExpectedByte,
     byte? ActualByte,
-    string? Error);
+    string? Error,
+    string? ErrorCode = null);
 
 public sealed record LoopbackHistoryEntry(
     DateTimeOffset Utc,
@@ -170,7 +171,8 @@ public sealed record XmodemTransferResult(
     int Blocks,
     int Retries,
     TimeSpan Duration,
-    string? Error);
+    string? Error,
+    string? ErrorCode = null);
 
 public sealed record XmodemReceiveResult(XmodemTransferResult Result, byte[] Data);
 
@@ -191,7 +193,8 @@ public sealed record ModbusTransactionResult(
     byte? ExceptionCode,
     TimeSpan Duration,
     string? Error,
-    bool[]? Bits = null);
+    bool[]? Bits = null,
+    string? ErrorCode = null);
 
 public sealed record SessionDescriptor(
     Guid Id,

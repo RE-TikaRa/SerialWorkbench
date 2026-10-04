@@ -99,6 +99,8 @@ public sealed class HostRpcClient : IHostRpc, IAsyncDisposable
 {
     private readonly NamedPipeClientStream stream;
     private readonly JsonRpc rpc;
+    private readonly object operationsGate = new();
+    private readonly HashSet<Guid> foregroundOperations = [];
 
     internal HostRpcClient(NamedPipeClientStream stream)
     {
@@ -106,6 +108,21 @@ public sealed class HostRpcClient : IHostRpc, IAsyncDisposable
         rpc = new JsonRpc(stream);
         rpc.StartListening();
     }
+
+    public Task<StartOperationResult> StartOperationAsync(OperationRequest request, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<StartOperationResult>(nameof(StartOperationAsync), [request], cancellationToken);
+
+    public Task<IReadOnlyList<OperationSnapshot>> ListOperationsAsync(CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<IReadOnlyList<OperationSnapshot>>(nameof(ListOperationsAsync), [], cancellationToken);
+
+    public Task<OperationSnapshot> ReadOperationAsync(OperationQuery query, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<OperationSnapshot>(nameof(ReadOperationAsync), [query], cancellationToken);
+
+    public Task<OperationProgressBatch> ReadOperationProgressAsync(OperationProgressQuery query, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<OperationProgressBatch>(nameof(ReadOperationProgressAsync), [query], cancellationToken);
+
+    public Task<OperationSnapshot> CancelOperationAsync(Guid operationId, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<OperationSnapshot>(nameof(CancelOperationAsync), [operationId], cancellationToken);
 
     public Task<HandshakeResponse> HandshakeAsync(HandshakeRequest request, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<HandshakeResponse>(nameof(HandshakeAsync), [request], cancellationToken);
@@ -123,7 +140,7 @@ public sealed class HostRpcClient : IHostRpc, IAsyncDisposable
         rpc.InvokeWithCancellationAsync<RpcResult>(nameof(CloseConnectionAsync), [connectionId], cancellationToken);
 
     public Task<RpcResult> SendAsync(SendRequest request, CancellationToken cancellationToken) =>
-        rpc.InvokeWithCancellationAsync<RpcResult>(nameof(SendAsync), [request], cancellationToken);
+        this.RunOperationAsync<RpcResult>(OperationJson.Create("send", request.ConnectionId, request), cancellationToken);
 
     public Task<RpcResult> SetControlLinesAsync(Guid connectionId, SerialControlLines lines, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<RpcResult>(nameof(SetControlLinesAsync), [connectionId, lines], cancellationToken);
@@ -153,22 +170,22 @@ public sealed class HostRpcClient : IHostRpc, IAsyncDisposable
         rpc.InvokeWithCancellationAsync<RpcResult>(nameof(DeleteSessionAsync), [sessionId], cancellationToken);
 
     public Task<LoopbackResult> RunLoopbackAsync(LoopbackRequest request, CancellationToken cancellationToken) =>
-        rpc.InvokeWithCancellationAsync<LoopbackResult>(nameof(RunLoopbackAsync), [request], cancellationToken);
+        this.RunOperationAsync<LoopbackResult>(OperationJson.Create("loopback.run", request.ConnectionId, request), cancellationToken);
 
     public Task<IReadOnlyList<LoopbackHistoryEntry>> ReadLoopbackResultsAsync(Guid sessionId, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<IReadOnlyList<LoopbackHistoryEntry>>(nameof(ReadLoopbackResultsAsync), [sessionId], cancellationToken);
 
     public Task<SerialSequenceProgress> RunSequenceAsync(Guid connectionId, SerialSequenceDefinition sequence, CancellationToken cancellationToken) =>
-        rpc.InvokeWithCancellationAsync<SerialSequenceProgress>(nameof(RunSequenceAsync), [connectionId, sequence], cancellationToken);
+        this.RunOperationAsync<SerialSequenceProgress>(OperationJson.Create("sequence.run", connectionId, sequence), cancellationToken);
 
     public Task<XmodemTransferResult> SendXmodemAsync(Guid connectionId, byte[] data, CancellationToken cancellationToken) =>
-        rpc.InvokeWithCancellationAsync<XmodemTransferResult>(nameof(SendXmodemAsync), [connectionId, data], cancellationToken);
+        this.RunOperationAsync<XmodemTransferResult>(OperationJson.Create("xmodem.send", connectionId, data), cancellationToken);
 
     public Task<XmodemReceiveResult> ReceiveXmodemAsync(Guid connectionId, CancellationToken cancellationToken) =>
-        rpc.InvokeWithCancellationAsync<XmodemReceiveResult>(nameof(ReceiveXmodemAsync), [connectionId], cancellationToken);
+        this.RunOperationAsync<XmodemReceiveResult>(OperationJson.Create("xmodem.receive", connectionId, new { }), cancellationToken);
 
     public Task<ModbusTransactionResult> RunModbusAsync(ModbusTransactionRequest request, CancellationToken cancellationToken) =>
-        rpc.InvokeWithCancellationAsync<ModbusTransactionResult>(nameof(RunModbusAsync), [request], cancellationToken);
+        this.RunOperationAsync<ModbusTransactionResult>(OperationJson.Create(request.FunctionCode is 5 or 6 or 15 or 16 ? "modbus.write" : "modbus.read", request.ConnectionId, request), cancellationToken);
 
     public Task<HostStatusDto> SetWorkspaceAsync(SetWorkspaceRequest request, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<HostStatusDto>(nameof(SetWorkspaceAsync), [request], cancellationToken);
@@ -178,7 +195,44 @@ public sealed class HostRpcClient : IHostRpc, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        rpc.Dispose();
-        await stream.DisposeAsync().ConfigureAwait(false);
+        Guid[] running;
+        lock (operationsGate)
+        {
+            running = [.. foregroundOperations];
+        }
+
+        try
+        {
+            foreach (var id in running)
+            {
+                await CancelOperationAsync(id, CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            rpc.Dispose();
+            await stream.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    internal IDisposable TrackForegroundOperation(Guid id)
+    {
+        lock (operationsGate)
+        {
+            foregroundOperations.Add(id);
+        }
+
+        return new ForegroundOperation(this, id);
+    }
+
+    private sealed class ForegroundOperation(HostRpcClient client, Guid id) : IDisposable
+    {
+        public void Dispose()
+        {
+            lock (client.operationsGate)
+            {
+                client.foregroundOperations.Remove(id);
+            }
+        }
     }
 }

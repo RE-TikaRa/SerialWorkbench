@@ -31,6 +31,7 @@ public sealed class HostRuntime : IAsyncDisposable
         Leases = new WriteLeaseManager();
         Sessions = new SessionStore(paths);
         Connections = new SerialConnectionManager(Journal, Leases, PersistAsync);
+        Operations = new OperationManager(this);
         sessionWriter = Task.Run(WriteSessionEventsAsync);
     }
 
@@ -43,6 +44,8 @@ public sealed class HostRuntime : IAsyncDisposable
     public SessionStore Sessions { get; private set; }
 
     public SerialConnectionManager Connections { get; }
+
+    public OperationManager Operations { get; }
 
     public CancellationToken Stopping => stopping.Token;
 
@@ -76,7 +79,7 @@ public sealed class HostRuntime : IAsyncDisposable
 
     public bool ShouldStopAfterIdle(TimeSpan idleTimeout)
     {
-        if (ClientCount != 0 || Connections.GetSnapshots().Count != 0 || Leases.ActiveCount != 0)
+        if (ClientCount != 0 || Connections.GetSnapshots().Count != 0 || Leases.ActiveCount != 0 || Operations.ActiveCount != 0)
         {
             Interlocked.Exchange(ref idleSinceUnixMilliseconds, 0);
             return false;
@@ -108,6 +111,7 @@ public sealed class HostRuntime : IAsyncDisposable
         await connectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            await Operations.CancelConnectionAsync(connectionId, cancellationToken).ConfigureAwait(false);
             await Connections.CloseAsync(connectionId).ConfigureAwait(false);
             if (Connections.GetSnapshots().Count == 0)
             {
@@ -128,7 +132,7 @@ public sealed class HostRuntime : IAsyncDisposable
         await connectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (Connections.GetSnapshots().Count != 0)
+            if (Connections.GetSnapshots().Count != 0 || Operations.ActiveCount != 0)
             {
                 throw new InvalidOperationException("Close all serial connections before changing the workspace.");
             }
@@ -149,6 +153,7 @@ public sealed class HostRuntime : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         stopping.Cancel();
+        await Operations.DisposeAsync().ConfigureAwait(false);
         await Connections.DisposeAsync().ConfigureAwait(false);
         await FlushSessionEventsAsync(CancellationToken.None).ConfigureAwait(false);
         sessionEvents.Writer.TryComplete();

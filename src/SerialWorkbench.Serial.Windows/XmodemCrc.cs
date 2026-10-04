@@ -17,7 +17,7 @@ internal static class XmodemCrc
     private const byte Nak = 0x15;
     private const byte Can = 0x18;
 
-    public static async Task<XmodemTransferResult> SendAsync(SerialConnection connection, ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
+    public static async Task<XmodemTransferResult> SendAsync(SerialConnection connection, ReadOnlyMemory<byte> data, CancellationToken cancellationToken, Action<OperationProgress>? progress = null)
     {
         await using var subscription = connection.Subscribe();
         var reader = new ByteReader(subscription.Reader);
@@ -69,6 +69,7 @@ internal static class XmodemCrc
                 }
 
                 blocks++;
+                progress?.Invoke(new OperationProgress(Math.Min(data.Length, blocks * 128L), data.Length, "bytes", $"Retries: {retries}"));
                 blockNumber = blockNumber == 255 ? 1 : blockNumber + 1;
             }
 
@@ -84,11 +85,11 @@ internal static class XmodemCrc
         catch (Exception ex) when (ex is IOException or TimeoutException)
         {
             stopwatch.Stop();
-            return new XmodemTransferResult(false, Math.Min(data.Length, blocks * 128L), blocks, retries, stopwatch.Elapsed, ex.Message);
+            return new XmodemTransferResult(false, Math.Min(data.Length, blocks * 128L), blocks, retries, stopwatch.Elapsed, ex.Message, ex is TimeoutException ? "TIMEOUT" : "IO_ERROR");
         }
     }
 
-    public static async Task<(XmodemTransferResult Result, byte[] Data)> ReceiveAsync(SerialConnection connection, CancellationToken cancellationToken)
+    public static async Task<(XmodemTransferResult Result, byte[] Data)> ReceiveAsync(SerialConnection connection, CancellationToken cancellationToken, Action<OperationProgress>? progress = null)
     {
         await using var subscription = connection.Subscribe();
         var reader = new ByteReader(subscription.Reader);
@@ -134,6 +135,7 @@ internal static class XmodemCrc
 
                 output.AddRange(frame.AsSpan(2, 128).ToArray());
                 blocks++;
+                progress?.Invoke(new OperationProgress(output.Count, expectedLength, "bytes", $"Retries: {retries}"));
                 expected = expected == 255 ? 1 : expected + 1;
                 await connection.SendAsync(new byte[] { Ack }, "xmodem.receive", cancellationToken).ConfigureAwait(false);
                 marker = await ReadByteWithTimeoutAsync(reader, TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
@@ -162,7 +164,7 @@ internal static class XmodemCrc
         catch (Exception ex) when (ex is IOException or TimeoutException)
         {
             stopwatch.Stop();
-            return (new XmodemTransferResult(false, output.Count, blocks, retries, stopwatch.Elapsed, ex.Message), [.. output]);
+            return (new XmodemTransferResult(false, output.Count, blocks, retries, stopwatch.Elapsed, ex.Message, ex is TimeoutException ? "TIMEOUT" : "IO_ERROR"), [.. output]);
         }
     }
 

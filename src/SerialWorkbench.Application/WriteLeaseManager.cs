@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace SerialWorkbench.Application;
 
 public sealed class WriteLeaseManager
@@ -18,18 +20,29 @@ public sealed class WriteLeaseManager
 
     public WriteLease Acquire(Guid connectionId, string owner)
     {
+        return TryAcquire(connectionId, owner, out var lease, out var existingOwner)
+            ? lease
+            : throw new InvalidOperationException($"Connection {connectionId} already has a write lease owned by {existingOwner}.");
+    }
+
+    public bool TryAcquire(Guid connectionId, string owner, [NotNullWhen(true)] out WriteLease? lease, out string? existingOwner)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
 
         lock (gate)
         {
             if (leases.TryGetValue(connectionId, out var existing))
             {
-                throw new InvalidOperationException($"Connection {connectionId} already has a write lease owned by {existing.Owner}.");
+                lease = null;
+                existingOwner = existing.Owner;
+                return false;
             }
 
             var token = Guid.NewGuid();
             leases.Add(connectionId, new LeaseState(token, owner));
-            return new WriteLease(this, connectionId, token, owner);
+            lease = new WriteLease(this, connectionId, token, owner);
+            existingOwner = null;
+            return true;
         }
     }
 

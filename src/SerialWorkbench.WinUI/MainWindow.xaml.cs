@@ -1779,68 +1779,54 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        using var cancellation = new CancellationTokenSource();
+        modbusPollCancellation = cancellation;
+        modbusPage.ClearPollResults();
+        modbusPage.SetPolling(true);
+        var seen = new HashSet<int>();
         try
         {
-            var slave = modbusPage.PollSlaveValue;
-            var function = modbusPage.PollFunctionValue;
-            var address = modbusPage.PollAddressValue;
-            var quantity = modbusPage.PollQuantityValue;
-            var maximumQuantity = function is 1 or 2 ? 2000 : 125;
-            if (quantity < 1 || quantity > maximumQuantity)
+            var request = new ModbusPollRequest(current, modbusPage.PollSlaveValue, modbusPage.PollFunctionValue,
+                modbusPage.PollAddressValue, modbusPage.PollQuantityValue, modbusPage.PollCountValue,
+                modbusPage.PollIntervalMilliseconds, modbusPage.PollTimeoutMilliseconds);
+            var progress = new Progress<OperationProgress>(item =>
             {
-                throw new ArgumentException($"功能码 {function:D2} 的数量必须在 1 到 {maximumQuantity} 之间。");
-            }
-
-            var count = modbusPage.PollCountValue;
-            var interval = modbusPage.PollIntervalMilliseconds;
-            var timeout = modbusPage.PollTimeoutMilliseconds;
-            using var cancellation = new CancellationTokenSource();
-            modbusPollCancellation = cancellation;
-            modbusPage.ClearPollResults();
-            modbusPage.SetPolling(true);
-            var failed = 0;
-            var completed = 0;
-            var totalDurationMilliseconds = 0d;
-            try
-            {
-                for (var sample = 1; sample <= count; sample++)
+                if (!cancellation.IsCancellationRequested && item.ItemJson is { } json)
                 {
-                    cancellation.Token.ThrowIfCancellationRequested();
-                    var frame = SerialWorkbench.Modbus.ModbusRtuCodec.BuildReadRequest(slave, function, address, quantity);
-                    var result = await client.RunModbusAsync(new ModbusTransactionRequest(current, frame, slave, function, timeout), cancellation.Token);
-                    modbusPage.AddPollResult(sample, result);
-                    completed++;
-                    totalDurationMilliseconds += result.Duration.TotalMilliseconds;
-                    if (!result.Success)
+                    var sample = OperationJson.Read<ModbusSample>(json);
+                    if (seen.Add(sample.Index))
                     {
-                        failed++;
-                    }
-
-                    modbusPage.SetPollStatus($"已完成 {sample} / {count} · 失败 {failed}");
-                    if (interval > 0 && sample < count)
-                    {
-                        await Task.Delay(interval, cancellation.Token);
+                        modbusPage.AddPollResult(sample.Index, sample.Result);
+                        modbusPage.SetPollStatus($"已完成 {sample.Index} / {request.Count}");
                     }
                 }
+            });
+            var result = await client.RunOperationAsync<ModbusBatchResult>(
+                OperationJson.Create("modbus.poll", current, request), cancellation.Token, updates: progress);
+            foreach (var sample in result.Samples)
+            {
+                if (seen.Add(sample.Index))
+                {
+                    modbusPage.AddPollResult(sample.Index, sample.Result);
+                }
+            }
 
-                var success = count - failed;
-                var average = completed == 0 ? 0 : totalDurationMilliseconds / completed;
-                modbusPage.ShowPollResult($"轮询完成 · 成功 {success} · 失败 {failed} · 成功率 {(double)success / count:P0} · 平均 {average:N0} ms", failed == 0 ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
-            }
-            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
-            {
-                var average = completed == 0 ? 0 : totalDurationMilliseconds / completed;
-                modbusPage.ShowPollResult($"轮询已停止 · 已完成 {completed} 次 · 失败 {failed} · 平均 {average:N0} ms", InfoBarSeverity.Warning);
-            }
-            finally
-            {
-                modbusPage.SetPolling(false);
-                modbusPollCancellation = null;
-            }
+            var average = result.Samples.Count == 0 ? 0 : result.Samples.Average(static item => item.Result.Duration.TotalMilliseconds);
+            modbusPage.ShowPollResult($"轮询完成 · 成功 {result.Successful} · 失败 {result.Failed} · 成功率 {(double)result.Successful / request.Count:P0} · 平均 {average:N0} ms",
+                result.Failed == 0 ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            modbusPage.ShowPollResult($"轮询已停止 · 已显示 {seen.Count} 次响应。", InfoBarSeverity.Warning);
         }
         catch (Exception ex)
         {
             modbusPage.ShowPollResult(ex.Message, InfoBarSeverity.Error);
+        }
+        finally
+        {
+            modbusPage.SetPolling(false);
+            modbusPollCancellation = null;
         }
     }
 
@@ -1857,58 +1843,52 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        using var cancellation = new CancellationTokenSource();
+        modbusScanCancellation = cancellation;
+        modbusPage.ClearScanResults();
+        modbusPage.SetScanning(true);
+        var seen = new HashSet<int>();
         try
         {
-            var first = modbusPage.ScanFromValue;
-            var last = modbusPage.ScanToValue;
-            if (first > last)
+            var request = new ModbusScanRequest(current, modbusPage.ScanFromValue, modbusPage.ScanToValue,
+                modbusPage.ScanAddressValue, modbusPage.ScanTimeoutMilliseconds, modbusPage.ScanIntervalMilliseconds);
+            void ShowSample(ModbusSample sample)
             {
-                throw new ArgumentException("起始从站不能大于结束从站。");
-            }
-
-            var address = modbusPage.ScanAddressValue;
-            var timeout = modbusPage.ScanTimeoutMilliseconds;
-            var interval = modbusPage.ScanIntervalMilliseconds;
-            using var cancellation = new CancellationTokenSource();
-            modbusScanCancellation = cancellation;
-            modbusPage.ClearScanResults();
-            modbusPage.SetScanning(true);
-            var responses = 0;
-            try
-            {
-                for (var slave = first; slave <= last; slave++)
+                if ((sample.Result.Success || sample.Result.ExceptionCode is not null) && seen.Add(sample.Index))
                 {
-                    cancellation.Token.ThrowIfCancellationRequested();
-                    var frame = SerialWorkbench.Modbus.ModbusRtuCodec.BuildReadRequest(slave, 3, address, 1);
-                    var result = await client.RunModbusAsync(new ModbusTransactionRequest(current, frame, slave, 3, timeout), cancellation.Token);
-                    if (result.Success || result.ExceptionCode is not null)
-                    {
-                        modbusPage.AddScanResult(slave, result);
-                        responses++;
-                    }
-
-                    modbusPage.SetScanStatus($"已扫描 {slave} / {last} · 响应 {responses}");
-                    if (interval > 0 && slave < last)
-                    {
-                        await Task.Delay(interval, cancellation.Token);
-                    }
+                    modbusPage.AddScanResult(sample.SlaveAddress, sample.Result);
                 }
+            }
 
-                modbusPage.ShowScanResult($"扫描完成 · 响应 {responses} / {last - first + 1}", InfoBarSeverity.Success);
-            }
-            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            var progress = new Progress<OperationProgress>(item =>
             {
-                modbusPage.ShowScanResult($"扫描已停止 · 已收到 {responses} 个响应。", InfoBarSeverity.Warning);
-            }
-            finally
+                if (!cancellation.IsCancellationRequested && item.ItemJson is { } json)
+                {
+                    ShowSample(OperationJson.Read<ModbusSample>(json));
+                    modbusPage.SetScanStatus($"已扫描 {item.Completed} / {item.Total} · 响应 {seen.Count}");
+                }
+            });
+            var result = await client.RunOperationAsync<ModbusBatchResult>(
+                OperationJson.Create("modbus.scan", current, request), cancellation.Token, updates: progress);
+            foreach (var sample in result.Samples)
             {
-                modbusPage.SetScanning(false);
-                modbusScanCancellation = null;
+                ShowSample(sample);
             }
+
+            modbusPage.ShowScanResult($"扫描完成 · 响应 {result.Successful} / {result.Samples.Count}", InfoBarSeverity.Success);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            modbusPage.ShowScanResult($"扫描已停止 · 已收到 {seen.Count} 个响应。", InfoBarSeverity.Warning);
         }
         catch (Exception ex)
         {
             modbusPage.ShowScanResult(ex.Message, InfoBarSeverity.Error);
+        }
+        finally
+        {
+            modbusPage.SetScanning(false);
+            modbusScanCancellation = null;
         }
     }
 

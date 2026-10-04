@@ -49,6 +49,21 @@ SerialWorkbench.Host.exe  串口和会话服务
 
 Host 在存在客户端、连接或写入任务时保持运行；全部结束后等待 30 秒退出。
 
+## Host 任务
+
+发送、回环、自动化序列、Modbus 事务、扫描、轮询和 XMODEM 由 Host 执行。每项任务具有 `operationId`，提供进度、结果和取消操作。客户端意外断开保留已接受的任务；前台操作使用 Ctrl+C 或正常退出时发送明确取消。
+
+```powershell
+serial-workbench operations list
+serial-workbench operations show --id OPERATION_ID
+serial-workbench operations cancel --id OPERATION_ID
+serial-workbench operations start --connection CONNECTION_ID --kind modbus.poll --parameters '{"slaveAddress":1,"address":0,"quantity":1,"count":10}' --request-id READ_001
+```
+
+`operations start` 返回后台任务标识，`operations result` 查询结果。`--request-id` 保存请求身份，相同身份和参数返回原任务；参数不同时返回 `REQUEST_ID_CONFLICT`。任务和结果保存于 `data/operations.sqlite3`。
+
+连接被占用时返回 `CONNECTION_BUSY`，包含占用任务标识。Host 重启后未完成任务标为 `Interrupted`，执行结果为 `Unknown`，设备操作不自动重放。
+
 ## 获取可运行版本
 
 运行 `eng/publish.ps1` 后，完整的 self-contained 便携版位于：

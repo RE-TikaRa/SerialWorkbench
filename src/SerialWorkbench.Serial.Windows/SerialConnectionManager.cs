@@ -93,10 +93,10 @@ public sealed class SerialConnectionManager(
         }
     }
 
-    public async Task SendAsync(Guid id, ReadOnlyMemory<byte> data, string source, CancellationToken cancellationToken)
+    public async Task SendAsync(Guid id, ReadOnlyMemory<byte> data, string source, CancellationToken cancellationToken, WriteLeaseManager.WriteLease? lease = null)
     {
         var connection = Get(id);
-        await using var lease = leases.Acquire(id, source);
+        await using var acquiredLease = lease is null ? leases.Acquire(id, source) : null;
         await connection.SendAsync(data, source, cancellationToken).ConfigureAwait(false);
     }
 
@@ -123,7 +123,7 @@ public sealed class SerialConnectionManager(
         await connection.SendBreakAsync(durationMilliseconds, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<LoopbackResult> RunLoopbackAsync(LoopbackRequest request, CancellationToken cancellationToken)
+    public async Task<LoopbackResult> RunLoopbackAsync(LoopbackRequest request, CancellationToken cancellationToken, WriteLeaseManager.WriteLease? lease = null, Action<OperationProgress>? progress = null)
     {
         if (request.PayloadLength is < 1 or > 16 * 1024 * 1024)
         {
@@ -141,7 +141,7 @@ public sealed class SerialConnectionManager(
         }
 
         var connection = Get(request.ConnectionId);
-        await using var lease = leases.Acquire(request.ConnectionId, "loopback");
+        await using var acquiredLease = lease is null ? leases.Acquire(request.ConnectionId, "loopback") : null;
         await using var subscription = connection.Subscribe();
         var stopwatch = Stopwatch.StartNew();
         long sent = 0;
@@ -180,7 +180,7 @@ public sealed class SerialConnectionManager(
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 stopwatch.Stop();
-                return new LoopbackResult(false, iteration, sent, received + offset, stopwatch.Elapsed, Rate(received + offset, stopwatch.Elapsed), null, null, null, "Timed out waiting for loopback data.");
+                return new LoopbackResult(false, iteration, sent, received + offset, stopwatch.Elapsed, Rate(received + offset, stopwatch.Elapsed), null, null, null, "Timed out waiting for loopback data.", "TIMEOUT");
             }
 
             received += actual.Length;
@@ -188,15 +188,17 @@ public sealed class SerialConnectionManager(
             if (difference >= 0)
             {
                 stopwatch.Stop();
-                return new LoopbackResult(false, iteration + 1, sent, received, stopwatch.Elapsed, Rate(received, stopwatch.Elapsed), difference, expected[difference], actual[difference], "Loopback data differs.");
+                return new LoopbackResult(false, iteration + 1, sent, received, stopwatch.Elapsed, Rate(received, stopwatch.Elapsed), difference, expected[difference], actual[difference], "Loopback data differs.", "DATA_MISMATCH");
             }
+
+            progress?.Invoke(new OperationProgress(iteration + 1, request.Iterations, "iterations"));
         }
 
         stopwatch.Stop();
         return new LoopbackResult(true, request.Iterations, sent, received, stopwatch.Elapsed, Rate(received, stopwatch.Elapsed), null, null, null, null);
     }
 
-    public async Task<ModbusTransactionResult> RunModbusAsync(ModbusTransactionRequest request, CancellationToken cancellationToken)
+    public async Task<ModbusTransactionResult> RunModbusAsync(ModbusTransactionRequest request, CancellationToken cancellationToken, WriteLeaseManager.WriteLease? lease = null)
     {
         if (request.Frame.Length < 2)
         {
@@ -219,7 +221,7 @@ public sealed class SerialConnectionManager(
         }
 
         var connection = Get(request.ConnectionId);
-        await using var lease = leases.Acquire(request.ConnectionId, "modbus");
+        await using var acquiredLease = lease is null ? leases.Acquire(request.ConnectionId, "modbus") : null;
         await using var subscription = connection.Subscribe();
         var stopwatch = Stopwatch.StartNew();
         await connection.SendAsync(request.Frame, "modbus", cancellationToken).ConfigureAwait(false);
@@ -327,7 +329,7 @@ public sealed class SerialConnectionManager(
                     catch (ModbusException exception)
                     {
                         stopwatch.Stop();
-                        return new ModbusTransactionResult(false, frame, request.FunctionCode, [], null, null, exception.ExceptionCode, stopwatch.Elapsed, exception.Message);
+                        return new ModbusTransactionResult(false, frame, request.FunctionCode, [], null, null, exception.ExceptionCode, stopwatch.Elapsed, exception.Message, ErrorCode: "MODBUS_EXCEPTION");
                     }
                     catch (InvalidDataException exception)
                     {
@@ -346,11 +348,11 @@ public sealed class SerialConnectionManager(
             var error = lastError is null
                 ? $"Timed out waiting for Modbus response. Received: {receivedHex}"
                 : $"{lastError} Received: {receivedHex}";
-            return new ModbusTransactionResult(false, response, request.FunctionCode, [], null, null, null, stopwatch.Elapsed, error);
+            return new ModbusTransactionResult(false, response, request.FunctionCode, [], null, null, null, stopwatch.Elapsed, error, ErrorCode: lastError is null ? "TIMEOUT" : "PROTOCOL_ERROR");
         }
     }
 
-    public async Task<SerialSequenceProgress> RunSequenceAsync(Guid connectionId, SerialSequenceDefinition sequence, CancellationToken cancellationToken)
+    public async Task<SerialSequenceProgress> RunSequenceAsync(Guid connectionId, SerialSequenceDefinition sequence, CancellationToken cancellationToken, WriteLeaseManager.WriteLease? lease = null, Action<OperationProgress>? progress = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sequence.Name);
         if (sequence.Steps.Count == 0)
@@ -359,7 +361,7 @@ public sealed class SerialConnectionManager(
         }
 
         var connection = Get(connectionId);
-        await using var lease = leases.Acquire(connectionId, "sequence");
+        await using var acquiredLease = lease is null ? leases.Acquire(connectionId, "sequence") : null;
         for (var stepIndex = 0; stepIndex < sequence.Steps.Count; stepIndex++)
         {
             var step = sequence.Steps[stepIndex];
@@ -422,6 +424,8 @@ public sealed class SerialConnectionManager(
                 {
                     await Task.Delay(step.DelayMilliseconds, cancellationToken).ConfigureAwait(false);
                 }
+
+                progress?.Invoke(new OperationProgress(stepIndex + 1, sequence.Steps.Count, "steps", $"Repeat {repeatIndex + 1}/{step.RepeatCount}"));
             }
         }
 
@@ -455,18 +459,18 @@ public sealed class SerialConnectionManager(
         }
     }
 
-    public async Task<XmodemTransferResult> SendXmodemAsync(Guid connectionId, byte[] data, CancellationToken cancellationToken)
+    public async Task<XmodemTransferResult> SendXmodemAsync(Guid connectionId, byte[] data, CancellationToken cancellationToken, WriteLeaseManager.WriteLease? lease = null, Action<OperationProgress>? progress = null)
     {
         var connection = Get(connectionId);
-        await using var lease = leases.Acquire(connectionId, "xmodem.send");
-        return await XmodemCrc.SendAsync(connection, data, cancellationToken).ConfigureAwait(false);
+        await using var acquiredLease = lease is null ? leases.Acquire(connectionId, "xmodem.send") : null;
+        return await XmodemCrc.SendAsync(connection, data, cancellationToken, progress).ConfigureAwait(false);
     }
 
-    public async Task<XmodemReceiveResult> ReceiveXmodemAsync(Guid connectionId, CancellationToken cancellationToken)
+    public async Task<XmodemReceiveResult> ReceiveXmodemAsync(Guid connectionId, CancellationToken cancellationToken, WriteLeaseManager.WriteLease? lease = null, Action<OperationProgress>? progress = null)
     {
         var connection = Get(connectionId);
-        await using var lease = leases.Acquire(connectionId, "xmodem.receive");
-        var transfer = await XmodemCrc.ReceiveAsync(connection, cancellationToken).ConfigureAwait(false);
+        await using var acquiredLease = lease is null ? leases.Acquire(connectionId, "xmodem.receive") : null;
+        var transfer = await XmodemCrc.ReceiveAsync(connection, cancellationToken, progress).ConfigureAwait(false);
         return new XmodemReceiveResult(transfer.Result, transfer.Data);
     }
 

@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
     <ProjectReference Include="../SerialWorkbench.Domain/SerialWorkbench.Domain.csproj" />
   </ItemGroup>
 </Project>

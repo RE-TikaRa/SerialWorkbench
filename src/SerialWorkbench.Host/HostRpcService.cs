@@ -6,6 +6,21 @@ namespace SerialWorkbench.Host;
 
 public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
 {
+    public Task<StartOperationResult> StartOperationAsync(OperationRequest request, CancellationToken cancellationToken) =>
+        runtime.Operations.StartAsync(request, cancellationToken);
+
+    public Task<IReadOnlyList<OperationSnapshot>> ListOperationsAsync(CancellationToken cancellationToken) =>
+        runtime.Operations.ListAsync(cancellationToken);
+
+    public Task<OperationSnapshot> ReadOperationAsync(OperationQuery query, CancellationToken cancellationToken) =>
+        runtime.Operations.ReadAsync(query, cancellationToken);
+
+    public Task<OperationProgressBatch> ReadOperationProgressAsync(OperationProgressQuery query, CancellationToken cancellationToken) =>
+        runtime.Operations.ReadProgressAsync(query, cancellationToken);
+
+    public Task<OperationSnapshot> CancelOperationAsync(Guid operationId, CancellationToken cancellationToken) =>
+        runtime.Operations.CancelAsync(operationId, cancellationToken);
+
     public Task<HandshakeResponse> HandshakeAsync(HandshakeRequest request, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -41,7 +56,8 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
             runtime.Sessions.ActiveSession,
             runtime.Journal.LatestSequence,
             runtime.PendingSessionEvents,
-            runtime.SessionEventPersistenceEventsPerSecond);
+            runtime.SessionEventPersistenceEventsPerSecond,
+            runtime.Operations.ActiveCount);
 
     public Task<IReadOnlyList<SerialPortDescriptor>> ListPortsAsync(CancellationToken cancellationToken) =>
         SerialPortCatalog.GetPortsAsync(cancellationToken);
@@ -58,7 +74,7 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
 
     public async Task<RpcResult> SendAsync(SendRequest request, CancellationToken cancellationToken)
     {
-        await runtime.Connections.SendAsync(request.ConnectionId, request.Data, request.Source, cancellationToken).ConfigureAwait(false);
+        await runtime.Operations.RunAsync<RpcResult>(OperationJson.Create("send", request.ConnectionId, request), cancellationToken).ConfigureAwait(false);
         return new RpcResult(true);
     }
 
@@ -104,27 +120,23 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
         return new RpcResult(true);
     }
 
-    public async Task<LoopbackResult> RunLoopbackAsync(LoopbackRequest request, CancellationToken cancellationToken)
-    {
-        var result = await runtime.Connections.RunLoopbackAsync(request, cancellationToken).ConfigureAwait(false);
-        await runtime.Sessions.AppendLoopbackResultAsync(request, result, cancellationToken).ConfigureAwait(false);
-        return result;
-    }
+    public Task<LoopbackResult> RunLoopbackAsync(LoopbackRequest request, CancellationToken cancellationToken) =>
+        runtime.Operations.RunAsync<LoopbackResult>(OperationJson.Create("loopback.run", request.ConnectionId, request), cancellationToken);
 
     public Task<IReadOnlyList<LoopbackHistoryEntry>> ReadLoopbackResultsAsync(Guid sessionId, CancellationToken cancellationToken) =>
         runtime.Sessions.ReadLoopbackResultsAsync(sessionId, cancellationToken);
 
     public Task<SerialSequenceProgress> RunSequenceAsync(Guid connectionId, SerialSequenceDefinition sequence, CancellationToken cancellationToken) =>
-        runtime.Connections.RunSequenceAsync(connectionId, sequence, cancellationToken);
+        runtime.Operations.RunAsync<SerialSequenceProgress>(OperationJson.Create("sequence.run", connectionId, sequence), cancellationToken);
 
     public Task<XmodemTransferResult> SendXmodemAsync(Guid connectionId, byte[] data, CancellationToken cancellationToken) =>
-        runtime.Connections.SendXmodemAsync(connectionId, data, cancellationToken);
+        runtime.Operations.RunAsync<XmodemTransferResult>(OperationJson.Create("xmodem.send", connectionId, data), cancellationToken);
 
     public Task<XmodemReceiveResult> ReceiveXmodemAsync(Guid connectionId, CancellationToken cancellationToken) =>
-        runtime.Connections.ReceiveXmodemAsync(connectionId, cancellationToken);
+        runtime.Operations.RunAsync<XmodemReceiveResult>(OperationJson.Create("xmodem.receive", connectionId, new { }), cancellationToken);
 
     public Task<ModbusTransactionResult> RunModbusAsync(ModbusTransactionRequest request, CancellationToken cancellationToken) =>
-        runtime.Connections.RunModbusAsync(request, cancellationToken);
+        runtime.Operations.RunAsync<ModbusTransactionResult>(OperationJson.Create(request.FunctionCode is 5 or 6 or 15 or 16 ? "modbus.write" : "modbus.read", request.ConnectionId, request), cancellationToken);
 
     public Task<RpcResult> StopHostAsync(CancellationToken cancellationToken)
     {
