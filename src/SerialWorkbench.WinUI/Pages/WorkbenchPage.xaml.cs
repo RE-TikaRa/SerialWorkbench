@@ -23,11 +23,13 @@ public sealed partial class WorkbenchPage : Page
     private int baudRate = 115200;
     private readonly ObservableCollection<SerialProfile> profiles = new(SerialProfileStore.Load());
     private readonly ObservableCollection<TrafficRow> visibleRows = [];
+    private readonly TrafficCopyMenu copyMenu;
     private ObservableCollection<TrafficRow>? sourceRows;
 
     public WorkbenchPage()
     {
         InitializeComponent();
+        copyMenu = new TrafficCopyMenu(TrafficListView);
         foreach (var box in (NumberBox[])[DataBitsNumberBox, RtsBeforeSendNumberBox, RtsAfterSendNumberBox, PlotFrameLength, LoopIntervalNumberBox])
         {
             box.ValueChanged += NumberBoxInput.KeepLastValue;
@@ -75,17 +77,21 @@ public sealed partial class WorkbenchPage : Page
 
     public void FreezeRows()
     {
+        var selected = copyMenu.CaptureSelection();
         for (var index = 0; index < visibleRows.Count; index++)
         {
             visibleRows[index] = visibleRows[index].Snapshot();
         }
+
+        copyMenu.RestoreSelection(selected);
     }
 
     public void RefreshTrafficFilter()
     {
         var query = TrafficSearch.Text.Trim();
         var direction = TrafficDirection.SelectedIndex;
-        visibleRows.Clear();
+        var selected = copyMenu.CaptureSelection();
+        var filtered = new List<TrafficRow>();
         if (sourceRows is not null)
         {
             foreach (var row in sourceRows)
@@ -103,17 +109,19 @@ public sealed partial class WorkbenchPage : Page
                     continue;
                 }
 
-                visibleRows.Add(row);
+                filtered.Add(row);
             }
         }
 
+        TrafficSelection.UpdateRows(visibleRows, filtered);
+        copyMenu.RestoreSelection(selected);
         var hasSourceRows = sourceRows?.Count > 0;
         var empty = visibleRows.Count == 0;
         MonitorEmptyTitle.Text = hasSourceRows ? "没有匹配的报文" : "等待串口数据";
         MonitorEmptyDescription.Text = hasSourceRows ? "调整方向或搜索条件以查看其他报文。" : "连接设备后，收发报文会显示在这里。";
         MonitorEmptyState.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
         CopyHexButton.IsEnabled = !empty;
-        if (!empty)
+        if (!empty && !copyMenu.HasSelection)
         {
             TrafficListView.ScrollIntoView(visibleRows[^1]);
         }

@@ -215,7 +215,7 @@
               </Grid>
             </Grid>
             <Grid Grid.Row="1">
-              <ListView x:Name="TrafficListView" ItemTemplate="{StaticResource TrafficRowTemplate}" ItemContainerStyle="{StaticResource TrafficListViewItemStyle}" ScrollViewer.VerticalScrollBarVisibility="Auto" />
+              <ListView x:Name="TrafficListView" SelectionMode="Extended" ItemTemplate="{StaticResource TrafficRowTemplate}" ItemContainerStyle="{StaticResource TrafficListViewItemStyle}" ScrollViewer.VerticalScrollBarVisibility="Auto" />
               <StackPanel x:Name="MonitorEmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
                 <TextBlock x:Name="MonitorEmptyTitle" Text="等待串口数据" Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Center" />
                 <TextBlock x:Name="MonitorEmptyDescription" Text="连接设备后，收发报文会显示在这里。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" TextAlignment="Center" />

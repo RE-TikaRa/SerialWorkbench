@@ -27,7 +27,7 @@
     </Grid.RowDefinitions>
     <Border Style="{StaticResource SurfaceCardStyle}">
       <Grid>
-        <ListView x:Name="TerminalList" ItemsSource="{x:Bind Rows}" SelectionMode="None" ItemContainerStyle="{StaticResource TrafficListViewItemStyle}" ScrollViewer.VerticalScrollBarVisibility="Auto">
+        <ListView x:Name="TerminalList" ItemsSource="{x:Bind Rows}" SelectionMode="Extended" ItemContainerStyle="{StaticResource TrafficListViewItemStyle}" ScrollViewer.VerticalScrollBarVisibility="Auto">
           <ListView.ItemTemplate>
             <DataTemplate>
               <Grid Padding="10,5" ColumnSpacing="10">

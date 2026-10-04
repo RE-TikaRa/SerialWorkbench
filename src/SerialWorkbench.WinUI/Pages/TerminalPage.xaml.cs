@@ -9,11 +9,14 @@ namespace SerialWorkbench.WinUI.Pages;
 public sealed partial class TerminalPage : Page
 {
     private readonly ObservableCollection<string> history = [];
+    private readonly TrafficCopyMenu copyMenu;
+    private HashSet<TrafficRowIdentity> retainedSelection = [];
     private ObservableCollection<TrafficRow>? sourceRows;
 
     public TerminalPage()
     {
         InitializeComponent();
+        copyMenu = new TrafficCopyMenu(TerminalList);
         HistoryComboBox.ItemsSource = history;
     }
 
@@ -42,11 +45,8 @@ public sealed partial class TerminalPage : Page
         }
 
         sourceRows = source;
-        Rows.Clear();
-        foreach (var row in source)
-        {
-            Rows.Add(row);
-        }
+        retainedSelection.Clear();
+        TrafficSelection.UpdateRows(Rows, source);
 
         sourceRows.CollectionChanged += SourceRows_CollectionChanged;
         UpdateEmptyState();
@@ -57,6 +57,7 @@ public sealed partial class TerminalPage : Page
     {
         if (e.Action == NotifyCollectionChangedAction.Reset)
         {
+            retainedSelection = copyMenu.CaptureSelection();
             Rows.Clear();
         }
 
@@ -73,6 +74,10 @@ public sealed partial class TerminalPage : Page
             foreach (TrafficRow row in e.NewItems)
             {
                 Rows.Add(row);
+                if (retainedSelection.Remove(row.Identity))
+                {
+                    TerminalList.SelectedItems.Add(row);
+                }
             }
         }
 
@@ -132,6 +137,7 @@ public sealed partial class TerminalPage : Page
     private void ClearOutputButton_Click(object sender, RoutedEventArgs e)
     {
         ClearRequested?.Invoke(this, EventArgs.Empty);
+        retainedSelection.Clear();
         Rows.Clear();
         UpdateEmptyState();
     }
@@ -148,7 +154,7 @@ public sealed partial class TerminalPage : Page
 
     private void ScrollLatest()
     {
-        if (Rows.Count > 0)
+        if (Rows.Count > 0 && !copyMenu.HasSelection)
         {
             TerminalList.ScrollIntoView(Rows[^1]);
         }

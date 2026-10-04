@@ -126,7 +126,11 @@ public sealed class TrafficBuffer(Encoding encoding, int capacity = 20_000)
         Span<char> characters = stackalloc char[encoding.GetMaxCharCount(1)];
         for (var index = 0; index < item.Data.Length; index++)
         {
-            stream.PendingEvent ??= item;
+            if (stream.PendingEvent is null)
+            {
+                stream.PendingEvent = item;
+                stream.PendingOffset = index;
+            }
             stream.PendingBytes.Add(item.Data[index]);
             var count = stream.Decoder.GetChars(item.Data.AsSpan(index, 1), characters, false);
             if (count == 0)
@@ -149,7 +153,7 @@ public sealed class TrafficBuffer(Encoding encoding, int capacity = 20_000)
             {
                 if (currentRow is null)
                 {
-                    currentRow = new TrafficRow(stream.PendingEvent ?? item);
+                    currentRow = new TrafficRow(stream.PendingEvent ?? item, stream.PendingEvent is null ? index : stream.PendingOffset);
                     Rows.Add(currentRow);
                 }
 
@@ -175,17 +179,21 @@ public sealed class TrafficBuffer(Encoding encoding, int capacity = 20_000)
         public Decoder Decoder { get; } = decoder;
         public List<byte> PendingBytes { get; } = [];
         public SerialTrafficEvent? PendingEvent { get; set; }
+        public int PendingOffset { get; set; }
         public TrafficRow? CarriageReturnRow { get; set; }
     }
 }
+
+public readonly record struct TrafficRowIdentity(Guid ConnectionId, long Sequence, int ByteOffset);
 
 public sealed partial class TrafficRow : INotifyPropertyChanged
 {
     private readonly List<byte> data = [];
     private readonly StringBuilder content = new();
 
-    internal TrafficRow(SerialTrafficEvent item)
+    internal TrafficRow(SerialTrafficEvent item, int byteOffset = 0)
     {
+        Identity = new TrafficRowIdentity(item.ConnectionId, item.Sequence, byteOffset);
         IsReceive = item.Direction == SerialDirection.Receive;
         Time = item.Utc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
         Source = item.Source;
@@ -193,6 +201,7 @@ public sealed partial class TrafficRow : INotifyPropertyChanged
 
     private TrafficRow(TrafficRow row)
     {
+        Identity = row.Identity;
         IsReceive = row.IsReceive;
         Time = row.Time;
         Source = row.Source;
@@ -205,6 +214,7 @@ public sealed partial class TrafficRow : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    public TrafficRowIdentity Identity { get; }
     public string Time { get; }
     public string Display { get; private set; } = "";
     public string Hex { get; private set; } = "";
