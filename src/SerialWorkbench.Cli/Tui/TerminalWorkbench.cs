@@ -152,6 +152,7 @@ public sealed partial class TerminalWorkbench : IDisposable
             if (!updatingConnections && args.NewValue is { } index && index >= 0 && index < snapshots.Count)
             {
                 connectionId = snapshots[index].Id;
+                ApplyConnectionOptions(snapshots[index].Options);
                 ResumeLiveTraffic();
                 RefreshTraffic();
             }
@@ -387,29 +388,7 @@ public sealed partial class TerminalWorkbench : IDisposable
             {
                 var selection = connectionId;
                 workspace.Text = host.WorkspaceRoot is null ? $"全局数据：{host.DataRoot}" : $"工作区：{host.WorkspaceRoot}";
-                snapshots = host.Connections;
-                updatingConnections = true;
-                var names = snapshots.Select(static snapshot => $"{snapshot.Options.PortName} · {snapshot.State}").ToArray();
-                if (!connectionItems.SequenceEqual(names))
-                {
-                    connectionItems.Clear();
-                    foreach (var name in names)
-                    {
-                        connectionItems.Add(name);
-                    }
-                }
-
-                foreach (var snapshot in snapshots)
-                {
-                    if (!buffers.ContainsKey(snapshot.Id))
-                    {
-                        buffers.Add(snapshot.Id, new TrafficBuffer(Encoding.GetEncoding(snapshot.Options.EncodingName)));
-                    }
-                }
-
-                connectionId = selection is { } selected && snapshots.Any(item => item.Id == selected) ? selected : snapshots.Count > 0 ? snapshots[0].Id : null;
-                connections.Value = connectionId is { } id ? snapshots.ToList().FindIndex(item => item.Id == id) : null;
-                updatingConnections = false;
+                SetConnections(host.Connections);
                 if (batch.ResetRequired)
                 {
                     foreach (var buffer in buffers.Values)
@@ -477,6 +456,47 @@ public sealed partial class TerminalWorkbench : IDisposable
         SetTrafficRows(buffer.Rows.Where(row => (direction.Text != "RX" || row.IsReceive) && (direction.Text != "TX" || row.IsTransmit)
             && (sourceFilter.Text.Length == 0 || row.Source.Contains(sourceFilter.Text, StringComparison.OrdinalIgnoreCase))
             && (filter.Text.Length == 0 || row.Display.Contains(filter.Text, StringComparison.OrdinalIgnoreCase) || row.Source.Contains(filter.Text, StringComparison.OrdinalIgnoreCase))).ToArray());
+    }
+
+    internal void SetConnections(IReadOnlyList<ConnectionSnapshot> current)
+    {
+        var selected = connectionId;
+        snapshots = current;
+        updatingConnections = true;
+        try
+        {
+            var names = snapshots.Select(static snapshot => $"{snapshot.Options.PortName} {ConnectionStateText(snapshot.State)}").ToArray();
+            if (!connectionItems.SequenceEqual(names))
+            {
+                connectionItems.Clear();
+                foreach (var name in names)
+                {
+                    connectionItems.Add(name);
+                }
+            }
+            foreach (var id in buffers.Keys.Where(id => !snapshots.Any(item => item.Id == id)).ToArray())
+            {
+                buffers.Remove(id);
+            }
+            foreach (var snapshot in snapshots)
+            {
+                if (!buffers.ContainsKey(snapshot.Id))
+                {
+                    buffers.Add(snapshot.Id, new TrafficBuffer(Encoding.GetEncoding(snapshot.Options.EncodingName)));
+                }
+            }
+            connectionId = selected is { } existing && snapshots.Any(item => item.Id == existing) ? existing : snapshots.Count > 0 ? snapshots[0].Id : null;
+            connections.Value = connectionId is { } selectedId ? snapshots.ToList().FindIndex(item => item.Id == selectedId) : null;
+            if (connectionId != selected && snapshots.FirstOrDefault(item => item.Id == connectionId) is { } changed)
+            {
+                ApplyConnectionOptions(changed.Options);
+                ResetWaveform();
+            }
+        }
+        finally
+        {
+            updatingConnections = false;
+        }
     }
 
     internal void SetTrafficRows(TrafficRow[] rows)
@@ -569,6 +589,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         app.Invoke(() =>
         {
             connectionId = snapshot.Id;
+            ApplyConnectionOptions(snapshot.Options);
             tabs.Value = workbenchView;
             message.Text = $"已连接 {snapshot.Options.PortName}，{snapshot.Options.BaudRate} baud";
             input.SetFocus();

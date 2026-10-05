@@ -154,21 +154,29 @@ public sealed partial class TerminalWorkbench
         var descriptor = ports.FirstOrDefault(item => profile.DeviceInstanceId is not null
             ? item.DeviceInstanceId?.Equals(profile.DeviceInstanceId, StringComparison.OrdinalIgnoreCase) == true : item.PortName == profile.PortName);
         port.Text = descriptor?.PortName ?? profile.PortName ?? "";
-        configuredDeviceId = profile.DeviceInstanceId;
         profileName.Text = profile.Name;
-        baud.Value = profile.BaudRate;
-        dataBits.Value = profile.DataBits;
-        parity.Text = profile.Parity.ToString();
-        stopBits.Text = profile.StopBits.ToString();
-        handshake.Text = profile.Handshake.ToString();
-        encoding.Text = profile.EncodingName;
-        role.Text = profile.Role.ToString();
-        dtr.Value = profile.DtrEnable ? CheckState.Checked : CheckState.UnChecked;
-        rts.Value = profile.RtsEnable ? CheckState.Checked : CheckState.UnChecked;
-        rs485.Value = profile.Rs485Mode ? CheckState.Checked : CheckState.UnChecked;
-        rtsBefore.Value = profile.RtsBeforeSendMilliseconds;
-        rtsAfter.Value = profile.RtsAfterSendMilliseconds;
-        autoReconnect.Value = profile.AutoReconnect ? CheckState.Checked : CheckState.UnChecked;
+        ApplyConnectionOptions(new SerialConnectionOptions(port.Text, profile.BaudRate, profile.DataBits, profile.Parity, profile.StopBits,
+            profile.Handshake, profile.DtrEnable, profile.RtsEnable, profile.EncodingName, profile.Role, profile.DeviceInstanceId,
+            profile.Rs485Mode, profile.RtsBeforeSendMilliseconds, profile.RtsAfterSendMilliseconds, profile.AutoReconnect));
+    }
+
+    private void ApplyConnectionOptions(SerialConnectionOptions options)
+    {
+        port.Text = options.PortName;
+        configuredDeviceId = options.DeviceInstanceId;
+        baud.Value = options.BaudRate;
+        dataBits.Value = options.DataBits;
+        parity.Text = options.Parity.ToString();
+        stopBits.Text = options.StopBits.ToString();
+        handshake.Text = options.Handshake.ToString();
+        encoding.Text = options.EncodingName;
+        role.Text = options.Role.ToString();
+        dtr.Value = options.DtrEnable ? CheckState.Checked : CheckState.UnChecked;
+        rts.Value = options.RtsEnable ? CheckState.Checked : CheckState.UnChecked;
+        rs485.Value = options.Rs485Mode ? CheckState.Checked : CheckState.UnChecked;
+        rtsBefore.Value = options.RtsBeforeSendMilliseconds;
+        rtsAfter.Value = options.RtsAfterSendMilliseconds;
+        autoReconnect.Value = options.AutoReconnect ? CheckState.Checked : CheckState.UnChecked;
     }
 
     private void ApplyConfiguration(ConfigurationSnapshot configuration)

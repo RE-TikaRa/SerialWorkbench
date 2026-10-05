@@ -14,6 +14,43 @@ namespace SerialWorkbench.Tests;
 public sealed class TuiTests
 {
     [Fact]
+    public async Task SwitchingSharedConnectionsUsesTheirEncodingWithoutOverwritingDraftsOnRefresh()
+    {
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-shared-settings-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var first = new ConnectionSnapshot(Guid.NewGuid(), new SerialConnectionOptions("COM16", 9600, EncodingName: "gb18030"),
+            ConnectionState.Open, 0, 0, 0, 0, 0, null, null);
+        var second = first with { Id = Guid.NewGuid(), Options = new SerialConnectionOptions("COM20", 115200) };
+        var sending = Assert.Single(workbench.Window.SubViews.OfType<FrameView>());
+        var input = sending.SubViews.OfType<TextField>().Single(static input => input.Id == "send-input");
+        sending.SubViews.OfType<DropDownList>().Single(static input => input.Id == "send-format").Text = "文本";
+        input.Text = "测试";
+        workbench.SetConnections([first, second]);
+        Assert.Equal(first.Id, workbench.CreateSendRequest().ConnectionId);
+        Assert.Equal("B2E2CAD4", Convert.ToHexString(workbench.CreateSendRequest().Data));
+        var bar = Assert.Single(workbench.Window.SubViews, static view => view.Id == "connection-bar");
+        var baud = Assert.Single(bar.SubViews.OfType<NumericUpDown<int>>());
+        Assert.Equal(9600, baud.Value);
+        baud.Value = 19200;
+        workbench.SetConnections([first, second]);
+        Assert.Equal(19200, baud.Value);
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        var connections = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<FrameView>()
+            .Single(static frame => frame.Title == "连接").SubViews.OfType<ListView>().Single();
+        connections.Value = 1;
+        Assert.Equal(115200, baud.Value);
+        Assert.Equal(second.Id, workbench.CreateSendRequest().ConnectionId);
+        Assert.Equal("测试"u8.ToArray(), workbench.CreateSendRequest().Data);
+        workbench.SetConnections([first]);
+        Assert.Equal(first.Id, workbench.CreateSendRequest().ConnectionId);
+        Assert.Equal(9600, baud.Value);
+    }
+
+    [Fact]
     public async Task WorkbenchControlsUseTextIndicators()
     {
         var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-indicators-{Guid.NewGuid():N}"));
