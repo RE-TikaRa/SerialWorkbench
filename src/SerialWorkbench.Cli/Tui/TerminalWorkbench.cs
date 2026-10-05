@@ -85,7 +85,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         workbenchView = workbench;
         settingsView = BuildSettings();
         workbench.Add(connectionsFrame, trafficFrame);
-        tabs.Add(workbench, settingsView, BuildHistory(), BuildModbus(), BuildTransfers(), BuildTasks());
+        tabs.Add(workbench, settingsView, BuildHistory(), BuildModbus(), BuildTransfers(), BuildTasks(), BuildSessions(), BuildProtocol(), BuildWaveform());
         var send = Button("发送", () => RunUiAsync(SendAsync));
         send.X = Pos.AnchorEnd();
         var sending = new FrameView { Title = "发送 · 输入框 Enter 发送", Y = Pos.AnchorEnd(4), Height = 3, Width = Dim.Fill() };
@@ -134,7 +134,9 @@ public sealed partial class TerminalWorkbench : IDisposable
         _ = workbench.RunUiAsync(workbench.RefreshPortsAsync);
         app.Run(workbench.window);
         workbench.lifetime.Cancel();
+        workbench.replay?.Cancel();
         await workbench.pendingRefresh.ConfigureAwait(false);
+        await workbench.replayTask.ConfigureAwait(false);
         return 0;
     }
 
@@ -147,12 +149,14 @@ public sealed partial class TerminalWorkbench : IDisposable
 
         disposed = true;
         lifetime.Cancel();
+        replay?.Cancel();
         if (refreshToken is not null)
         {
             app.RemoveTimeout(refreshToken);
         }
 
         window.Dispose();
+        replay?.Dispose();
         lifetime.Dispose();
     }
 
@@ -245,6 +249,13 @@ public sealed partial class TerminalWorkbench : IDisposable
                     {
                         buffer.Append(group.ToArray());
                     }
+                    if (group.Key == connectionId)
+                    {
+                        foreach (var item in group.Where(static item => item.Direction == SerialDirection.Receive))
+                        {
+                            FeedWaveform(item.Data);
+                        }
+                    }
                 }
 
                 if (batch.Gap is { } gap)
@@ -257,7 +268,7 @@ public sealed partial class TerminalWorkbench : IDisposable
                 var current = snapshots.FirstOrDefault(item => item.Id == connectionId);
                 status.Text = current is null ? $"Host · {host.ClientCount} 客户端 · 未选择连接"
                     : $"{current.Options.PortName} · {current.State} · {current.Options.BaudRate} · RX {current.ReceivedBytes:N0} B / {current.ReceivedBytesPerSecond:N0} B/s · TX {current.TransmittedBytes:N0} B";
-                if (!paused)
+                if (!paused && replay is null)
                 {
                     RefreshTraffic();
                 }
