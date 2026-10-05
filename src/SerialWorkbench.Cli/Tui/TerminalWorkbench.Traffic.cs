@@ -99,6 +99,7 @@ public sealed partial class TerminalWorkbench
         工具：Modbus、文件与回环、自动化、协议分析、波形；Esc 返回
         报文：Shift+方向键选择范围，Ctrl+单击选择多条
         Ctrl+C 复制所选内容，Ctrl+Space 或右键打开复制菜单
+        Ctrl+F 打开报文显示与筛选
         Enter 查看完整报文或会话事件
         发送框：Enter 发送，格式与报文显示独立
         设置：报文显示与筛选、复制格式、行尾和校验追加

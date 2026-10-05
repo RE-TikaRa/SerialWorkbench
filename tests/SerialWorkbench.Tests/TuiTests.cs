@@ -509,6 +509,54 @@ public sealed class TuiTests
         app.End(token);
     }
 
+    [Theory]
+    [InlineData(60, 20)]
+    [InlineData(80, 24)]
+    [InlineData(120, 40)]
+    public async Task ContextualHintsStayVisibleWhileOtherShortcutsRemainAvailable(int width, int height)
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-hints-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create().Init();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var driver = Assert.IsAssignableFrom<Terminal.Gui.Drivers.IDriver>(app.Driver);
+        driver.SetScreenSize(width, height);
+        var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        var bar = Assert.Single(workbench.Window.SubViews.OfType<StatusBar>());
+        var sending = SendingPanel(workbench);
+        var input = Assert.Single(sending.SubViews.OfType<TextField>(), static field => field.Id == "send-input");
+        input.SetFocus();
+        AssertHints(Key.F4, Key.F8);
+        workbench.Window.NewKeyDownEvent(Key.D1);
+        workbench.Window.NewKeyDownEvent(Key.D2);
+        Assert.Equal("12", input.Text);
+        workbench.Window.NewKeyDownEvent(Key.F2);
+        var status = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<Label>().Single(static label => label.Id == "traffic-status");
+        Assert.Contains("暂停", status.Text, StringComparison.Ordinal);
+        workbench.Window.NewKeyDownEvent(Key.F2);
+        var table = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<FrameView>()
+            .Single(static frame => frame.Title == "报文").SubViews.OfType<TableView>().Single();
+        table.SetFocus();
+        AssertHints(Key.F6, Key.F7);
+        workbench.Window.NewKeyDownEvent(Key.F8);
+        Assert.Equal("5 设置", tabs.Value?.Title);
+        AssertHints(Key.F4, Key.F9);
+        app.End(token);
+
+        void AssertHints(Key first, Key second)
+        {
+            app.LayoutAndDraw(true);
+            var visible = bar.SubViews.OfType<Shortcut>().Where(static item => item.Visible).ToArray();
+            Assert.InRange(visible.Length, 3, 5);
+            Assert.Contains(visible, item => item.Key == first);
+            Assert.Contains(visible, item => item.Key == second);
+            Assert.All(visible, item => Assert.True(bar.Viewport.Contains(item.Frame), $"{item.Title}: {item.Frame}, {bar.Viewport}"));
+            Assert.Contains("退出", driver.ToString(), StringComparison.Ordinal);
+        }
+    }
+
     [Fact]
     public async Task WaveformDoesNotJoinIncompleteSamplesAcrossReconnectedSegments()
     {

@@ -166,22 +166,11 @@ public sealed partial class TerminalWorkbench : IDisposable
         {
             tool.CanFocus = true;
         }
-        var shortcuts = new StatusBar([
-            new Shortcut(Key.F1, "帮助", ShowHelp),
-            new Shortcut(Key.F2, "暂停", TogglePause),
-            new Shortcut(Key.F3, "清空", ClearTraffic),
-            new Shortcut(Key.F4, "连接", ShowConnections),
-            new Shortcut(Key.F5, "刷新", () => _ = RunUiAsync(RefreshPortsAsync)),
-            new Shortcut(Key.F6, "复制", CopySelected),
-            new Shortcut(Key.F7, "实时", ResumeLiveTraffic),
-            new Shortcut(Key.F8, "设置", () => tabs.Value = settingsView),
-            new Shortcut(Key.F9, "工具", ShowTools),
-            new Shortcut(Key.Q.WithCtrl, "退出", () => app.RequestStop(window)),
-        ]);
-        shortcuts.Width = Dim.Fill();
+        BuildShortcuts();
         window.Add(title, status, message, tabs, shortcuts, terminalSize);
         window.SubViewLayout += (_, _) => UpdateTerminalSize();
         tabs.Value = workbenchView;
+        UpdateShortcutHints();
         format.ValueChanged += (_, _) => RefreshTraffic();
         direction.ValueChanged += (_, _) => RefreshTraffic();
         filter.TextChanged += (_, _) => RefreshTraffic();
@@ -191,6 +180,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         window.Initialized += (_, _) => RegisterTrafficMenu();
         traffic.KeyBindings.Add(Key.C.WithCtrl, Command.Copy);
         traffic.KeyBindings.Add(Key.Space.WithCtrl, Command.Context);
+        traffic.KeyBindings.Add(Key.F.WithCtrl, Command.Edit);
         traffic.MouseBindings.Add(MouseFlags.RightButtonClicked, Command.Context);
         traffic.CommandNotBound += (_, args) =>
         {
@@ -215,6 +205,11 @@ public sealed partial class TerminalWorkbench : IDisposable
                 {
                     trafficMenu?.MakeVisible();
                 }
+                args.Handled = true;
+            }
+            else if (args.Context?.Command == Command.Edit)
+            {
+                ShowSettingsDialog("报文显示与筛选", trafficSettings, 18);
                 args.Handled = true;
             }
         };
@@ -298,6 +293,10 @@ public sealed partial class TerminalWorkbench : IDisposable
             app.RemoveTimeout(refreshToken);
         }
 
+        foreach (var command in shortcutCommands.Where(static item => item.SuperView is null))
+        {
+            command.Dispose();
+        }
         window.Dispose();
         serialSettings.Dispose();
         controlSettings.Dispose();
@@ -318,51 +317,6 @@ public sealed partial class TerminalWorkbench : IDisposable
         sessionReadGate.Dispose();
         replay?.Dispose();
         lifetime.Dispose();
-    }
-
-    private View BuildSettings()
-    {
-        var view = new View { Title = "设置", Width = Dim.Fill(), Height = Dim.Fill() };
-        AddSetting(view, "文本编码", encoding, 0);
-        AddSetting(view, "HEX 间隔 ms", hexGap, 2);
-        var connect = Button("连接管理", () => { ShowConnections(); return Task.CompletedTask; });
-        connect.Y = Pos.Bottom(hexGap) + 1;
-        var advanced = Button("串口参数", () => { ShowSettingsDialog("串口参数", serialSettings, 16); return Task.CompletedTask; });
-        advanced.X = Pos.Right(connect) + 1;
-        advanced.Y = Pos.Top(connect);
-        var controls = Button("控制线", () => { ShowSettingsDialog("控制线与 RS-485", controlSettings, 17); return Task.CompletedTask; });
-        controls.Y = Pos.Bottom(connect) + 1;
-        var profiles = Button("配置与工作区", () => { ShowSettingsDialog("配置与工作区", profileSettings, 14); return Task.CompletedTask; });
-        profiles.X = Pos.Right(controls) + 1;
-        profiles.Y = Pos.Top(controls);
-        var display = Button("报文显示", () => { ShowSettingsDialog("报文显示与筛选", trafficSettings, 18); return Task.CompletedTask; });
-        display.Y = Pos.Bottom(controls) + 1;
-        var sending = Button("发送设置", () => { ShowSettingsDialog("发送设置", sendSettings, 16); return Task.CompletedTask; });
-        sending.X = Pos.Right(display) + 1;
-        sending.Y = Pos.Top(display);
-        backgroundTasks.Y = Pos.Bottom(display) + 1;
-        BuildSerialSettings();
-        BuildControlSettings();
-        BuildProfileSettings();
-        view.Add(connect, advanced, controls, profiles, display, sending, backgroundTasks);
-        return view;
-    }
-    private View BuildHistory()
-    {
-        history.SetSource(historyItems);
-        history.Accepting += (_, args) =>
-        {
-            args.Handled = true;
-            if (history.Value is { } index && index >= 0 && index < historyItems.Count)
-            {
-                input.Text = historyItems[index];
-                tabs.Value = workbenchView;
-                input.SetFocus();
-            }
-        };
-        var view = new View { Title = "发送历史", Width = Dim.Fill(), Height = Dim.Fill() };
-        view.Add(history);
-        return view;
     }
 
     private async Task PumpAsync()

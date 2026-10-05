@@ -18,6 +18,34 @@ public sealed partial class TerminalWorkbench
 
     internal View ConnectionSettings => connectionSettings;
 
+    private View BuildSettings()
+    {
+        var view = new View { Title = "设置", Width = Dim.Fill(), Height = Dim.Fill() };
+        AddSetting(view, "文本编码", encoding, 0);
+        AddSetting(view, "HEX 间隔 ms", hexGap, 2);
+        var connect = Button("连接管理", () => { ShowConnections(); return Task.CompletedTask; });
+        connect.Y = Pos.Bottom(hexGap) + 1;
+        var advanced = Button("串口参数", () => { ShowSettingsDialog("串口参数", serialSettings, 16); return Task.CompletedTask; });
+        advanced.X = Pos.Right(connect) + 1;
+        advanced.Y = Pos.Top(connect);
+        var controls = Button("控制线", () => { ShowSettingsDialog("控制线与 RS-485", controlSettings, 17); return Task.CompletedTask; });
+        controls.Y = Pos.Bottom(connect) + 1;
+        var profiles = Button("配置与工作区", () => { ShowSettingsDialog("配置与工作区", profileSettings, 14); return Task.CompletedTask; });
+        profiles.X = Pos.Right(controls) + 1;
+        profiles.Y = Pos.Top(controls);
+        var display = Button("报文显示", () => { ShowSettingsDialog("报文显示与筛选", trafficSettings, 18); return Task.CompletedTask; });
+        display.Y = Pos.Bottom(controls) + 1;
+        var sending = Button("发送设置", () => { ShowSettingsDialog("发送设置", sendSettings, 16); return Task.CompletedTask; });
+        sending.X = Pos.Right(display) + 1;
+        sending.Y = Pos.Top(display);
+        backgroundTasks.Y = Pos.Bottom(display) + 1;
+        BuildSerialSettings();
+        BuildControlSettings();
+        BuildProfileSettings();
+        view.Add(connect, advanced, controls, profiles, display, sending, backgroundTasks);
+        return view;
+    }
+
     private void BuildConnectionSettings()
     {
         AddSetting(connectionSettings, "端口", port, 0);
