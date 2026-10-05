@@ -11,7 +11,8 @@ namespace SerialWorkbench.Cli.Tui;
 public sealed partial class TerminalWorkbench
 {
     private readonly TextField sequenceName = new() { Id = "sequence-name", X = 12, Width = Dim.Fill(), Text = "新建序列" };
-    private readonly TableView sequenceTable = new() { Id = "sequence-steps", Y = 4, Height = Dim.Percent(35), Width = Dim.Fill(), FullRowSelect = true, MultiSelect = false };
+    private readonly TableView sequenceTable = new() { Id = "sequence-steps", Y = 4, Height = Dim.Fill(), Width = Dim.Fill(), FullRowSelect = true, MultiSelect = false };
+    private readonly View sequenceEditor = new() { Width = Dim.Fill(), Height = Dim.Fill() };
     private readonly List<SerialSequenceStep> sequenceSteps = [];
     private readonly TextField stepData = new() { Id = "sequence-data", X = 20, Width = Dim.Fill(1) };
     private readonly DropDownList stepFormat = new()
@@ -63,8 +64,11 @@ public sealed partial class TerminalWorkbench
         run.Y = 2;
         var add = Button("新增步骤", () => RunUiAsync(() =>
         {
-            sequenceSteps.Add(ReadSequenceStep());
-            RefreshSequence(sequenceSteps.Count - 1);
+            if (EditSequenceStep("新增步骤"))
+            {
+                sequenceSteps.Add(ReadSequenceStep());
+                RefreshSequence(sequenceSteps.Count - 1);
+            }
             return Task.CompletedTask;
         }));
         add.X = 0;
@@ -73,8 +77,12 @@ public sealed partial class TerminalWorkbench
         {
             if (SequenceIndex() is { } index)
             {
-                sequenceSteps[index] = ReadSequenceStep();
-                RefreshSequence(index);
+                LoadSequenceStep(sequenceSteps[index]);
+                if (EditSequenceStep("编辑步骤"))
+                {
+                    sequenceSteps[index] = ReadSequenceStep();
+                    RefreshSequence(index);
+                }
             }
             return Task.CompletedTask;
         }));
@@ -97,12 +105,10 @@ public sealed partial class TerminalWorkbench
         var down = Button("下移", () => { MoveSequenceStep(1); return Task.CompletedTask; });
         down.X = Pos.Right(up) + 1;
         down.Y = 2;
-        var edit = new FrameView { Title = "步骤参数 · 修改后更新步骤", Y = Pos.Bottom(sequenceTable), Width = Dim.Fill(), Height = Dim.Fill(), ViewportSettings = ViewportSettingsFlags.HasScrollBars };
-        edit.Add(new Label { Text = "发送数据" }, stepData, new Label { Text = "格式", Y = 2 }, stepFormat,
+        sequenceEditor.Add(new Label { Text = "发送数据" }, stepData, new Label { Text = "格式", Y = 2 }, stepFormat,
             new Label { Text = "发送间隔 ms", Y = 4 }, stepDelay, new Label { Text = "重复次数", Y = 6 }, stepRepeat,
             new Label { Text = "发送后等待 ms", Y = 8 }, stepWait, new Label { Text = "匹配响应 HEX", Y = 10 }, stepResponse,
             new Label { Text = "响应超时 ms", Y = 12 }, stepTimeout, new Label { Text = "响应重试次数", Y = 14 }, stepRetries);
-        edit.SetContentSize(new System.Drawing.Size(80, 16));
         sequenceTable.ValueChanged += (_, _) =>
         {
             if (!updatingSequence && SequenceIndex() is { } index)
@@ -110,7 +116,24 @@ public sealed partial class TerminalWorkbench
                 LoadSequenceStep(sequenceSteps[index]);
             }
         };
-        view.Add(new Label { Text = "序列名称" }, sequenceName, load, save, run, add, update, delete, up, down, sequenceTable, edit);
+        sequenceTable.Accepting += (_, args) =>
+        {
+            args.Handled = true;
+            _ = RunUiAsync(() =>
+            {
+                if (SequenceIndex() is { } index)
+                {
+                    LoadSequenceStep(sequenceSteps[index]);
+                    if (EditSequenceStep("编辑步骤"))
+                    {
+                        sequenceSteps[index] = ReadSequenceStep();
+                        RefreshSequence(index);
+                    }
+                }
+                return Task.CompletedTask;
+            });
+        };
+        view.Add(new Label { Text = "序列名称" }, sequenceName, load, save, run, add, update, delete, up, down, sequenceTable);
         RefreshSequence(-1);
         return view;
     }
@@ -126,6 +149,17 @@ public sealed partial class TerminalWorkbench
         }
         return new SerialSequenceStep(bytes, stepFormat.Text == "HEX" ? "hex" : "text", stepDelay.Value, stepRepeat.Value, stepWait.Value,
             response, stepTimeout.Value, stepRetries.Value);
+    }
+
+    private bool EditSequenceStep(string title)
+    {
+        using var dialog = new Dialog { Title = title, Width = Dim.Percent(90), Height = 20 };
+        dialog.Add(sequenceEditor);
+        dialog.AddButton(new Button { Text = "取消", ShadowStyle = null });
+        dialog.AddButton(new Button { Text = "保存步骤", ShadowStyle = null });
+        app.Run(dialog);
+        dialog.Remove(sequenceEditor);
+        return dialog.Result == 1;
     }
 
     internal SerialSequenceDefinition ReadSequence()

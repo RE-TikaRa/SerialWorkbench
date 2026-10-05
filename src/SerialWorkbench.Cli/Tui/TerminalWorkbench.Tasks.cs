@@ -87,6 +87,7 @@ public sealed partial class TerminalWorkbench
         scan.Y = 24;
         parameters.Add(execute, poll, scan);
         parameters.SetContentSize(new System.Drawing.Size(40, 26));
+        EnableFormScrolling(parameters);
         var results = new FrameView { Title = "结果 · Enter 查看详情", X = Pos.Right(parameters), Width = Dim.Fill(), Height = Dim.Fill() };
         var copy = Button("复制结果", () => { app.Clipboard?.TrySetClipboardData(JsonSerializer.Serialize(modbusSamples, MachineOutput.DocumentOptions)); return Task.CompletedTask; });
         copy.Y = 1;
@@ -157,6 +158,7 @@ public sealed partial class TerminalWorkbench
         loopback.Y = 19;
         view.Add(browse, send, receive, new Label { Text = "回环模式", Y = 15 }, pattern, loopback);
         view.SetContentSize(new System.Drawing.Size(80, 21));
+        EnableFormScrolling(view);
         return view;
     }
 

@@ -259,6 +259,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         serialSettings.Dispose();
         controlSettings.Dispose();
         profileSettings.Dispose();
+        sequenceEditor.Dispose();
         if (trafficMenu is not null)
         {
             app.Popovers?.DeRegister(trafficMenu);
@@ -639,6 +640,46 @@ public sealed partial class TerminalWorkbench : IDisposable
 
     private static void LimitNumber(NumericUpDown<int> input, int minimum, int maximum) =>
         input.ValueChanging += (_, args) => args.Handled = args.NewValue < minimum || args.NewValue > maximum;
+
+    private static void EnableFormScrolling(View view)
+    {
+        view.FocusedChanged += (_, _) =>
+        {
+            if (view.Focused is not { } focused)
+            {
+                return;
+            }
+            if (focused.Frame.Top < view.Viewport.Top)
+            {
+                view.ScrollVertical(focused.Frame.Top - view.Viewport.Top);
+            }
+            else if (focused.Frame.Bottom > view.Viewport.Bottom)
+            {
+                view.ScrollVertical(focused.Frame.Bottom - view.Viewport.Bottom);
+            }
+            if (focused.Frame.Left < view.Viewport.Left)
+            {
+                view.ScrollHorizontal(focused.Frame.Left - view.Viewport.Left);
+            }
+            else if (focused.Frame.Right > view.Viewport.Right)
+            {
+                view.ScrollHorizontal(focused.Frame.Right - view.Viewport.Right);
+            }
+        };
+        view.KeyBindings.Add(Key.PageUp, Command.ScrollUp);
+        view.KeyBindings.Add(Key.PageDown, Command.ScrollDown);
+        view.MouseBindings.Add(MouseFlags.WheeledUp, Command.ScrollUp);
+        view.MouseBindings.Add(MouseFlags.WheeledDown, Command.ScrollDown);
+        view.CommandNotBound += (_, args) =>
+        {
+            if (args.Context?.Command is Command.ScrollUp or Command.ScrollDown)
+            {
+                var amount = args.Context.Binding is MouseBinding ? 3 : Math.Max(1, view.Viewport.Height - 1);
+                view.ScrollVertical(args.Context.Command == Command.ScrollUp ? -amount : amount);
+                args.Handled = true;
+            }
+        };
+    }
 
     private Button Button(string text, Func<Task> action)
     {

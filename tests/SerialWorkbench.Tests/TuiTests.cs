@@ -14,6 +14,103 @@ namespace SerialWorkbench.Tests;
 public sealed class TuiTests
 {
     [Fact]
+    public async Task AutomationDialogKeepsCanceledEditsOutOfSavedSteps()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-dialog-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create().Init();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        workbench.ApplySequence(new SerialSequenceDefinition("测试序列", [new SerialSequenceStep([0x01], "hex", 0, 1, 0, null, 2000, 0)]));
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        var automation = tabs.TabCollection.Single(static page => page.Title == "自动化");
+        var table = Assert.Single(automation.SubViews.OfType<TableView>());
+        View? editor = null;
+        var edits = 0;
+        var timedOut = false;
+        Exception? failure = null;
+        app.AddTimeout(TimeSpan.FromSeconds(5), () =>
+        {
+            timedOut = true;
+            app.RequestStop();
+            return false;
+        });
+        app.Iteration += (_, _) =>
+        {
+            if (timedOut || failure is not null)
+            {
+                app.RequestStop();
+                return;
+            }
+            try
+            {
+                if (app.TopRunnableView is Dialog dialog)
+                {
+                    dialog.Layout(new System.Drawing.Size(80, 24));
+                    var content = dialog.SubViews.Single(static view => view.SubViews.OfType<TextField>().Any(static field => field.Id == "sequence-data"));
+                    if (editor is not null)
+                    {
+                        Assert.Same(editor, content);
+                    }
+                    editor = content;
+                    Assert.All(content.SubViews.Where(static view => view.CanFocus), view => Assert.True(content.Viewport.Contains(view.Frame), view.ToString()));
+                    var data = content.SubViews.OfType<TextField>().Single(static field => field.Id == "sequence-data");
+                    Assert.Equal("01", data.Text);
+                    data.Text = edits == 0 ? "02" : "03";
+                    dialog.Buttons[edits++].InvokeCommand(Command.Accept);
+                    Assert.True(dialog.StopRequested);
+                }
+                else if (edits == 2)
+                {
+                    app.RequestStop(workbench.Window);
+                }
+                else
+                {
+                    Assert.Equal(new byte[] { 0x01 }, Assert.Single(workbench.ReadSequence().Steps).Data);
+                    tabs.Value = automation;
+                    table.SetFocus();
+                    table.NewKeyDownEvent(Key.Enter);
+                }
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+                app.RequestStop();
+            }
+        };
+        app.Run(workbench.Window);
+        Assert.Null(failure);
+        Assert.False(timedOut);
+        Assert.Equal(2, edits);
+        Assert.Equal(new byte[] { 0x03 }, Assert.Single(workbench.ReadSequence().Steps).Data);
+        Assert.Null(editor?.SuperView);
+    }
+
+    [Theory]
+    [InlineData("Modbus", "事务参数")]
+    [InlineData("文件与回环", "")]
+    public async Task ParameterPanelsFollowKeyboardFocus(string pageName, string panelTitle)
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-scrolling-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
+        workbench.Window.Layout(new System.Drawing.Size(80, 24));
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        tabs.Value = tabs.TabCollection.Single(page => page.Title == pageName);
+        var panel = panelTitle.Length == 0 ? tabs.Value : tabs.Value.SubViews.OfType<FrameView>().Single(frame => frame.Title == panelTitle);
+        var last = panel.SubViews.Where(static view => view.CanFocus).OrderBy(static view => view.Frame.Bottom).Last();
+        last.SetFocus();
+        Assert.True(panel.Viewport.Contains(last.Frame), $"Focused {last.Frame}, viewport {panel.Viewport}");
+        var first = panel.SubViews.Where(static view => view.CanFocus).OrderBy(static view => view.Frame.Top).First();
+        first.SetFocus();
+        Assert.True(panel.Viewport.Contains(first.Frame));
+        app.End(token);
+    }
+
+    [Fact]
     public async Task SettingsShortcutAndDropdownKeysReachTheirControls()
     {
         var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-keyboard-{Guid.NewGuid():N}"));
