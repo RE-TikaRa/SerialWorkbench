@@ -20,13 +20,13 @@ public sealed partial class TerminalWorkbench : IDisposable
     private readonly IHostRpc client;
     private readonly CancellationTokenSource lifetime = new();
     private readonly Window window = new() { Title = "SerialWorkbench", Width = Dim.Fill(), Height = Dim.Fill() };
-    private readonly Tabs tabs = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Fill(7) };
+    private readonly Tabs tabs = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Fill(7), TabDepth = 2 };
     private readonly Label status = new() { Y = 0, Width = Dim.Fill(16), Text = "正在连接 Host" };
     private readonly CheckBox backgroundTasks = new() { X = Pos.AnchorEnd(15), Y = 0, Text = "后台任务" };
     private readonly Label message = new() { Y = 1, Width = Dim.Fill() };
     private readonly ListView connections = new() { Width = Dim.Fill(), Height = Dim.Fill(2) };
     private readonly ObservableCollection<string> connectionItems = [];
-    private readonly TableView traffic = new() { Width = Dim.Fill(), Height = Dim.Fill(3), FullRowSelect = true };
+    private readonly TableView traffic = new() { Width = Dim.Fill(), Height = Dim.Fill(1), FullRowSelect = true };
     private readonly TextField input = new() { Id = "send-input", Y = 1, Width = Dim.Fill(12) };
     private readonly DropDownList format = new() { X = 0, Y = 0, Width = 12, ReadOnly = true, Text = "HEX", Source = new ListWrapper<string>(new ObservableCollection<string>(["HEX", "文本"])) };
     private readonly DropDownList direction = new() { X = 14, Width = 12, ReadOnly = true, Text = "全部", Source = new ListWrapper<string>(new ObservableCollection<string>(["全部", "RX", "TX"])) };
@@ -35,7 +35,15 @@ public sealed partial class TerminalWorkbench : IDisposable
     private PopoverMenu? trafficMenu;
     private readonly CheckBox follow = new() { X = 0, Y = Pos.AnchorEnd(), Text = "跟随", Value = CheckState.Checked };
     private readonly CheckBox timestamps = new() { X = 12, Y = Pos.AnchorEnd(), Text = "时间", Value = CheckState.Checked };
-    private readonly OptionSelector<TrafficCopyFormat> copyFormat = new() { X = 24, Y = Pos.AnchorEnd(), Orientation = Orientation.Horizontal };
+    private readonly DropDownList copyFormat = new()
+    {
+        X = 24,
+        Y = Pos.AnchorEnd(),
+        Width = 16,
+        ReadOnly = true,
+        Text = "当前显示",
+        Source = new ListWrapper<string>(new ObservableCollection<string>(["当前显示", "文本", "HEX", "连续 HEX", "日志"]))
+    };
     private readonly DropDownList port = new() { X = 16, Y = 0, Width = Dim.Fill(1), ReadOnly = true };
     private readonly NumericUpDown<int> baud = new() { X = 16, Y = 2, Value = 115200, Width = 20 };
     private readonly NumericUpDown<int> dataBits = new() { X = 16, Y = 4, Value = 8, Width = 20 };
@@ -122,6 +130,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         input.Accepting += (_, args) => { args.Handled = true; _ = RunUiAsync(SendAsync); };
         sending.Add(input, send);
         var shortcuts = new StatusBar([
+            new Shortcut(Key.F1, "帮助", ShowHelp),
             new Shortcut(Key.F2, "暂停", TogglePause),
             new Shortcut(Key.F3, "清空", ClearTraffic),
             new Shortcut(Key.F4, "设置", () => tabs.Value = settingsView),
@@ -233,7 +242,11 @@ public sealed partial class TerminalWorkbench : IDisposable
         }
 
         window.Dispose();
-        trafficMenu?.Dispose();
+        if (trafficMenu is not null)
+        {
+            app.Popovers?.DeRegister(trafficMenu);
+            trafficMenu.Dispose();
+        }
         sessionReadGate.Dispose();
         replay?.Dispose();
         lifetime.Dispose();
@@ -299,6 +312,14 @@ public sealed partial class TerminalWorkbench : IDisposable
         }));
         deleteProfile.Y = 42;
         deleteProfile.X = Pos.Right(saveProfile) + 1;
+        var renameProfile = Button("重命名", () => RunUiAsync(async () =>
+        {
+            var profile = profiles.FirstOrDefault(item => item.Name == profileSelector.Text) ?? throw new InvalidOperationException("请选择配置。");
+            var saved = await client.SaveSerialProfileAsync(new SaveSerialProfileRequest(profile with { Name = profileName.Text }, profile.Name), lifetime.Token).ConfigureAwait(false);
+            await InvokeUiAsync(() => { ApplyConfiguration(saved); profileSelector.Text = profileName.Text; }).ConfigureAwait(false);
+        }));
+        renameProfile.X = Pos.Right(deleteProfile) + 1;
+        renameProfile.Y = 42;
         var chooseWorkspace = Button("选择工作区", () => RunUiAsync(async () =>
         {
             using var dialog = new OpenDialog { Title = "选择工作区", OpenMode = OpenMode.Directory, Path = Environment.CurrentDirectory, AllowsMultipleSelection = false };
@@ -318,7 +339,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         clearWorkspace.Y = 47;
         clearWorkspace.X = Pos.Right(chooseWorkspace) + 1;
         view.SetContentSize(new System.Drawing.Size(100, 50));
-        view.Add(open, controlLines, clearReceive, clearTransmit, sendBreak, loadProfile, saveProfile, deleteProfile, workspace, chooseWorkspace, clearWorkspace);
+        view.Add(open, controlLines, clearReceive, clearTransmit, sendBreak, loadProfile, saveProfile, deleteProfile, renameProfile, workspace, chooseWorkspace, clearWorkspace);
         return view;
     }
 
@@ -591,7 +612,15 @@ public sealed partial class TerminalWorkbench : IDisposable
     private void CopySelected()
     {
         var selected = traffic.GetAllSelectedCells().Select(static cell => cell.Y).Distinct().Where(index => index >= 0 && index < visibleRows.Length).Order().Select(index => visibleRows[index]).ToArray();
-        if (app.Clipboard?.TrySetClipboardData(TrafficCopyFormatter.Format(selected, copyFormat.Value ?? TrafficCopyFormat.CurrentDisplay)) != true)
+        var kind = copyFormat.Text switch
+        {
+            "文本" => TrafficCopyFormat.Text,
+            "HEX" => TrafficCopyFormat.Hex,
+            "连续 HEX" => TrafficCopyFormat.CompactHex,
+            "日志" => TrafficCopyFormat.Log,
+            _ => TrafficCopyFormat.CurrentDisplay
+        };
+        if (app.Clipboard?.TrySetClipboardData(TrafficCopyFormatter.Format(selected, kind)) != true)
         {
             message.Text = "剪贴板不可用";
         }

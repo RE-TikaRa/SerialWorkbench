@@ -203,6 +203,10 @@ public sealed partial class TerminalWorkbench
             var batch = await client.ReadOperationProgressAsync(new OperationProgressQuery(id, modbusRevision), lifetime.Token).ConfigureAwait(false);
             await InvokeUiAsync(() =>
             {
+                if (modbusOperationId != id || batch.NextRevision < modbusRevision)
+                {
+                    return;
+                }
                 foreach (var update in batch.Updates)
                 {
                     if (update.Progress.ItemJson is not { } itemJson)

@@ -15,7 +15,7 @@ namespace SerialWorkbench.Cli.Tui;
 
 public sealed partial class TerminalWorkbench
 {
-    private readonly TableView sessions = new() { Y = 6, Width = Dim.Fill(), Height = Dim.Percent(25), FullRowSelect = true };
+    private readonly TableView sessions = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Percent(30), FullRowSelect = true, MultiSelect = false };
     private readonly TableView sessionEvents = new() { Width = Dim.Fill(), Height = Dim.Fill(1), FullRowSelect = true };
     private readonly TextField sessionFilter = new() { Id = "session-hex", Y = 3, X = 8, Width = Dim.Fill(16) };
     private readonly DropDownList sessionDirection = new()
@@ -56,9 +56,22 @@ public sealed partial class TerminalWorkbench
     private readonly GraphView graph = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Fill() };
     private readonly WaveformParser waveformParser = new();
     private readonly List<List<PointF>> wavePoints = [];
-    private readonly OptionSelector<WaveformMode> waveformMode = new() { Orientation = Orientation.Horizontal };
-    private readonly OptionSelector<WaveformSampleType> waveformType = new() { X = 0, Y = 1, Orientation = Orientation.Horizontal };
-    private readonly NumericUpDown<int> waveformLength = new() { X = 45, Y = 0, Value = 8, Width = 12 };
+    private readonly DropDownList waveformMode = new()
+    {
+        Width = 24,
+        ReadOnly = true,
+        Text = "CSV 文本",
+        Source = new ListWrapper<string>(new ObservableCollection<string>(["CSV 文本", "二进制帧"]))
+    };
+    private readonly DropDownList waveformType = new()
+    {
+        X = 26,
+        Width = 24,
+        ReadOnly = true,
+        Text = "Int16LittleEndian",
+        Source = new ListWrapper<string>(new ObservableCollection<string>(Enum.GetNames<WaveformSampleType>()))
+    };
+    private readonly NumericUpDown<int> waveformLength = new() { X = 60, Y = 0, Value = 8, Width = 12 };
     private int sampleIndex;
     private readonly CheckBox waveformPaused = new() { X = 0, Y = 2, Text = "暂停波形" };
     private readonly CheckBox waveformFollow = new() { X = 16, Y = 2, Text = "自动缩放", Value = CheckState.Checked };
@@ -80,7 +93,8 @@ public sealed partial class TerminalWorkbench
             replay?.Cancel();
             return Task.CompletedTask;
         });
-        stop.X = Pos.Right(play) + 1;
+        stop.X = 35;
+        stop.Y = 1;
         var pause = Button("暂停／继续", () =>
         {
             replayPaused = !replayPaused;
@@ -94,8 +108,8 @@ public sealed partial class TerminalWorkbench
             }
             return Task.CompletedTask;
         });
-        pause.Y = 4;
-        pause.X = 14;
+        pause.Y = 1;
+        pause.X = 18;
         var delete = Button("删除会话", () => RunUiAsync(async () =>
         {
             var id = selectedSession ?? throw new InvalidOperationException("请选择会话。");
@@ -130,19 +144,13 @@ public sealed partial class TerminalWorkbench
                 }
             }
         };
-        var applyFilter = Button("筛选", () => RunUiAsync(() =>
-        {
-            sessionSequence = 0;
-            sessionRevision++;
-            displayedSessionEvents.Clear();
-            return ReadSessionAsync();
-        }));
-        applyFilter.X = Pos.AnchorEnd();
-        applyFilter.Y = 3;
+        var applyFilter = Button("筛选与回放", () => RunUiAsync(ConfigureSessionAsync));
+        applyFilter.X = Pos.Right(play) + 1;
         sessionEvents.Y = Pos.Bottom(sessions);
-        view.Add(refresh, load, export, play, stop, delete, history, pause, sessions, sessionEvents, sessionFilter, applyFilter,
-            sessionDirection, new Label { Text = "来源", X = 12, Y = 2 }, sessionSource, new Label { Text = "连接 ID", X = 33, Y = 2 }, sessionConnection,
-            new Label { Text = "HEX", Y = 3 }, sessionExportFormat, new Label { Text = "倍率", X = 39, Y = 4 }, replayRate, sessionCount);
+        history.X = 0;
+        history.Y = 1;
+        delete.X = Pos.Right(stop) + 1;
+        view.Add(refresh, load, export, play, stop, delete, history, pause, sessions, sessionEvents, applyFilter, sessionCount);
         sessionEvents.Accepting += (_, args) =>
         {
             args.Handled = true;
@@ -359,6 +367,38 @@ public sealed partial class TerminalWorkbench
         return signal;
     }
 
+    private async Task ConfigureSessionAsync()
+    {
+        using var dialog = new Dialog { Title = "会话筛选与回放", Width = Dim.Percent(90), Height = 17 };
+        var controls = new View[] { sessionDirection, sessionSource, sessionConnection, sessionFilter, sessionExportFormat, replayRate };
+        var labels = new[] { "方向", "来源包含", "连接 ID", "HEX 包含", "导出格式", "回放倍率" };
+        for (var index = 0; index < controls.Length; index++)
+        {
+            controls[index].X = 14;
+            controls[index].Y = index * 2;
+            controls[index].Width = Dim.Fill(1);
+            dialog.Add(new Label { Text = labels[index], Y = index * 2 }, controls[index]);
+        }
+        var applied = false;
+        var apply = new Button { Text = "应用" };
+        apply.Accepting += (_, _) => applied = true;
+        dialog.AddButton(apply);
+        dialog.AddButton(new Button { Text = "关闭" });
+        app.Run(dialog);
+        foreach (var control in controls)
+        {
+            dialog.Remove(control);
+        }
+        if (applied)
+        {
+            sessionSequence = 0;
+            sessionRevision++;
+            displayedSessionEvents.Clear();
+            sessionEvents.Table = null;
+            await ReadSessionAsync().ConfigureAwait(false);
+        }
+    }
+
     private View BuildProtocol()
     {
         var view = new View { Title = "协议分析", Width = Dim.Fill(), Height = Dim.Fill() };
@@ -443,14 +483,14 @@ public sealed partial class TerminalWorkbench
         export.X = Pos.Right(clear) + 1;
         export.Y = 2;
         graph.Y = 4;
-        view.Add(waveformMode, waveformType, waveformLength, waveformPaused, waveformFollow, clear, export, waveformStatus, graph);
+        view.Add(waveformMode, waveformType, new Label { Text = "帧长", X = 52 }, waveformLength, waveformPaused, waveformFollow, clear, export, waveformStatus, graph);
         return view;
     }
 
     private void ResetWaveform()
     {
-        waveformParser.Mode = waveformMode.Value ?? WaveformMode.CsvText;
-        waveformParser.SampleType = waveformType.Value ?? WaveformSampleType.Int16LittleEndian;
+        waveformParser.Mode = waveformMode.Text == "二进制帧" ? WaveformMode.BinaryFrame : WaveformMode.CsvText;
+        waveformParser.SampleType = Enum.Parse<WaveformSampleType>(waveformType.Text);
         waveformParser.FrameLength = waveformLength.Value;
         waveformParser.Reset();
         wavePoints.Clear();

@@ -12,6 +12,35 @@ namespace SerialWorkbench.Tests;
 
 public sealed class TuiTests
 {
+    [Theory]
+    [InlineData(80, 24)]
+    [InlineData(120, 40)]
+    public async Task WorkbenchLayoutKeepsSendingAndTrafficUsable(int width, int height)
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-layout-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        workbench.Window.Layout(new System.Drawing.Size(width, height));
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        foreach (var page in tabs.TabCollection)
+        {
+            tabs.Value = page;
+            workbench.Window.Layout(new System.Drawing.Size(width, height));
+            Assert.True(page.Frame.Width > 0 && page.Frame.Height > 0, page.Title);
+        }
+        var sending = workbench.Window.SubViews.OfType<FrameView>().Single();
+        Assert.True(sending.Frame.Bottom <= workbench.Window.Viewport.Height);
+        var input = sending.SubViews.OfType<TextField>().Single(static field => field.Id == "send-input");
+        Assert.True(input.Frame.Width > 0);
+        Assert.True(input.Frame.Right <= sending.Viewport.Width);
+        var frame = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<FrameView>().Single(static frame => frame.Title == "报文");
+        Assert.True(Assert.Single(frame.SubViews.OfType<TableView>()).Frame.Height >= 3);
+        var sessionPage = tabs.TabCollection.Single(static page => page.Title == "会话");
+        Assert.All(sessionPage.SubViews.OfType<TableView>(), table => Assert.True(table.Frame.Height >= 3));
+    }
+
     [Fact]
     public async Task WaveformDoesNotJoinIncompleteSamplesAcrossReconnectedSegments()
     {
