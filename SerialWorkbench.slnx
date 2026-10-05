@@ -10,6 +10,7 @@
     <Project Path="src/SerialWorkbench.Storage/SerialWorkbench.Storage.csproj" />
     <Project Path="src/SerialWorkbench.Host/SerialWorkbench.Host.csproj" />
     <Project Path="src/SerialWorkbench.Cli/SerialWorkbench.Cli.csproj" />
+    <Project Path="src/SerialWorkbench.Tui/SerialWorkbench.Tui.csproj" />
     <Project Path="src/SerialWorkbench.WinUI/SerialWorkbench.WinUI.csproj" />
   </Folder>
   <Folder Name="/tests/">

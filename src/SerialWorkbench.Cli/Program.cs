@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using SerialWorkbench.Cli;
-using SerialWorkbench.Cli.Tui;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Ipc;
 using SerialWorkbench.Modbus;
@@ -15,16 +14,21 @@ Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 Console.OutputEncoding = new UTF8Encoding(false);
 
 var catalog = new CommandCatalog();
-catalog.Root.SetAction(async (result, token) =>
+var helpAction = new ExecutableHelpAction("SW_CLI");
+foreach (var option in catalog.Root.Options.OfType<HelpOption>())
 {
-    if (result.GetValue<bool>("--agent"))
+    option.Action = helpAction;
+}
+catalog.Root.SetAction(result =>
+{
+    var output = result.GetValue<string>("--output");
+    if (result.GetValue<bool>("--agent") || output is "json" or "jsonl")
     {
-        MachineOutput.Write(result.GetValue<string>("--output") == "jsonl" ? "jsonl" : "json", "help", AgentDiscovery.Capabilities());
+        MachineOutput.Write(output == "jsonl" ? "jsonl" : "json", "help", AgentDiscovery.Capabilities());
         return 0;
     }
 
-    return await TerminalWorkbench.RunAsync(result.GetValue<string>("--app-root") ?? AppContext.BaseDirectory,
-        result.GetValue<string>("--culture") ?? CultureInfo.CurrentUICulture.Name, token).ConfigureAwait(false);
+    return helpAction.Invoke(result);
 });
 foreach (var definition in catalog.Commands)
 {

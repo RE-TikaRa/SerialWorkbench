@@ -18,6 +18,7 @@ New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
 $components = @(
     @{ Name = "host"; Project = "src\SerialWorkbench.Host\SerialWorkbench.Host.csproj" },
     @{ Name = "cli"; Project = "src\SerialWorkbench.Cli\SerialWorkbench.Cli.csproj" },
+    @{ Name = "tui"; Project = "src\SerialWorkbench.Tui\SerialWorkbench.Tui.csproj" },
     @{ Name = "winui"; Project = "src\SerialWorkbench.WinUI\SerialWorkbench.WinUI.csproj" }
 )
 
@@ -51,7 +52,8 @@ try {
     $requiredFiles = @(
         "SerialWorkbench.exe",
         "SerialWorkbench.Host.exe",
-        "serial-workbench.exe",
+        "SW_CLI.exe",
+        "SW_TUI.exe",
         "SerialWorkbench.pri",
         "App.xbf",
         "MainWindow.xbf",

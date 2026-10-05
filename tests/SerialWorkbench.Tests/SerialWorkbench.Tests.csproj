@@ -11,6 +11,7 @@
     <PackageReference Include="xunit.v3.mtp-v2" />
     <ProjectReference Include="../../src/SerialWorkbench.Application/SerialWorkbench.Application.csproj" />
     <ProjectReference Include="../../src/SerialWorkbench.Cli/SerialWorkbench.Cli.csproj" />
+    <ProjectReference Include="../../src/SerialWorkbench.Tui/SerialWorkbench.Tui.csproj" />
     <ProjectReference Include="../../src/SerialWorkbench.Domain/SerialWorkbench.Domain.csproj" />
     <ProjectReference Include="../../src/SerialWorkbench.Host/SerialWorkbench.Host.csproj" />
     <ProjectReference Include="../../src/SerialWorkbench.Ipc/SerialWorkbench.Ipc.csproj" />

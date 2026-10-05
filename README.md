@@ -35,7 +35,7 @@ SerialWorkbench 是面向 Windows 11 的串口调试工作台。它把串口连�
 
 ## 终端工作台
 
-在 Windows Terminal 中运行 `serial-workbench.exe` 进入 Terminal.Gui 工作台。连接列表、报文表格、输入区、状态栏和标签页使用库控件，支持鼠标、键盘焦点、滚动和窗口尺寸变化。
+在 Windows Terminal 中运行 `SW_TUI.exe` 进入 Terminal.Gui 工作台。连接列表、报文表格、输入区、状态栏和标签页使用库控件，支持鼠标、键盘焦点、滚动和窗口尺寸变化。
 
 常用工作区为工作台、发送历史、任务、会话和设置，使用 Alt+1 至 Alt+5 切换。F9 打开工具列表，选择 Modbus、文件与回环、自动化、协议分析或波形；工具使用独立窗口，Esc 返回工作区。
 
@@ -70,15 +70,16 @@ Modbus 页实时呈现每次响应的从站、功能码、数值、耗时和状�
 
 ## 运行结构
 
-发布目录中有三个入口：
+发布目录提供三个使用入口，并包含后台 Host 服务：
 
 ```text
 SerialWorkbench.exe       WinUI 3 桌面程序
-serial-workbench.exe      终端工作台；带命令时运行 CLI
+SW_TUI.exe                终端工作台
+SW_CLI.exe                命令行与 Agent 接口
 SerialWorkbench.Host.exe  串口和会话服务
 ```
 
-桌面程序和 CLI 通过 Windows 命名管道连接 Host。一个应用目录对应一个 Host 实例，连接由 Host 持有。相同参数打开同一串口时复用 `connectionId`；关闭桌面窗口保留共享连接。发送、回环、Modbus、自动化和 XMODEM 操作通过连接写入租约协调，连接占用时新的写入立即失败。
+桌面程序、TUI 和 CLI 通过 Windows 命名管道连接 Host。一个应用目录对应一个 Host 实例，连接由 Host 持有。相同参数打开同一串口时复用 `connectionId`；关闭桌面窗口保留共享连接。发送、回环、Modbus、自动化和 XMODEM 操作通过连接写入租约协调，连接占用时新的写入立即失败。
 
 `connections open --port COM16` 创建持久连接，`connections list` 查询连接标识，`connections close --id CONNECTION_ID` 明确关闭。发送、监视、Modbus 和 XMODEM 命令可通过 `--connection CONNECTION_ID` 使用现有连接，命令结束后保留连接。使用 `--port` 的一次性命令创建并关闭自己的临时连接。
 
@@ -91,12 +92,12 @@ Host 在存在客户端、连接或写入任务时保持运行；全部结束后
 CLI 通过 `profiles show/save/rename/delete` 管理相同配置，`profiles save --original-name` 修改现有记录。使用配置打开连接时，Host 按设备实例标识寻找当前端口：
 
 ```powershell
-serial-workbench --agent profiles save --name debug --port COM20 --baud 115200
-serial-workbench --agent profiles show --name debug
-serial-workbench --agent connections open --profile debug
-serial-workbench --agent connections control-lines --id CONNECTION_ID --dtr true --rts false
-serial-workbench --agent connections clear-buffers --id CONNECTION_ID --rx
-serial-workbench --agent connections break --id CONNECTION_ID --duration 100
+SW_CLI.exe --agent profiles save --name debug --port COM20 --baud 115200
+SW_CLI.exe --agent profiles show --name debug
+SW_CLI.exe --agent connections open --profile debug
+SW_CLI.exe --agent connections control-lines --id CONNECTION_ID --dtr true --rts false
+SW_CLI.exe --agent connections clear-buffers --id CONNECTION_ID --rx
+SW_CLI.exe --agent connections break --id CONNECTION_ID --duration 100
 ```
 
 在线控制线命令只修改指定的 DTR/RTS，其他控制线保持当前状态。RTS 流控或 RS-485 方向控制启用时不能手动修改 RTS。清空缓冲需要明确选择 `--rx`、`--tx` 或同时选择两项。
@@ -108,10 +109,10 @@ serial-workbench --agent connections break --id CONNECTION_ID --duration 100
 发送、回环、自动化序列、Modbus 事务、扫描、轮询和 XMODEM 由 Host 执行。每项任务具有 `operationId`，提供进度、结果和取消操作。客户端意外断开保留已接受的任务；前台操作使用 Ctrl+C 或正常退出时发送明确取消。
 
 ```powershell
-serial-workbench operations list
-serial-workbench operations show --id OPERATION_ID
-serial-workbench operations cancel --id OPERATION_ID
-serial-workbench operations start --connection CONNECTION_ID --kind modbus.poll --parameters '{"slaveAddress":1,"address":0,"quantity":1,"count":10}' --request-id READ_001
+SW_CLI.exe operations list
+SW_CLI.exe operations show --id OPERATION_ID
+SW_CLI.exe operations cancel --id OPERATION_ID
+SW_CLI.exe operations start --connection CONNECTION_ID --kind modbus.poll --parameters '{"slaveAddress":1,"address":0,"quantity":1,"count":10}' --request-id READ_001
 ```
 
 `operations start` 返回后台任务标识，`operations result` 查询结果。`--request-id` 保存请求身份，相同身份和参数返回原任务；参数不同时返回 `REQUEST_ID_CONFLICT`。任务和结果保存于 `data/operations.sqlite3`。
@@ -119,11 +120,11 @@ serial-workbench operations start --connection CONNECTION_ID --kind modbus.poll 
 单次和循环发送支持 `--checksum None/Xor/Sum8/Crc16Modbus/Crc16Xmodem/Crc32`。循环发送通过 Host 执行，`--count 0` 持续运行，`--background` 返回任务标识：
 
 ```powershell
-serial-workbench --agent send --connection CONNECTION_ID --hex "01 03 00 00 00 01" --checksum Crc16Modbus
-serial-workbench --agent send repeat --connection CONNECTION_ID --text "status" --line-ending crlf --interval 1000 --count 10 --background
-serial-workbench --agent operations progress --id OPERATION_ID --after 0 --count 100 --wait 1000
-serial-workbench --agent operations wait --id OPERATION_ID --timeout 30000
-serial-workbench --agent operations result --id OPERATION_ID
+SW_CLI.exe --agent send --connection CONNECTION_ID --hex "01 03 00 00 00 01" --checksum Crc16Modbus
+SW_CLI.exe --agent send repeat --connection CONNECTION_ID --text "status" --line-ending crlf --interval 1000 --count 10 --background
+SW_CLI.exe --agent operations progress --id OPERATION_ID --after 0 --count 100 --wait 1000
+SW_CLI.exe --agent operations wait --id OPERATION_ID --timeout 30000
+SW_CLI.exe --agent operations result --id OPERATION_ID
 ```
 
 任务进度查询返回版本化的进度列表和 `nextRevision`，下一次查询将其传入 `--after`。等待命令只观察已有任务，等待超时或取消等待不会取消 Host 中的任务。`operations result` 和 `operations wait` 的退出码反映任务结果，取消为 5、超时为 4，其他执行失败为 3。
@@ -131,8 +132,8 @@ serial-workbench --agent operations result --id OPERATION_ID
 发送、Modbus、回环、序列和 XMODEM 命令支持 `--background` 与 `--request-id`。默认等待结果；后台模式返回 `operationId`，可通过任务命令查询或取消。使用 `--port` 与这两个选项时，连接由 Host 打开并保留，任务结束后可使用 `connections close` 关闭。相同端口请求在 Host 重启后也返回保存的结果，不再次打开串口或发送。XMODEM 接收文件由 Host 写入指定路径，后台接收同样保存文件。
 
 ```powershell
-serial-workbench --agent send --port COM16 --text "测试" --background --request-id SEND_001
-serial-workbench --agent modbus poll --connection CONNECTION_ID --count 100 --background
+SW_CLI.exe --agent send --port COM16 --text "测试" --background --request-id SEND_001
+SW_CLI.exe --agent modbus poll --connection CONNECTION_ID --count 100 --background
 ```
 
 连接被占用时返回 `CONNECTION_BUSY`，包含占用任务标识。Host 重启后未完成任务标为 `Interrupted`，执行结果为 `Unknown`，设备操作不自动重放。
@@ -360,24 +361,24 @@ utc,direction,source,hex,byte_count
 
 ## CLI
 
-命令、参数类型、Help、补全建议和 Response File 由 System.CommandLine 提供。各命令使用 `--help` 查看参数，`serial-workbench @commands.rsp` 从文件读取参数；布尔开关可与带空格的文本参数同时使用。文本结果使用 Spectre.Console 的表格和面板呈现，协议检查无需启动 Host。
+命令、参数类型、Help、补全建议和 Response File 由 System.CommandLine 提供。各命令使用 `--help` 查看参数，`SW_CLI.exe @commands.rsp` 从文件读取参数；布尔开关可与带空格的文本参数同时使用。文本结果使用 Spectre.Console 的表格和面板呈现，协议检查无需启动 Host。
 
-在 `publish/win-x64/` 目录执行 `serial-workbench.exe`。CLI 会自动启动同目录的 Host。
+在 `publish/win-x64/` 目录执行 `SW_CLI.exe`，无参数显示命令帮助，带子命令执行对应操作。设备命令会自动启动同目录的 Host。
 
 ### 端口和 Host
 
 ```powershell
-.\serial-workbench.exe ports list --output json
-.\serial-workbench.exe host status --output json
-.\serial-workbench.exe host stop
+.\SW_CLI.exe ports list --output json
+.\SW_CLI.exe host status --output json
+.\SW_CLI.exe host stop
 ```
 
 ### 工作区
 
 ```powershell
-.\serial-workbench.exe workspace show --output json
-.\serial-workbench.exe workspace set --path E:\Workspaces\DeviceA --output json
-.\serial-workbench.exe workspace clear --output json
+.\SW_CLI.exe workspace show --output json
+.\SW_CLI.exe workspace set --path E:\Workspaces\DeviceA --output json
+.\SW_CLI.exe workspace clear --output json
 ```
 
 切换工作区前必须关闭所有串口连接。
@@ -387,13 +388,13 @@ utc,direction,source,hex,byte_count
 HEX 发送：
 
 ```powershell
-.\serial-workbench.exe send --port COM15 --baud 115200 --hex "55 AA 01 02" --output json
+.\SW_CLI.exe send --port COM15 --baud 115200 --hex "55 AA 01 02" --output json
 ```
 
 文本发送：
 
 ```powershell
-.\serial-workbench.exe send --port COM15 --baud 115200 --text "设备状态" --encoding utf-8 --line-ending crlf --output json
+.\SW_CLI.exe send --port COM15 --baud 115200 --text "设备状态" --encoding utf-8 --line-ending crlf --output json
 ```
 
 串口参数还可以使用：
@@ -415,13 +416,13 @@ HEX 发送：
 ### 监视
 
 ```powershell
-.\serial-workbench.exe monitor --port COM15 --baud 115200 --seconds 10 --output jsonl
+.\SW_CLI.exe monitor --port COM15 --baud 115200 --seconds 10 --output jsonl
 ```
 
 只看接收或发送事件：
 
 ```powershell
-.\serial-workbench.exe monitor --port COM15 --baud 115200 --direction rx --source serial --seconds 10 --output jsonl
+.\SW_CLI.exe monitor --port COM15 --baud 115200 --direction rx --source serial --seconds 10 --output jsonl
 ```
 
 `--direction` 可使用 `all`、`rx` 或 `tx`，`--source` 按来源名称不区分大小写匹配。文本输出显示 UTC 时间、方向和 HEX；`jsonl` 每行输出一个带 `schemaVersion` 的结构化事件。
@@ -429,7 +430,7 @@ HEX 发送：
 ### 回环
 
 ```powershell
-.\serial-workbench.exe loopback run --port COM15 --baud 115200 --pattern Incrementing --length 4096 --iterations 4 --timeout 5000 --output json
+.\SW_CLI.exe loopback run --port COM15 --baud 115200 --pattern Incrementing --length 4096 --iterations 4 --timeout 5000 --output json
 ```
 
 可选模式为 `Fixed`、`Incrementing` 和 `Random`。还可以使用 `--seed` 固定随机数据种子。
@@ -439,26 +440,26 @@ HEX 发送：
 读线圈、离散输入、保持寄存器或输入寄存器：
 
 ```powershell
-.\serial-workbench.exe modbus read --port COM15 --baud 115200 --slave 1 --address 0 --quantity 1 --function 3 --timeout 2000 --output json
+.\SW_CLI.exe modbus read --port COM15 --baud 115200 --slave 1 --address 0 --quantity 1 --function 3 --timeout 2000 --output json
 ```
 
 写单个寄存器：
 
 ```powershell
-.\serial-workbench.exe modbus write --port COM15 --baud 115200 --slave 1 --address 0 --value 1 --timeout 2000 --output json
+.\SW_CLI.exe modbus write --port COM15 --baud 115200 --slave 1 --address 0 --value 1 --timeout 2000 --output json
 ```
 
 写单个线圈：
 
 ```powershell
-.\serial-workbench.exe modbus write --port COM15 --baud 115200 --slave 1 --address 0 --value 1 --function 5 --timeout 2000 --output json
+.\SW_CLI.exe modbus write --port COM15 --baud 115200 --slave 1 --address 0 --value 1 --function 5 --timeout 2000 --output json
 ```
 
 写多个线圈或寄存器：
 
 ```powershell
-.\serial-workbench.exe modbus write --port COM15 --baud 115200 --slave 1 --address 0 --values "1,0,1,1" --function 15 --output json
-.\serial-workbench.exe modbus write --port COM15 --baud 115200 --slave 1 --address 0 --values "10,0x0102" --function 16 --output json
+.\SW_CLI.exe modbus write --port COM15 --baud 115200 --slave 1 --address 0 --values "1,0,1,1" --function 15 --output json
+.\SW_CLI.exe modbus write --port COM15 --baud 115200 --slave 1 --address 0 --values "10,0x0102" --function 16 --output json
 ```
 
 功能码可以使用 `1`、`2`、`3` 或 `4`。Modbus JSON 结果包含请求帧、响应帧、功能码、位数组、寄存器、地址、寄存器值、异常码、耗时和错误信息。
@@ -466,7 +467,7 @@ HEX 发送：
 扫描从站：
 
 ```powershell
-.\serial-workbench.exe modbus scan --port COM15 --baud 115200 --from 1 --to 247 --address 0 --timeout 200 --output json
+.\SW_CLI.exe modbus scan --port COM15 --baud 115200 --from 1 --to 247 --address 0 --timeout 200 --output json
 ```
 
 扫描使用功能码 `03` 读取一个保持寄存器。正常响应和 Modbus 异常响应都会列入结果，超时从站不会列入响应列表。
@@ -474,7 +475,7 @@ HEX 发送：
 周期轮询：
 
 ```powershell
-.\serial-workbench.exe modbus poll --port COM15 --baud 115200 --slave 1 --address 0 --quantity 4 --function 3 --count 20 --interval 1000 --output jsonl
+.\SW_CLI.exe modbus poll --port COM15 --baud 115200 --slave 1 --address 0 --quantity 4 --function 3 --count 20 --interval 1000 --output jsonl
 ```
 
 每次轮询都是独立的 Host Modbus 事务，输出包含采样序号、UTC 时间、原始响应、寄存器或位数组、耗时和错误信息。
@@ -484,7 +485,7 @@ HEX 发送：
 使用与 WinUI 协议帧查看器相同的 Modbus RTU 解析器：
 
 ```powershell
-.\serial-workbench.exe protocol inspect --hex "01 03 02 00 0A 38 43" --output json
+.\SW_CLI.exe protocol inspect --hex "01 03 02 00 0A 38 43" --output json
 ```
 
 命令会返回地址、功能码、帧长、CRC、异常码和解析失败原因。解析失败时退出码为 `1`，原始 HEX 不会被修改。
@@ -492,7 +493,7 @@ HEX 发送：
 通用协议模板使用 JSON 文件描述帧头、长度字段、字段和校验：
 
 ```powershell
-.\serial-workbench.exe protocol inspect --template E:\Protocols\sensor.json --hex "AA 01 34 12 00 00 80 3F 5B" --output json
+.\SW_CLI.exe protocol inspect --template E:\Protocols\sensor.json --hex "AA 01 34 12 00 00 80 3F 5B" --output json
 ```
 
 模板字段类型支持 `U8`、`I8`、`U16`、`I16`、`U32`、`I32`、`F32` 和 `Hex`，数值字段支持 `LittleEndian` 与 `BigEndian`。
@@ -502,31 +503,31 @@ HEX 发送：
 列出会话：
 
 ```powershell
-.\serial-workbench.exe sessions list --output json
+.\SW_CLI.exe sessions list --output json
 ```
 
 查看会话的完整事件和回环统计：
 
 ```powershell
-.\serial-workbench.exe sessions show --id SESSION_ID --output json
+.\SW_CLI.exe sessions show --id SESSION_ID --output json
 ```
 
 导出会话 CSV：
 
 ```powershell
-.\serial-workbench.exe sessions export --id SESSION_ID --file E:\Exports\session.csv --output json
+.\SW_CLI.exe sessions export --id SESSION_ID --file E:\Exports\session.csv --output json
 ```
 
 导出流式 JSONL：
 
 ```powershell
-.\serial-workbench.exe sessions export --id SESSION_ID --file E:\Exports\session.jsonl --format jsonl --output json
+.\SW_CLI.exe sessions export --id SESSION_ID --file E:\Exports\session.jsonl --format jsonl --output json
 ```
 
 按方向、来源或 HEX 片段筛选后导出：
 
 ```powershell
-.\serial-workbench.exe sessions export --id SESSION_ID --file E:\Exports\rx.jsonl --format jsonl --direction rx --source serial --hex "01 03" --output json
+.\SW_CLI.exe sessions export --id SESSION_ID --file E:\Exports\rx.jsonl --format jsonl --direction rx --source serial --hex "01 03" --output json
 ```
 
 `--direction` 可使用 `all`、`rx` 或 `tx`；`--source` 不区分大小写匹配来源；`--hex` 匹配报文中的连续字节。CSV 和 `jsonl` 都按会话事件序号分页写入，适合大型会话处理。
@@ -534,7 +535,7 @@ HEX 发送：
 导出筛选后的原始二进制：
 
 ```powershell
-.\serial-workbench.exe sessions export --id SESSION_ID --file E:\Exports\payload.bin --format binary --direction rx --output json
+.\SW_CLI.exe sessions export --id SESSION_ID --file E:\Exports\payload.bin --format binary --direction rx --output json
 ```
 
 `binary` 按事件序号拼接原始报文字节，不添加时间戳或分隔符。
@@ -544,7 +545,7 @@ HEX 发送：
 删除已经结束的会话：
 
 ```powershell
-.\serial-workbench.exe sessions delete --id SESSION_ID --output json
+.\SW_CLI.exe sessions delete --id SESSION_ID --output json
 ```
 
 ### XMODEM
@@ -553,10 +554,10 @@ HEX 发送：
 
 ```powershell
 # 终端 1：先启动发送端，使其等待接收端的 C
-.\serial-workbench.exe xmodem send --port COM19 --baud 115200 --file E:\Transfers\payload.bin --output json
+.\SW_CLI.exe xmodem send --port COM19 --baud 115200 --file E:\Transfers\payload.bin --output json
 
 # 终端 2：再启动接收端
-.\serial-workbench.exe xmodem receive --port COM18 --baud 115200 --file E:\Transfers\received.bin --output json
+.\SW_CLI.exe xmodem receive --port COM18 --baud 115200 --file E:\Transfers\received.bin --output json
 ```
 
 测试时先启动发送任务，再启动接收任务，使发送端先进入等待 `C` 的状态。XMODEM 发送和接收使用独占连接写入租约，不会与同一连接上的普通发送并行执行。
@@ -568,10 +569,10 @@ HEX 发送：
 普通命令输出一个 JSON 文档。监视使用 JSONL，周期轮询可使用 JSONL 逐条输出进度，并以结果记录结束；指定 `--output json` 的轮询只返回最终文档。JSONL 每行均为独立 JSON，对载荷中的换行进行转义。会话 JSONL 导出同样逐条保存原始事件。
 
 ```powershell
-serial-workbench --agent capabilities
-serial-workbench --agent schema modbus.read
-serial-workbench --agent help
-serial-workbench --agent protocol inspect --hex "01 03 00 00 00 01 84 0A"
+SW_CLI.exe --agent capabilities
+SW_CLI.exe --agent schema modbus.read
+SW_CLI.exe --agent help
+SW_CLI.exe --agent protocol inspect --hex "01 03 00 00 00 01 84 0A"
 ```
 
 能力发现和 Schema 查询无需 Host。各命令的具体参数和结果契约位于 `schemas/COMMAND.schema.json`；构建脚本通过 `schemas export` 从当前类型与命令树生成契约。错误、普通结果和监视事件的汇总 Schema 分别为 `cli-error.schema.json`、`cli-result.schema.json` 和 `cli-event.schema.json`。
@@ -620,6 +621,7 @@ src/
 ├─ SerialWorkbench.Ipc             Host RPC 契约和客户端
 ├─ SerialWorkbench.Host            串口服务进程
 ├─ SerialWorkbench.Cli             命令行入口
+├─ SerialWorkbench.Tui             终端工作台入口
 └─ SerialWorkbench.WinUI           WinUI 3 桌面入口
 ```
 
@@ -632,7 +634,7 @@ Application / Protocols / Sessions
   ↑
 Serial.Windows / Storage / IPC / Host
  ↑
-WinUI / CLI
+WinUI / TUI / CLI / Agent
 ```
 
 ## 文档

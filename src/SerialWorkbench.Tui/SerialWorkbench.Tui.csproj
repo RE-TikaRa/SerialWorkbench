@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AppHostName>SW_TUI</AppHostName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+    <ProjectReference Include="../SerialWorkbench.Cli/SerialWorkbench.Cli.csproj" />
+  </ItemGroup>
+</Project>

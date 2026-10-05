@@ -1,0 +1,10 @@
+<Project>
+  <Target Name="SetAppHostName" AfterTargets="_ComputeNETCoreBuildOutputFiles" Condition="'$(AppHostName)' != ''">
+    <ItemGroup>
+      <None Update="$(AppHostIntermediatePath)" Link="$(AppHostName)$(_NativeExecutableExtension)" />
+    </ItemGroup>
+    <PropertyGroup>
+      <RunCommand>$(TargetDir)$(AppHostName)$(_NativeExecutableExtension)</RunCommand>
+    </PropertyGroup>
+  </Target>
+</Project>

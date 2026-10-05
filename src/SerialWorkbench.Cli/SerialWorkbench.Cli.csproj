@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <AssemblyName>serial-workbench</AssemblyName>
+    <AssemblyName>SerialWorkbench.Cli</AssemblyName>
+    <AppHostName>SW_CLI</AppHostName>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="SerialWorkbench.Tests" />
