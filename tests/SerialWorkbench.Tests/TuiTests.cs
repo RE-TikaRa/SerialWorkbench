@@ -598,6 +598,85 @@ public sealed class TuiTests
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SuccessfulConnectionReturnsToTheWorkbenchAndFocusesSending(bool fromSettings)
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-connection-success-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create().Init();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var driver = Assert.IsAssignableFrom<Terminal.Gui.Drivers.IDriver>(app.Driver);
+        driver.SetScreenSize(80, 24);
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        var input = Assert.Single(SendingPanel(workbench).SubViews.OfType<TextField>(), static field => field.Id == "send-input");
+        input.Text = "55 AA";
+        var snapshot = new ConnectionSnapshot(Guid.NewGuid(), new SerialConnectionOptions("COM20"), ConnectionState.Open, 0, 0, 0, 0, 0, null, null);
+        var stage = 0;
+        var timedOut = false;
+        Exception? failure = null;
+        app.AddTimeout(TimeSpan.FromSeconds(5), () =>
+        {
+            timedOut = true;
+            app.RequestStop();
+            return false;
+        });
+        app.Iteration += (_, _) =>
+        {
+            if (timedOut || failure is not null)
+            {
+                app.RequestStop();
+                return;
+            }
+            try
+            {
+                if (app.TopRunnableView is Dialog dialog)
+                {
+                    Assert.Equal("连接管理", dialog.Title);
+                    stage = 2;
+                    workbench.ApplyOpenedConnection(snapshot);
+                    Assert.True(dialog.StopRequested);
+                }
+                else if (stage == 0)
+                {
+                    stage = 1;
+                    if (fromSettings)
+                    {
+                        workbench.Window.NewKeyDownEvent(Key.F8);
+                        Assert.IsAssignableFrom<View>(tabs.Value).SubViews.OfType<Button>()
+                            .Single(static button => button.Text == "连接管理").InvokeCommand(Command.Accept);
+                    }
+                    else
+                    {
+                        workbench.Window.NewKeyDownEvent(Key.F4);
+                    }
+                }
+                else if (stage == 2)
+                {
+                    Assert.Equal("1 工作台", tabs.Value?.Title);
+                    Assert.Same(input, workbench.Window.MostFocused);
+                    var request = workbench.CreateSendRequest();
+                    Assert.Equal(snapshot.Id, request.ConnectionId);
+                    Assert.Equal(new byte[] { 0x55, 0xAA }, request.Data);
+                    Assert.Null(workbench.ConnectionSettings.SuperView);
+                    stage = 3;
+                    app.RequestStop(workbench.Window);
+                }
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+                app.RequestStop();
+            }
+        };
+        app.Run(workbench.Window);
+        Assert.Null(failure);
+        Assert.Equal(3, stage);
+        Assert.False(timedOut);
+    }
+
     [Fact]
     public async Task FailedConnectionKeepsTheDialogOpenAndDisplaysItsError()
     {

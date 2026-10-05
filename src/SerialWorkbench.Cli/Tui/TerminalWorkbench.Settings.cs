@@ -16,6 +16,7 @@ public sealed partial class TerminalWorkbench
     private readonly ListView managedConnections = new() { Width = Dim.Fill(), Height = Dim.Fill(3) };
     private readonly Label connectionMessage = new() { Id = "connection-message", Y = Pos.AnchorEnd(), Width = Dim.Fill(), Height = 1 };
     private Dialog? connectionDialog;
+    private bool connectionOpened;
 
     internal View ConnectionSettings => connectionSettings;
 
@@ -100,6 +101,7 @@ public sealed partial class TerminalWorkbench
         managedConnections.Value = connections.Value;
         connectionMessage.Text = "";
         connectionDialog = dialog;
+        connectionOpened = false;
         dialog.Add(connectionSettings);
         dialog.AddButton(new Button { Text = "关闭", ShadowStyle = null });
         try
@@ -111,7 +113,7 @@ public sealed partial class TerminalWorkbench
             dialog.Remove(connectionSettings);
             connectionDialog = null;
         }
-        if (dialog.Result == 1)
+        if (connectionOpened)
         {
             input.SetFocus();
         }

@@ -539,24 +539,26 @@ public sealed partial class TerminalWorkbench : IDisposable
     {
         var options = ReadConnectionOptions();
         var snapshot = await client.OpenConnectionAsync(new OpenConnectionRequest(options), lifetime.Token).ConfigureAwait(false);
-        app.Invoke(() =>
+        app.Invoke(() => ApplyOpenedConnection(snapshot));
+    }
+
+    internal void ApplyOpenedConnection(ConnectionSnapshot snapshot)
+    {
+        connectionId = snapshot.Id;
+        SetConnections([.. snapshots.Where(item => item.Id != snapshot.Id), snapshot]);
+        ApplyConnectionOptions(snapshot.Options);
+        ResumeLiveTraffic();
+        tabs.Value = workbenchView;
+        message.Text = $"已连接 {snapshot.Options.PortName}，{snapshot.Options.BaudRate} baud";
+        if (connectionDialog is not null)
         {
-            connectionId = snapshot.Id;
-            SetConnections([.. snapshots.Where(item => item.Id != snapshot.Id), snapshot]);
-            ApplyConnectionOptions(snapshot.Options);
-            ResumeLiveTraffic();
-            tabs.Value = workbenchView;
-            message.Text = $"已连接 {snapshot.Options.PortName}，{snapshot.Options.BaudRate} baud";
-            if (connectionDialog is not null)
-            {
-                connectionDialog.Result = 1;
-                app.RequestStop(connectionDialog);
-            }
-            else
-            {
-                input.SetFocus();
-            }
-        });
+            connectionOpened = true;
+            app.RequestStop(connectionDialog);
+        }
+        else
+        {
+            input.SetFocus();
+        }
     }
 
     private async Task CloseConnectionAsync()
