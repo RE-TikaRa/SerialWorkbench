@@ -12,7 +12,7 @@ public sealed class EventJournal(int capacity = 100_000)
 
     public Guid StreamId { get; } = Guid.NewGuid();
 
-    public SerialTrafficEvent Append(Guid connectionId, SerialDirection direction, ReadOnlySpan<byte> data, string source, string? message = null)
+    public SerialTrafficEvent Append(Guid connectionId, SerialDirection direction, ReadOnlySpan<byte> data, string source, string? message = null, Guid? segmentId = null)
     {
         lock (gate)
         {
@@ -24,7 +24,8 @@ public sealed class EventJournal(int capacity = 100_000)
                 direction,
                 data.ToArray(),
                 source,
-                message);
+                message,
+                segmentId);
 
             events.AddLast(item);
             while (events.Count > capacity)

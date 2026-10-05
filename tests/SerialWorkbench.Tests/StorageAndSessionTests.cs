@@ -208,6 +208,31 @@ public sealed class StorageAndSessionTests
     }
 
     [Fact]
+    public async Task SessionPagesPreserveConnectionSegmentsAndRawBytes()
+    {
+        var paths = new ApplicationPaths(CreateArtifactDirectory("session-segments"));
+        paths.EnsureWritable();
+        var token = TestContext.Current.CancellationToken;
+        var connectionId = Guid.NewGuid();
+        var original = new[]
+        {
+            CreateEvent(1, connectionId, SerialDirection.Receive, [0xE6]) with { SegmentId = Guid.NewGuid() },
+            CreateEvent(2, connectionId, SerialDirection.Receive, [0xB5, 0x8B]) with { SegmentId = Guid.NewGuid() },
+        };
+        await using var store = new SessionStore(paths);
+        await store.AppendManyAsync(original, token);
+        var session = store.ActiveSession!;
+        await store.CompleteAsync(token);
+
+        var recorded = await store.ReadAllEventsAsync(session.Id, token);
+        var page = await store.ReadEventsAsync(session.Id, 1, token, afterSequence: 1);
+        Assert.Equal(2, session.SchemaVersion);
+        Assert.Equal(original.Select(static item => item.SegmentId), recorded.Select(static item => item.SegmentId));
+        Assert.Equal(original.SelectMany(static item => item.Data), recorded.SelectMany(static item => item.Data));
+        Assert.Equal(original[1].SegmentId, Assert.Single(page).SegmentId);
+    }
+
+    [Fact]
     public async Task EmptySessionCsvExportContainsHeaderOnly()
     {
         var applicationRoot = CreateArtifactDirectory("empty-session-export-app");
@@ -252,6 +277,14 @@ public sealed class StorageAndSessionTests
         var csv = await store.ExportCsvAsync(sessionId, cancellationToken);
 
         Assert.Equal("utc,direction,source,hex,byte_count\r\n", csv);
+        await using var legacy = new SqliteConnection($"Data Source={sessionPath};Mode=ReadWrite;Pooling=False");
+        await legacy.OpenAsync(cancellationToken);
+        await using var insert = legacy.CreateCommand();
+        insert.CommandText = "INSERT INTO events VALUES(1, '2026-08-26T01:02:03+00:00', 10, $connectionId, 'Receive', 'legacy', NULL, X'4142');";
+        insert.Parameters.AddWithValue("$connectionId", Guid.NewGuid().ToString("D"));
+        await insert.ExecuteNonQueryAsync(cancellationToken);
+        Assert.Null(Assert.Single(await store.ReadEventsAsync(sessionId, 10, cancellationToken)).SegmentId);
+        Assert.Equal([0x41, 0x42], Assert.Single(await store.ReadAllEventsAsync(sessionId, cancellationToken)).Data);
     }
 
     [Fact]

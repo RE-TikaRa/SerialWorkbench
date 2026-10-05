@@ -59,8 +59,8 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
             await using var sessionConnection = CreateReadOnlyConnection(session.Path);
             await sessionConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
             await using var command = sessionConnection.CreateCommand();
-            command.CommandText = """
-                SELECT sequence, utc, monotonic_ticks, connection_id, direction, data, source, message
+            command.CommandText = $"""
+                SELECT sequence, utc, monotonic_ticks, connection_id, direction, data, source, message, {(session.SchemaVersion >= 2 ? "segment_id" : "NULL")}
                 FROM events
                 WHERE sequence > $afterSequence
                   AND ($connectionId IS NULL OR connection_id = $connectionId)
@@ -88,7 +88,8 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
                     Enum.Parse<SerialDirection>(reader.GetString(4)),
                     (byte[])reader[5],
                     reader.GetString(6),
-                    reader.IsDBNull(7) ? null : reader.GetString(7)));
+                    reader.IsDBNull(7) ? null : reader.GetString(7),
+                    reader.IsDBNull(8) ? null : Guid.Parse(reader.GetString(8))));
             }
 
             return events;
@@ -109,8 +110,8 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
             await using var sessionConnection = CreateReadOnlyConnection(session.Path);
             await sessionConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
             await using var command = sessionConnection.CreateCommand();
-            command.CommandText = """
-                SELECT sequence, utc, monotonic_ticks, connection_id, direction, data, source, message
+            command.CommandText = $"""
+                SELECT sequence, utc, monotonic_ticks, connection_id, direction, data, source, message, {(session.SchemaVersion >= 2 ? "segment_id" : "NULL")}
                 FROM events
                 ORDER BY sequence;
                 """;
@@ -126,7 +127,8 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
                     Enum.Parse<SerialDirection>(reader.GetString(4)),
                     (byte[])reader[5],
                     reader.GetString(6),
-                    reader.IsDBNull(7) ? null : reader.GetString(7)));
+                    reader.IsDBNull(7) ? null : reader.GetString(7),
+                    reader.IsDBNull(8) ? null : Guid.Parse(reader.GetString(8))));
             }
 
             return events;
@@ -330,13 +332,14 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
                 await using var command = connection.CreateCommand();
                 command.Transaction = transaction;
                 command.CommandText = """
-                    INSERT INTO events(sequence, utc, monotonic_ticks, connection_id, direction, source, message, data)
-                    VALUES ($sequence, $utc, $monotonicTicks, $connectionId, $direction, $source, $message, $data);
+                    INSERT INTO events(sequence, utc, monotonic_ticks, connection_id, direction, source, message, data, segment_id)
+                    VALUES ($sequence, $utc, $monotonicTicks, $connectionId, $direction, $source, $message, $data, $segmentId);
                     """;
                 command.Parameters.AddWithValue("$sequence", item.Sequence);
                 command.Parameters.AddWithValue("$utc", item.Utc.ToString("O"));
                 command.Parameters.AddWithValue("$monotonicTicks", item.MonotonicTicks);
                 command.Parameters.AddWithValue("$connectionId", item.ConnectionId.ToString("D"));
+                command.Parameters.AddWithValue("$segmentId", (object?)item.SegmentId?.ToString("D") ?? DBNull.Value);
                 command.Parameters.AddWithValue("$direction", item.Direction.ToString());
                 command.Parameters.AddWithValue("$source", item.Source);
                 command.Parameters.AddWithValue("$message", (object?)item.Message ?? DBNull.Value);
@@ -443,7 +446,8 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
                     direction TEXT NOT NULL,
                     source TEXT NOT NULL,
                     message TEXT NULL,
-                    data BLOB NOT NULL
+                    data BLOB NOT NULL,
+                    segment_id TEXT NULL
                 );
                 CREATE INDEX events_connection_sequence ON events(connection_id, sequence);
                 CREATE TABLE loopback_results(
@@ -471,13 +475,13 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
 
         await using (var insert = connection.CreateCommand())
         {
-            insert.CommandText = "INSERT INTO session(id, started_utc, schema_version) VALUES ($id, $startedUtc, 1);";
+            insert.CommandText = "INSERT INTO session(id, started_utc, schema_version) VALUES ($id, $startedUtc, 2);";
             insert.Parameters.AddWithValue("$id", id.ToString("D"));
             insert.Parameters.AddWithValue("$startedUtc", startedUtc.ToString("O"));
             await insert.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        descriptor = new SessionDescriptor(id, sessionPath, startedUtc, null, 0, 0);
+        descriptor = new SessionDescriptor(id, sessionPath, startedUtc, null, 0, 0, 2);
     }
 
     private async Task<IReadOnlyList<SessionDescriptor>> ReadDescriptorsAsync(CancellationToken cancellationToken)
@@ -493,7 +497,7 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
             await using var sessionConnection = CreateReadOnlyConnection(path);
             await sessionConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
             await using var command = sessionConnection.CreateCommand();
-            command.CommandText = "SELECT id, started_utc, ended_utc, event_count, raw_byte_count FROM session LIMIT 1;";
+            command.CommandText = "SELECT id, started_utc, ended_utc, event_count, raw_byte_count, schema_version FROM session LIMIT 1;";
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
@@ -507,7 +511,8 @@ public sealed class SessionStore(ApplicationPaths paths) : IAsyncDisposable
                 DateTimeOffset.Parse(reader.GetString(1), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
                 reader.IsDBNull(2) ? null : DateTimeOffset.Parse(reader.GetString(2), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
                 reader.GetInt64(3),
-                reader.GetInt64(4));
+                reader.GetInt64(4),
+                reader.GetInt32(5));
             if (connection is not null && descriptor?.Id == id)
             {
                 session = ActiveSession!;

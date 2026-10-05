@@ -14,7 +14,7 @@ public sealed class SerialConnection : IAsyncDisposable
     private readonly SerialPort port;
     private readonly EventJournal journal;
     private readonly Func<SerialTrafficEvent, CancellationToken, ValueTask> persist;
-    private readonly CancellationTokenSource lifetime = new();
+    private CancellationTokenSource lifetime = new();
     private readonly SemaphoreSlim writeGate = new(1, 1);
     private readonly ConcurrentDictionary<Guid, Subscription> subscriptions = [];
     private Task? readerTask;
@@ -55,27 +55,66 @@ public sealed class SerialConnection : IAsyncDisposable
 
     public Guid Id { get; }
 
-    public SerialConnectionOptions Options { get; }
+    public SerialConnectionOptions Options { get; private set; }
+
+    public Guid SegmentId { get; private set; }
+
+    public int SegmentNumber { get; private set; }
 
     public ConnectionState State { get; private set; } = ConnectionState.Closed;
 
-    public Task OpenAsync(CancellationToken cancellationToken)
+    public async Task OpenAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         State = ConnectionState.Opening;
         try
         {
             port.Open();
-            Interlocked.Exchange(ref openedTimestamp, Stopwatch.GetTimestamp());
+            SegmentId = Guid.NewGuid();
+            SegmentNumber++;
+            Interlocked.CompareExchange(ref openedTimestamp, Stopwatch.GetTimestamp(), 0);
             State = ConnectionState.Open;
+            error = null;
+            await PublishStateAsync("opened", cancellationToken).ConfigureAwait(false);
             readerTask = Task.Run(() => ReadLoopAsync(lifetime.Token), CancellationToken.None);
-            return Task.CompletedTask;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
         {
             error = ex.Message;
             State = ConnectionState.Faulted;
             throw;
+        }
+    }
+
+    public async Task ReconnectAsync(string portName, CancellationToken cancellationToken)
+    {
+        await writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            State = ConnectionState.Reconnecting;
+            await PublishStateAsync("reconnecting", cancellationToken).ConfigureAwait(false);
+            lifetime.Cancel();
+            port.Close();
+            if (readerTask is not null)
+            {
+                try
+                {
+                    await readerTask.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+                {
+                }
+            }
+
+            lifetime.Dispose();
+            lifetime = new CancellationTokenSource();
+            port.PortName = portName;
+            Options = Options with { PortName = portName, DtrEnable = dtrEnable, RtsEnable = rtsEnable };
+            await OpenAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            writeGate.Release();
         }
     }
 
@@ -107,7 +146,7 @@ public sealed class SerialConnection : IAsyncDisposable
             Interlocked.Add(ref transmittedBytes, data.Length);
             Interlocked.Increment(ref transmitOperations);
             MarkActivity();
-            var item = journal.Append(Id, SerialDirection.Transmit, data.Span, source);
+            var item = journal.Append(Id, SerialDirection.Transmit, data.Span, source, segmentId: SegmentId);
             await persist(item, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or TimeoutException)
@@ -235,7 +274,9 @@ public sealed class SerialConnection : IAsyncDisposable
             controlLines,
             subscriptions.Values.Sum(static subscription => subscription.DroppedBlocks),
             elapsedSeconds > 0 ? received / elapsedSeconds : 0,
-            elapsedSeconds > 0 ? transmitted / elapsedSeconds : 0);
+            elapsedSeconds > 0 ? transmitted / elapsedSeconds : 0,
+            SegmentId,
+            SegmentNumber);
     }
 
     public async ValueTask DisposeAsync()
@@ -294,6 +335,7 @@ public sealed class SerialConnection : IAsyncDisposable
                     Interlocked.Increment(ref errorCount);
                     error = ex.Message;
                     State = ConnectionState.Faulted;
+                    await PublishStateAsync("disconnected", CancellationToken.None).ConfigureAwait(false);
                     break;
                 }
 
@@ -306,7 +348,7 @@ public sealed class SerialConnection : IAsyncDisposable
                 Interlocked.Add(ref receivedBytes, count);
                 Interlocked.Increment(ref receiveBlocks);
                 MarkActivity();
-                var item = journal.Append(Id, SerialDirection.Receive, data, "serial");
+                var item = journal.Append(Id, SerialDirection.Receive, data, "serial", segmentId: SegmentId);
                 await persist(item, cancellationToken).ConfigureAwait(false);
 
                 foreach (var subscription in subscriptions.Values)
@@ -323,8 +365,16 @@ public sealed class SerialConnection : IAsyncDisposable
         finally
         {
             ArrayPool<byte>.Shared.Return(buffer);
+            foreach (var subscription in subscriptions.Values)
+            {
+                subscription.Channel.Writer.TryComplete(State == ConnectionState.Faulted ? new IOException(error) : null);
+            }
+            subscriptions.Clear();
         }
     }
+
+    private ValueTask PublishStateAsync(string state, CancellationToken cancellationToken) =>
+        persist(journal.Append(Id, SerialDirection.Receive, [], "serial.state", state, SegmentId), cancellationToken);
 
     private void MarkActivity() => Interlocked.Exchange(ref lastActivityUnixMilliseconds, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 

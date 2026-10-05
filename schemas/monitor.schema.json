@@ -144,6 +144,10 @@
         "minimum": 0,
         "maximum": 60000
       },
+      "--no-reconnect": {
+        "type": "boolean",
+        "default": false
+      },
       "--seconds": {
         "type": [
           "string",
@@ -386,6 +390,14 @@
                   "string",
                   "null"
                 ],
+                "default": null
+              },
+              "segmentId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
                 "default": null
               }
             },

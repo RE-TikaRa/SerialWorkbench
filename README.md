@@ -8,7 +8,7 @@ SerialWorkbench 是面向 Windows 11 的串口调试工作台。它把串口连�
 - 配置端口、波特率、数据位、校验、停止位、流控、DTR 和 RTS。
 - 保存、重命名、删除和应用命名串口连接配置。
 - 为连接配置 `DUT`、`DEBUG`、`CONTROLLER` 或 `LOOPBACK` 逻辑角色。
-- 保存设备实例标识，端口刷新后按 `DeviceInstanceId` 恢复当前连接。
+- Host 按 `DeviceInstanceId` 自动恢复断开的设备，保持共享连接标识，并为每次打开记录独立分段。
 - 在连接管理页同时打开、切换和关闭多条串口连接，并分别查看角色、设备身份、收发计数和事件历史；这里打开的连接使用 8N1、无流控，编码沿用工作台设置。
 - 在连接管理页查看 DTR、RTS、CTS、DSR 和 DCD 状态，RI 在当前串口 API 下显示为未知。
 - 在连接管理页查看 Host 最新事件序号和待持久化事件数量。
@@ -60,6 +60,8 @@ SerialWorkbench.Host.exe  串口和会话服务
 `connections open --port COM16` 创建持久连接，`connections list` 查询连接标识，`connections close --id CONNECTION_ID` 明确关闭。发送、监视、Modbus 和 XMODEM 命令可通过 `--connection CONNECTION_ID` 使用现有连接，命令结束后保留连接。使用 `--port` 的一次性命令创建并关闭自己的临时连接。
 
 Host 在存在客户端、连接或写入任务时保持运行；全部结束后等待 30 秒退出。
+
+设备断开后由 Host 每两秒检查恢复条件，WinUI、TUI 和 Agent 共用同一个 `connectionId`。重连更换 `segmentId`，原始事件和会话保留分段，文本与 HEX 不跨分段拼接。周期读取等待设备恢复；写入、自动化和文件传输停止，不自动重放。`connections reconnect --id CONNECTION_ID` 明确重连，`connections open --no-reconnect` 关闭自动恢复。
 
 ## Host 任务
 

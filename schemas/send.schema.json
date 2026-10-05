@@ -144,6 +144,10 @@
         "minimum": 0,
         "maximum": 60000
       },
+      "--no-reconnect": {
+        "type": "boolean",
+        "default": false
+      },
       "--text": {
         "type": [
           "string",

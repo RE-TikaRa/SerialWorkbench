@@ -17,6 +17,9 @@ public sealed class SerialConnectionManager(
 {
     private readonly ConcurrentDictionary<Guid, SerialConnection> connections = [];
     private readonly SemaphoreSlim connectionGate = new(1, 1);
+    private TaskCompletionSource connectionsChanged = NewSignal();
+
+    public bool HasConnections => !connections.IsEmpty;
 
     public IReadOnlyList<ConnectionSnapshot> GetSnapshots() => connections.Values.Select(static item => item.GetSnapshot()).OrderBy(static item => item.Options.PortName).ToArray();
 
@@ -62,12 +65,14 @@ public sealed class SerialConnectionManager(
             try
             {
                 await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+                SignalChanged();
                 return connection.GetSnapshot();
             }
             catch
             {
                 connections.TryRemove(connection.Id, out _);
                 await connection.DisposeAsync().ConfigureAwait(false);
+                SignalChanged();
                 throw;
             }
         }
@@ -77,6 +82,60 @@ public sealed class SerialConnectionManager(
         }
     }
 
+    public async Task<ConnectionSnapshot> ReconnectAsync(Guid id, string portName, CancellationToken cancellationToken)
+    {
+        await connectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var connection = Get(id);
+            await connection.ReconnectAsync(portName, cancellationToken).ConfigureAwait(false);
+            SignalChanged();
+            return connection.GetSnapshot();
+        }
+        finally
+        {
+            connectionGate.Release();
+        }
+    }
+
+    public async Task WaitForOpenAsync(Guid id, CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            Task notification;
+            await connectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var connection = Get(id);
+                if (connection.State == ConnectionState.Open)
+                {
+                    return;
+                }
+                if (!connection.Options.AutoReconnect || connection.Options.DeviceInstanceId is null)
+                {
+                    throw new InvalidOperationException($"Connection {id} cannot reconnect automatically.");
+                }
+
+                notification = connectionsChanged.Task;
+            }
+            finally
+            {
+                connectionGate.Release();
+            }
+
+            await notification.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private void SignalChanged()
+    {
+        var previous = connectionsChanged;
+        connectionsChanged = NewSignal();
+        previous.TrySetResult();
+    }
+
+    private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     public async Task CloseAsync(Guid id)
     {
         await connectionGate.WaitAsync().ConfigureAwait(false);
@@ -85,6 +144,7 @@ public sealed class SerialConnectionManager(
             if (connections.TryRemove(id, out var connection))
             {
                 await connection.DisposeAsync().ConfigureAwait(false);
+                SignalChanged();
             }
         }
         finally

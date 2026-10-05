@@ -181,10 +181,11 @@ public sealed class OperationManager(HostRuntime runtime) : IAsyncDisposable
         }
     }
 
-    public async Task CancelConnectionAsync(Guid connectionId, CancellationToken cancellationToken)
+    public async Task CancelConnectionAsync(Guid connectionId, CancellationToken cancellationToken, bool preserveReads = false)
     {
         var running = (await ListAsync(cancellationToken).ConfigureAwait(false))
-            .Where(item => item.Request.ConnectionId == connectionId && item.State == OperationState.Running);
+            .Where(item => item.Request.ConnectionId == connectionId && item.State == OperationState.Running
+                && (!preserveReads || item.Request.Command != "modbus.poll"));
         foreach (var operation in running)
         {
             await CancelAsync(operation.Id, cancellationToken).ConfigureAwait(false);
@@ -373,8 +374,19 @@ public sealed class OperationManager(HostRuntime runtime) : IAsyncDisposable
         var samples = new List<ModbusSample>();
         for (var index = 0; index < request.Count; index++)
         {
+            await runtime.Connections.WaitForOpenAsync(request.ConnectionId, cancellationToken).ConfigureAwait(false);
+            var segmentId = runtime.Connections.GetSnapshots().First(item => item.Id == request.ConnectionId).SegmentId;
             var frame = ModbusRtuCodec.BuildReadRequest(request.SlaveAddress, request.FunctionCode, request.Address, request.Quantity);
-            var response = await runtime.Connections.RunModbusAsync(new ModbusTransactionRequest(request.ConnectionId, frame, request.SlaveAddress, request.FunctionCode, request.TimeoutMilliseconds), cancellationToken, lease).ConfigureAwait(false);
+            ModbusTransactionResult response;
+            try
+            {
+                response = await runtime.Connections.RunModbusAsync(new ModbusTransactionRequest(request.ConnectionId, frame, request.SlaveAddress, request.FunctionCode, request.TimeoutMilliseconds), cancellationToken, lease).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is (IOException or InvalidOperationException or System.Threading.Channels.ChannelClosedException)
+                && runtime.Connections.GetSnapshots().Any(item => item.Id == request.ConnectionId && (item.State != ConnectionState.Open || item.SegmentId != segmentId)))
+            {
+                response = new ModbusTransactionResult(false, [], request.FunctionCode, [], null, null, null, TimeSpan.Zero, "Device disconnected.", ErrorCode: "DEVICE_DISCONNECTED");
+            }
             var sample = new ModbusSample(index + 1, request.SlaveAddress, DateTimeOffset.UtcNow, response);
             samples.Add(sample);
             report(new OperationProgress(index + 1, request.Count, "samples", ItemJson: JsonSerializer.Serialize(sample, OperationJson.Options)));

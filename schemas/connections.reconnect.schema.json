@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "command": "connections.open",
+  "command": "connections.reconnect",
   "input": {
     "type": "object",
     "additionalProperties": false,
@@ -33,120 +33,13 @@
         "type": "boolean",
         "default": false
       },
-      "--port": {
-        "type": [
-          "string",
-          "null"
-        ]
-      },
-      "--baud": {
-        "type": [
-          "string",
-          "integer"
-        ],
-        "pattern": "^-?(?:0|[1-9]\\d*)$",
-        "default": 115200,
-        "minimum": 1,
-        "maximum": 2147483647
-      },
-      "--data-bits": {
-        "type": [
-          "string",
-          "integer"
-        ],
-        "pattern": "^-?(?:0|[1-9]\\d*)$",
-        "default": 8,
-        "minimum": 5,
-        "maximum": 8
-      },
-      "--parity": {
-        "enum": [
-          "None",
-          "Odd",
-          "Even",
-          "Mark",
-          "Space"
-        ],
-        "default": "None"
-      },
-      "--stop-bits": {
-        "enum": [
-          "One",
-          "OnePointFive",
-          "Two"
-        ],
-        "default": "One"
-      },
-      "--handshake": {
-        "enum": [
-          "None",
-          "XOnXOff",
-          "RequestToSend",
-          "RequestToSendXOnXOff"
-        ],
-        "default": "None"
-      },
-      "--role": {
-        "enum": [
-          "Dut",
-          "Debug",
-          "Controller",
-          "Loopback"
-        ],
-        "default": "Dut"
-      },
-      "--encoding": {
-        "type": [
-          "string",
-          "null"
-        ],
-        "default": "utf-8"
-      },
-      "--device-id": {
-        "type": [
-          "string",
-          "null"
-        ]
-      },
-      "--dtr": {
-        "type": "boolean",
-        "default": false
-      },
-      "--rts": {
-        "type": "boolean",
-        "default": false
-      },
-      "--rs485": {
-        "type": "boolean",
-        "default": false
-      },
-      "--rts-before": {
-        "type": [
-          "string",
-          "integer"
-        ],
-        "pattern": "^-?(?:0|[1-9]\\d*)$",
-        "default": 0,
-        "minimum": 0,
-        "maximum": 60000
-      },
-      "--rts-after": {
-        "type": [
-          "string",
-          "integer"
-        ],
-        "pattern": "^-?(?:0|[1-9]\\d*)$",
-        "default": 0,
-        "minimum": 0,
-        "maximum": 60000
-      },
-      "--no-reconnect": {
-        "type": "boolean",
-        "default": false
+      "--id": {
+        "type": "string",
+        "format": "uuid"
       }
     },
     "required": [
-      "--port"
+      "--id"
     ]
   },
   "output": {
@@ -159,7 +52,7 @@
         "const": 2
       },
       "command": {
-        "const": "connections.open"
+        "const": "connections.reconnect"
       },
       "type": {
         "const": "result"

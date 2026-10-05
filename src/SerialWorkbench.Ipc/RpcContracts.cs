@@ -5,7 +5,7 @@ namespace SerialWorkbench.Ipc;
 public static class RpcProtocol
 {
     public const int MajorVersion = 1;
-    public const int MinorVersion = 4;
+    public const int MinorVersion = 5;
 }
 
 public sealed record HandshakeRequest(int MajorVersion, int MinorVersion, string ClientName, string Culture);
@@ -74,6 +74,8 @@ public interface IHostRpc
     Task<ConnectionSnapshot> OpenConnectionAsync(OpenConnectionRequest request, CancellationToken cancellationToken);
 
     Task<RpcResult> CloseConnectionAsync(Guid connectionId, CancellationToken cancellationToken);
+
+    Task<ConnectionSnapshot> ReconnectConnectionAsync(Guid connectionId, CancellationToken cancellationToken);
 
     Task<RpcResult> SendAsync(SendRequest request, CancellationToken cancellationToken);
 

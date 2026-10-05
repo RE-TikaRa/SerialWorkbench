@@ -807,6 +807,10 @@
                         ],
                         "pattern": "^-?(?:0|[1-9]\\d*)$",
                         "default": 0
+                      },
+                      "autoReconnect": {
+                        "type": "boolean",
+                        "default": true
                       }
                     },
                     "required": [
@@ -931,6 +935,22 @@
                     ],
                     "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
                     "default": 0
+                  },
+                  "segmentId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid",
+                    "default": null
+                  },
+                  "segmentNumber": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ],
+                    "pattern": "^-?(?:0|[1-9]\\d*)$",
+                    "default": 1
                   }
                 },
                 "required": [
@@ -984,6 +1004,14 @@
                     "integer"
                   ],
                   "pattern": "^-?(?:0|[1-9]\\d*)$"
+                },
+                "schemaVersion": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "pattern": "^-?(?:0|[1-9]\\d*)$",
+                  "default": 1
                 }
               },
               "required": [
@@ -1391,6 +1419,10 @@
                         ],
                         "pattern": "^-?(?:0|[1-9]\\d*)$",
                         "default": 0
+                      },
+                      "autoReconnect": {
+                        "type": "boolean",
+                        "default": true
                       }
                     },
                     "required": [
@@ -1515,6 +1547,22 @@
                     ],
                     "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
                     "default": 0
+                  },
+                  "segmentId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid",
+                    "default": null
+                  },
+                  "segmentNumber": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ],
+                    "pattern": "^-?(?:0|[1-9]\\d*)$",
+                    "default": 1
                   }
                 },
                 "required": [
@@ -1568,6 +1616,14 @@
                     "integer"
                   ],
                   "pattern": "^-?(?:0|[1-9]\\d*)$"
+                },
+                "schemaVersion": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "pattern": "^-?(?:0|[1-9]\\d*)$",
+                  "default": 1
                 }
               },
               "required": [
@@ -1864,6 +1920,10 @@
                         ],
                         "pattern": "^-?(?:0|[1-9]\\d*)$",
                         "default": 0
+                      },
+                      "autoReconnect": {
+                        "type": "boolean",
+                        "default": true
                       }
                     },
                     "required": [
@@ -1988,6 +2048,22 @@
                     ],
                     "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
                     "default": 0
+                  },
+                  "segmentId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid",
+                    "default": null
+                  },
+                  "segmentNumber": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ],
+                    "pattern": "^-?(?:0|[1-9]\\d*)$",
+                    "default": 1
                   }
                 },
                 "required": [
@@ -2041,6 +2117,14 @@
                     "integer"
                   ],
                   "pattern": "^-?(?:0|[1-9]\\d*)$"
+                },
+                "schemaVersion": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "pattern": "^-?(?:0|[1-9]\\d*)$",
+                  "default": 1
                 }
               },
               "required": [
@@ -2337,6 +2421,10 @@
                         ],
                         "pattern": "^-?(?:0|[1-9]\\d*)$",
                         "default": 0
+                      },
+                      "autoReconnect": {
+                        "type": "boolean",
+                        "default": true
                       }
                     },
                     "required": [
@@ -2461,6 +2549,22 @@
                     ],
                     "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
                     "default": 0
+                  },
+                  "segmentId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid",
+                    "default": null
+                  },
+                  "segmentNumber": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ],
+                    "pattern": "^-?(?:0|[1-9]\\d*)$",
+                    "default": 1
                   }
                 },
                 "required": [
@@ -2514,6 +2618,14 @@
                     "integer"
                   ],
                   "pattern": "^-?(?:0|[1-9]\\d*)$"
+                },
+                "schemaVersion": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "pattern": "^-?(?:0|[1-9]\\d*)$",
+                  "default": 1
                 }
               },
               "required": [
@@ -2785,6 +2897,10 @@
                     ],
                     "pattern": "^-?(?:0|[1-9]\\d*)$",
                     "default": 0
+                  },
+                  "autoReconnect": {
+                    "type": "boolean",
+                    "default": true
                   }
                 },
                 "required": [
@@ -2909,6 +3025,22 @@
                 ],
                 "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
                 "default": 0
+              },
+              "segmentId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "default": null
+              },
+              "segmentNumber": {
+                "type": [
+                  "string",
+                  "integer"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$",
+                "default": 1
               }
             },
             "required": [
@@ -3121,6 +3253,10 @@
                   ],
                   "pattern": "^-?(?:0|[1-9]\\d*)$",
                   "default": 0
+                },
+                "autoReconnect": {
+                  "type": "boolean",
+                  "default": true
                 }
               },
               "required": [
@@ -3245,6 +3381,22 @@
               ],
               "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
               "default": 0
+            },
+            "segmentId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid",
+              "default": null
+            },
+            "segmentNumber": {
+              "type": [
+                "string",
+                "integer"
+              ],
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "default": 1
             }
           },
           "required": [
@@ -3369,6 +3521,361 @@
           },
           "required": [
             "success"
+          ]
+        },
+        "error": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            },
+            "connectionId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid",
+              "default": null
+            },
+            "operationId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid",
+              "default": null
+            },
+            "owner": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ]
+        },
+        "operationId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid",
+          "default": null
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "command",
+        "type",
+        "status",
+        "time",
+        "result",
+        "error",
+        "operationId"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    },
+    {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 2
+        },
+        "command": {
+          "const": "connections.reconnect"
+        },
+        "type": {
+          "const": "result"
+        },
+        "status": {
+          "enum": [
+            "success",
+            "running",
+            "error",
+            "cancelled"
+          ]
+        },
+        "time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "result": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "options": {
+              "type": "object",
+              "properties": {
+                "portName": {
+                  "type": "string"
+                },
+                "baudRate": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "pattern": "^-?(?:0|[1-9]\\d*)$",
+                  "default": 115200
+                },
+                "dataBits": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "pattern": "^-?(?:0|[1-9]\\d*)$",
+                  "default": 8
+                },
+                "parity": {
+                  "enum": [
+                    "None",
+                    "Odd",
+                    "Even",
+                    "Mark",
+                    "Space"
+                  ],
+                  "default": "None"
+                },
+                "stopBits": {
+                  "enum": [
+                    "One",
+                    "OnePointFive",
+                    "Two"
+                  ],
+                  "default": "One"
+                },
+                "handshake": {
+                  "enum": [
+                    "None",
+                    "XOnXOff",
+                    "RequestToSend",
+                    "RequestToSendXOnXOff"
+                  ],
+                  "default": "None"
+                },
+                "dtrEnable": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "rtsEnable": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "encodingName": {
+                  "type": "string",
+                  "default": "utf-8"
+                },
+                "role": {
+                  "enum": [
+                    "Dut",
+                    "Debug",
+                    "Controller",
+                    "Loopback"
+                  ],
+                  "default": "Dut"
+                },
+                "deviceInstanceId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "default": null
+                },
+                "rs485Mode": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "rtsBeforeSendMilliseconds": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "pattern": "^-?(?:0|[1-9]\\d*)$",
+                  "default": 0
+                },
+                "rtsAfterSendMilliseconds": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "pattern": "^-?(?:0|[1-9]\\d*)$",
+                  "default": 0
+                },
+                "autoReconnect": {
+                  "type": "boolean",
+                  "default": true
+                }
+              },
+              "required": [
+                "portName"
+              ]
+            },
+            "state": {
+              "enum": [
+                "Closed",
+                "Opening",
+                "Open",
+                "Reconnecting",
+                "Faulted"
+              ]
+            },
+            "receivedBytes": {
+              "type": [
+                "string",
+                "integer"
+              ],
+              "pattern": "^-?(?:0|[1-9]\\d*)$"
+            },
+            "transmittedBytes": {
+              "type": [
+                "string",
+                "integer"
+              ],
+              "pattern": "^-?(?:0|[1-9]\\d*)$"
+            },
+            "receiveBlocks": {
+              "type": [
+                "string",
+                "integer"
+              ],
+              "pattern": "^-?(?:0|[1-9]\\d*)$"
+            },
+            "transmitOperations": {
+              "type": [
+                "string",
+                "integer"
+              ],
+              "pattern": "^-?(?:0|[1-9]\\d*)$"
+            },
+            "errorCount": {
+              "type": [
+                "string",
+                "integer"
+              ],
+              "pattern": "^-?(?:0|[1-9]\\d*)$"
+            },
+            "lastActivityUtc": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "error": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "controlLines": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "dtrEnable": {
+                  "type": "boolean"
+                },
+                "rtsEnable": {
+                  "type": "boolean"
+                },
+                "ctsHolding": {
+                  "type": "boolean"
+                },
+                "dsrHolding": {
+                  "type": "boolean"
+                },
+                "carrierDetect": {
+                  "type": "boolean"
+                },
+                "ringIndicator": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "dtrEnable",
+                "rtsEnable",
+                "ctsHolding",
+                "dsrHolding",
+                "carrierDetect",
+                "ringIndicator"
+              ],
+              "default": null
+            },
+            "observerDroppedBlocks": {
+              "type": [
+                "string",
+                "integer"
+              ],
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "default": 0
+            },
+            "receivedBytesPerSecond": {
+              "type": [
+                "string",
+                "number"
+              ],
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+              "default": 0
+            },
+            "transmittedBytesPerSecond": {
+              "type": [
+                "string",
+                "number"
+              ],
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+              "default": 0
+            },
+            "segmentId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid",
+              "default": null
+            },
+            "segmentNumber": {
+              "type": [
+                "string",
+                "integer"
+              ],
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "default": 1
+            }
+          },
+          "required": [
+            "id",
+            "options",
+            "state",
+            "receivedBytes",
+            "transmittedBytes",
+            "receiveBlocks",
+            "transmitOperations",
+            "errorCount",
+            "lastActivityUtc",
+            "error"
           ]
         },
         "error": {
@@ -4887,6 +5394,14 @@
                   "integer"
                 ],
                 "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "schemaVersion": {
+                "type": [
+                  "string",
+                  "integer"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$",
+                "default": 1
               }
             },
             "required": [
@@ -5029,6 +5544,14 @@
                     "integer"
                   ],
                   "pattern": "^-?(?:0|[1-9]\\d*)$"
+                },
+                "schemaVersion": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "pattern": "^-?(?:0|[1-9]\\d*)$",
+                  "default": 1
                 }
               },
               "required": [
@@ -5087,6 +5610,14 @@
                       "string",
                       "null"
                     ],
+                    "default": null
+                  },
+                  "segmentId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid",
                     "default": null
                   }
                 },

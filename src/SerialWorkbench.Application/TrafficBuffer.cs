@@ -12,13 +12,13 @@ public sealed class TrafficBuffer(Encoding encoding, int capacity = 20_000)
 {
     private readonly int capacity = capacity > 0 ? capacity : throw new ArgumentOutOfRangeException(nameof(capacity));
     private readonly List<SerialTrafficEvent> events = [];
-    private readonly Dictionary<(Guid ConnectionId, SerialDirection Direction, string Source), TextStream> streams = [];
+    private readonly Dictionary<(Guid ConnectionId, Guid? SegmentId, SerialDirection Direction, string Source), TextStream> streams = [];
     private Encoding encoding = encoding;
     private bool text;
     private bool showTime = true;
     private int hexReceiveGapMilliseconds = 10;
     private SerialTrafficEvent? lastHexEvent;
-    private (Guid ConnectionId, SerialDirection Direction, string Source)? currentStream;
+    private (Guid ConnectionId, Guid? SegmentId, SerialDirection Direction, string Source)? currentStream;
     private TrafficRow? currentRow;
 
     public ObservableCollection<TrafficRow> Rows { get; } = [];
@@ -113,6 +113,7 @@ public sealed class TrafficBuffer(Encoding encoding, int capacity = 20_000)
             if (hexReceiveGapMilliseconds != 0 && currentRow is { } pending && lastHexEvent is { } previous
                 && item.Direction == SerialDirection.Receive && previous.Direction == SerialDirection.Receive
                 && item.ConnectionId == previous.ConnectionId && item.Source == previous.Source
+                && item.SegmentId == previous.SegmentId
                 && item.Data.Length != 0 && previous.Data.Length != 0
                 && item.Utc >= previous.Utc && item.Utc - previous.Utc <= TimeSpan.FromMilliseconds(hexReceiveGapMilliseconds))
             {
@@ -136,7 +137,7 @@ public sealed class TrafficBuffer(Encoding encoding, int capacity = 20_000)
             return;
         }
 
-        var key = (item.ConnectionId, item.Direction, item.Source);
+        var key = (item.ConnectionId, item.SegmentId, item.Direction, item.Source);
         if (currentStream != key)
         {
             currentStream = key;
@@ -224,6 +225,10 @@ public sealed class TrafficRow : INotifyPropertyChanged
         IsReceive = item.Direction == SerialDirection.Receive;
         Time = item.Utc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
         Source = item.Source;
+        if (item.Data.Length == 0)
+        {
+            content.Append(item.Message);
+        }
     }
 
     private TrafficRow(TrafficRow row)
@@ -262,7 +267,7 @@ public sealed class TrafficRow : INotifyPropertyChanged
 
     internal void Refresh(bool text, bool showTime)
     {
-        Display = text ? content.ToString() : HexCodec.Format(CollectionsMarshal.AsSpan(data));
+        Display = text || data.Count == 0 ? content.ToString() : HexCodec.Format(CollectionsMarshal.AsSpan(data));
         Hex = Convert.ToHexString(CollectionsMarshal.AsSpan(data));
         ShowTimestamp = showTime;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Display)));

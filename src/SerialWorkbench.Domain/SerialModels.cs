@@ -61,7 +61,8 @@ public sealed record SerialConnectionOptions(
     string? DeviceInstanceId = null,
     bool Rs485Mode = false,
     int RtsBeforeSendMilliseconds = 0,
-    int RtsAfterSendMilliseconds = 0);
+    int RtsAfterSendMilliseconds = 0,
+    bool AutoReconnect = true);
 
 public sealed record SerialPortDescriptor(
     string PortName,
@@ -85,7 +86,9 @@ public sealed record ConnectionSnapshot(
     SerialControlLineStatus? ControlLines = null,
     long ObserverDroppedBlocks = 0,
     double ReceivedBytesPerSecond = 0,
-    double TransmittedBytesPerSecond = 0);
+    double TransmittedBytesPerSecond = 0,
+    Guid? SegmentId = null,
+    int SegmentNumber = 1);
 
 public sealed record SerialControlLines(bool DtrEnable, bool RtsEnable);
 
@@ -105,7 +108,8 @@ public sealed record SerialTrafficEvent(
     SerialDirection Direction,
     byte[] Data,
     string Source,
-    string? Message = null);
+    string? Message = null,
+    Guid? SegmentId = null);
 
 public sealed record LoopbackRequest(
     Guid ConnectionId,
@@ -202,4 +206,5 @@ public sealed record SessionDescriptor(
     DateTimeOffset StartedUtc,
     DateTimeOffset? EndedUtc,
     long EventCount,
-    long RawByteCount);
+    long RawByteCount,
+    int SchemaVersion = 1);

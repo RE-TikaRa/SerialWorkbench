@@ -199,6 +199,10 @@
                       ],
                       "pattern": "^-?(?:0|[1-9]\\d*)$",
                       "default": 0
+                    },
+                    "autoReconnect": {
+                      "type": "boolean",
+                      "default": true
                     }
                   },
                   "required": [
@@ -323,6 +327,22 @@
                   ],
                   "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
                   "default": 0
+                },
+                "segmentId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid",
+                  "default": null
+                },
+                "segmentNumber": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "pattern": "^-?(?:0|[1-9]\\d*)$",
+                  "default": 1
                 }
               },
               "required": [
@@ -376,6 +396,14 @@
                   "integer"
                 ],
                 "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "schemaVersion": {
+                "type": [
+                  "string",
+                  "integer"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$",
+                "default": 1
               }
             },
             "required": [

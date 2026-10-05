@@ -67,6 +67,9 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
     public Task<ConnectionSnapshot> OpenConnectionAsync(OpenConnectionRequest request, CancellationToken cancellationToken) =>
         runtime.OpenConnectionAsync(request, cancellationToken);
 
+    public Task<ConnectionSnapshot> ReconnectConnectionAsync(Guid connectionId, CancellationToken cancellationToken) =>
+        runtime.ReconnectConnectionAsync(connectionId, cancellationToken);
+
     public async Task<RpcResult> CloseConnectionAsync(Guid connectionId, CancellationToken cancellationToken)
     {
         await runtime.CloseConnectionAsync(connectionId, cancellationToken).ConfigureAwait(false);

@@ -14,6 +14,7 @@ public sealed class HostRuntime : IAsyncDisposable
     private readonly CancellationTokenSource stopping = new();
     private readonly Channel<SerialTrafficEvent> sessionEvents = Channel.CreateUnbounded<SerialTrafficEvent>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
     private readonly Task sessionWriter;
+    private readonly Task connectionMonitor;
     private readonly object sessionQueueGate = new();
     private readonly SemaphoreSlim connectionGate = new(1, 1);
     private TaskCompletionSource<bool> sessionFlushed = CompletedSignal();
@@ -33,6 +34,7 @@ public sealed class HostRuntime : IAsyncDisposable
         Connections = new SerialConnectionManager(Journal, Leases, PersistAsync);
         Operations = new OperationManager(this);
         sessionWriter = Task.Run(WriteSessionEventsAsync);
+        connectionMonitor = Task.Run(MaintainConnectionsAsync);
     }
 
     public ApplicationPaths Paths { get; private set; }
@@ -79,7 +81,7 @@ public sealed class HostRuntime : IAsyncDisposable
 
     public bool ShouldStopAfterIdle(TimeSpan idleTimeout)
     {
-        if (ClientCount != 0 || Connections.GetSnapshots().Count != 0 || Leases.ActiveCount != 0 || Operations.ActiveCount != 0)
+        if (ClientCount != 0 || Connections.HasConnections || Leases.ActiveCount != 0 || Operations.ActiveCount != 0)
         {
             Interlocked.Exchange(ref idleSinceUnixMilliseconds, 0);
             return false;
@@ -97,8 +99,35 @@ public sealed class HostRuntime : IAsyncDisposable
         await connectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            if (request.Options.DeviceInstanceId is null)
+            {
+                var ports = await SerialPortCatalog.GetPortsAsync(cancellationToken).ConfigureAwait(false);
+                var port = ports.FirstOrDefault(item => item.PortName.Equals(request.Options.PortName, StringComparison.OrdinalIgnoreCase));
+                request = request with { Options = request.Options with { DeviceInstanceId = port?.DeviceInstanceId } };
+            }
             await Sessions.EnsureSessionAsync(cancellationToken).ConfigureAwait(false);
             return await Connections.OpenAsync(request.Options, cancellationToken, request.ReuseExisting).ConfigureAwait(false);
+        }
+        finally
+        {
+            connectionGate.Release();
+        }
+    }
+
+    public async Task<ConnectionSnapshot> ReconnectConnectionAsync(Guid id, CancellationToken cancellationToken)
+    {
+        await connectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var snapshot = Connections.GetSnapshots().FirstOrDefault(item => item.Id == id)
+                ?? throw new KeyNotFoundException($"Connection {id} was not found.");
+            var ports = await SerialPortCatalog.GetPortsAsync(cancellationToken).ConfigureAwait(false);
+            var port = ports.FirstOrDefault(item => snapshot.Options.DeviceInstanceId is { } deviceId
+                ? item.DeviceInstanceId?.Equals(deviceId, StringComparison.OrdinalIgnoreCase) == true
+                : item.PortName.Equals(snapshot.Options.PortName, StringComparison.OrdinalIgnoreCase))
+                ?? throw new IOException("The serial device is not present.");
+            await Operations.CancelConnectionAsync(id, cancellationToken, preserveReads: true).ConfigureAwait(false);
+            return await Connections.ReconnectAsync(id, port.PortName, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -153,6 +182,13 @@ public sealed class HostRuntime : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         stopping.Cancel();
+        try
+        {
+            await connectionMonitor.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (stopping.IsCancellationRequested)
+        {
+        }
         await Operations.DisposeAsync().ConfigureAwait(false);
         await Connections.DisposeAsync().ConfigureAwait(false);
         await FlushSessionEventsAsync(CancellationToken.None).ConfigureAwait(false);
@@ -161,6 +197,29 @@ public sealed class HostRuntime : IAsyncDisposable
         await Sessions.DisposeAsync().ConfigureAwait(false);
         stopping.Dispose();
         connectionGate.Dispose();
+    }
+
+    private async Task MaintainConnectionsAsync()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+        while (await timer.WaitForNextTickAsync(stopping.Token).ConfigureAwait(false))
+        {
+            foreach (var snapshot in Connections.GetSnapshots().Where(static item => item.State == ConnectionState.Faulted))
+            {
+                await Operations.CancelConnectionAsync(snapshot.Id, stopping.Token, preserveReads: true).ConfigureAwait(false);
+                if (snapshot.Options.AutoReconnect && snapshot.Options.DeviceInstanceId is not null)
+                {
+                    try
+                    {
+                        await ReconnectConnectionAsync(snapshot.Id, stopping.Token).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or KeyNotFoundException)
+                    {
+                        System.Diagnostics.Trace.WriteLine(ex.Message);
+                    }
+                }
+            }
+        }
     }
 
     public async Task FlushSessionEventsAsync(CancellationToken cancellationToken)

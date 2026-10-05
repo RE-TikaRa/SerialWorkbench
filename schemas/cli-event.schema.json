@@ -74,6 +74,14 @@
                 "null"
               ],
               "default": null
+            },
+            "segmentId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid",
+              "default": null
             }
           },
           "required": [

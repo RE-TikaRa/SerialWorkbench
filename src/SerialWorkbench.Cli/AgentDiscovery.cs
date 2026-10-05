@@ -188,7 +188,7 @@ public static class AgentDiscovery
         "host.status" or "workspace.show" or "workspace.set" or "workspace.clear" => typeof(HostStatusDto),
         "host.stop" or "connections.close" => typeof(RpcResult),
         "connections.list" => typeof(ConnectionSnapshot[]),
-        "connections.open" => typeof(ConnectionSnapshot),
+        "connections.open" or "connections.reconnect" => typeof(ConnectionSnapshot),
         "operations.list" => typeof(OperationSnapshot[]),
         "operations.start" => typeof(StartOperationResult),
         "operations.show" or "operations.result" or "operations.cancel" => typeof(OperationSnapshot),

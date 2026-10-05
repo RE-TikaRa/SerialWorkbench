@@ -167,6 +167,9 @@ static async Task<int> RunAsync(IHostRpc client, CommandArguments arguments, str
         case "connections close":
             WriteResult(output, "connections.close", await client.CloseConnectionAsync(ParseGuid(arguments.Get("--id"), "--id"), cancellationToken).ConfigureAwait(false));
             return 0;
+        case "connections reconnect":
+            WriteResult(output, "connections.reconnect", await client.ReconnectConnectionAsync(ParseGuid(arguments.Get("--id"), "--id"), cancellationToken).ConfigureAwait(false));
+            return 0;
         case "operations list":
             WriteResult(output, "operations.list", await client.ListOperationsAsync(cancellationToken).ConfigureAwait(false));
             return 0;
@@ -865,7 +868,8 @@ static SerialConnectionOptions ReadSerialOptions(CommandArguments arguments)
         arguments.Get("--device-id"),
         arguments.Has("--rs485"),
         arguments.GetInt("--rts-before", 0),
-        arguments.GetInt("--rts-after", 0));
+        arguments.GetInt("--rts-after", 0),
+        !arguments.Has("--no-reconnect"));
 }
 
 static string ParseLineEnding(string? value) => value?.ToLowerInvariant() switch

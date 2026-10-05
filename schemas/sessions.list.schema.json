@@ -105,6 +105,14 @@
                 "integer"
               ],
               "pattern": "^-?(?:0|[1-9]\\d*)$"
+            },
+            "schemaVersion": {
+              "type": [
+                "string",
+                "integer"
+              ],
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "default": 1
             }
           },
           "required": [

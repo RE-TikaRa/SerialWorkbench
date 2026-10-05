@@ -136,6 +136,9 @@ public sealed class HostRpcClient : IHostRpc, IAsyncDisposable
     public Task<ConnectionSnapshot> OpenConnectionAsync(OpenConnectionRequest request, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<ConnectionSnapshot>(nameof(OpenConnectionAsync), [request], cancellationToken);
 
+    public Task<ConnectionSnapshot> ReconnectConnectionAsync(Guid connectionId, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<ConnectionSnapshot>(nameof(ReconnectConnectionAsync), [connectionId], cancellationToken);
+
     public Task<RpcResult> CloseConnectionAsync(Guid connectionId, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<RpcResult>(nameof(CloseConnectionAsync), [connectionId], cancellationToken);
 

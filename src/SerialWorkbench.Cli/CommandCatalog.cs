@@ -39,6 +39,7 @@ public sealed class CommandCatalog
         Add("connections.list", "查询共享连接");
         SerialOptions(Add("connections.open", "打开持久连接"), true);
         Id(Add("connections.close", "关闭共享连接"));
+        Id(Add("connections.reconnect", "按设备身份恢复连接"));
         Add("operations.list", "查询任务");
         Id(Add("operations.show", "查询任务状态"));
         Id(Add("operations.result", "查询任务结果"));
@@ -259,6 +260,7 @@ public sealed class CommandCatalog
 
         Integer(definition, "--rts-before", "RS-485 发送前延时，单位毫秒", 0, 0, 60_000);
         Integer(definition, "--rts-after", "RS-485 发送后延时，单位毫秒", 0, 0, 60_000);
+        definition.Add(new Option<bool>("--no-reconnect") { Description = "关闭按设备身份自动重连" }, false);
     }
 
     private static void ModbusOptions(CommandDefinition definition, int defaultFunction, int[] functions)

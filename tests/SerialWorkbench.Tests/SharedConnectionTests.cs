@@ -64,6 +64,32 @@ public sealed class SharedConnectionTests
     }
 
     [Fact]
+    public async Task ReconnectKeepsTheSharedIdentityAndRecordsANewSegment()
+    {
+        var port = Environment.GetEnvironmentVariable("SERIALWORKBENCH_TEST_PORT");
+        Assert.SkipWhen(string.IsNullOrWhiteSpace(port), "Set SERIALWORKBENCH_TEST_PORT to run serial hardware tests.");
+        await using var runtime = CreateRuntime();
+        var service = new HostRpcService(runtime);
+        var token = TestContext.Current.CancellationToken;
+        var original = await service.OpenConnectionAsync(new OpenConnectionRequest(new SerialConnectionOptions(port)), token);
+        Assert.NotNull(original.Options.DeviceInstanceId);
+        var sessionId = runtime.Sessions.ActiveSession!.Id;
+
+        var restored = await service.ReconnectConnectionAsync(original.Id, token);
+
+        Assert.Equal(original.Id, restored.Id);
+        Assert.NotEqual(original.SegmentId, restored.SegmentId);
+        Assert.Equal(original.SegmentNumber + 1, restored.SegmentNumber);
+        Assert.Equal(ConnectionState.Open, restored.State);
+        Assert.Equal(original.Options.DeviceInstanceId, restored.Options.DeviceInstanceId);
+        Assert.Single((await service.GetStatusAsync(token)).Connections);
+        await service.CloseConnectionAsync(restored.Id, token);
+        var recorded = await runtime.Sessions.ReadAllEventsAsync(sessionId, token);
+        Assert.Contains(recorded, item => item.SegmentId == original.SegmentId && item.Message == "opened");
+        Assert.Contains(recorded, item => item.SegmentId == restored.SegmentId && item.Message == "opened");
+    }
+
+    [Fact]
     public async Task BusyOperationsIdentifyTheirOwnerAndSurviveClientDisconnect()
     {
         var port = Environment.GetEnvironmentVariable("SERIALWORKBENCH_TEST_PORT");

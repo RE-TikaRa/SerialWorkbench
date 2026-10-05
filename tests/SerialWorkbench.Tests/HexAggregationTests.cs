@@ -95,6 +95,21 @@ public sealed class HexAggregationTests
         Assert.Equal(["41", "42", "43", "44"], buffer.Rows.Select(static row => row.Hex));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReconnectedSegmentsKeepTheirOwnTextAndHexRows(bool text)
+    {
+        var buffer = new TrafficBuffer(Encoding.UTF8);
+        buffer.SetPresentation(Encoding.UTF8, text, true);
+        buffer.Append([
+            CreateEvent(1, 0, [0x41]) with { SegmentId = Guid.NewGuid() },
+            CreateEvent(2, 1, [0x42]) with { SegmentId = Guid.NewGuid() },
+        ]);
+
+        Assert.Equal(["41", "42"], buffer.Rows.Select(static row => row.Hex));
+    }
+
     [Fact]
     public void AppendingToReceiveRowsPreservesSelectionAndFrozenCopies()
     {
