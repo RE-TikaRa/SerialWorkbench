@@ -404,7 +404,7 @@ public sealed partial class TerminalWorkbench : IDisposable
                     {
                         foreach (var item in group.Where(static item => item.Direction == SerialDirection.Receive))
                         {
-                            FeedWaveform(item.Data);
+                            FeedWaveform(item);
                         }
                     }
                 }

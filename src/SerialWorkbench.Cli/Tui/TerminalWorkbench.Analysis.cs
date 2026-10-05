@@ -60,6 +60,10 @@ public sealed partial class TerminalWorkbench
     private readonly OptionSelector<WaveformSampleType> waveformType = new() { X = 0, Y = 1, Orientation = Orientation.Horizontal };
     private readonly NumericUpDown<int> waveformLength = new() { X = 45, Y = 0, Value = 8, Width = 12 };
     private int sampleIndex;
+    private readonly CheckBox waveformPaused = new() { X = 0, Y = 2, Text = "暂停波形" };
+    private readonly CheckBox waveformFollow = new() { X = 16, Y = 2, Text = "自动缩放", Value = CheckState.Checked };
+    private readonly Label waveformStatus = new() { Y = 3, Width = Dim.Fill() };
+    private (Guid ConnectionId, Guid? SegmentId)? waveformStream;
 
     private View BuildSessions()
     {
@@ -301,7 +305,7 @@ public sealed partial class TerminalWorkbench
                                 RefreshTraffic();
                                 if (item.Direction == SerialDirection.Receive)
                                 {
-                                    FeedWaveform(item.Data);
+                                    FeedWaveform(item);
                                 }
                             }
                         }).ConfigureAwait(false);
@@ -416,7 +420,30 @@ public sealed partial class TerminalWorkbench
         waveformMode.ValueChanged += (_, _) => ResetWaveform();
         waveformType.ValueChanged += (_, _) => ResetWaveform();
         waveformLength.ValueChanged += (_, _) => ResetWaveform();
-        view.Add(waveformMode, waveformType, waveformLength, graph);
+        var clear = Button("清空", () => { ResetWaveform(); return Task.CompletedTask; });
+        clear.X = 34;
+        clear.Y = 2;
+        var export = Button("导出 CSV", () => RunUiAsync(async () =>
+        {
+            var path = ChooseFile(true);
+            if (path is null)
+            {
+                return;
+            }
+            var channels = wavePoints.Select(static points => points.ToDictionary(static point => point.X, static point => point.Y)).ToArray();
+            await using var writer = new StreamWriter(path, false, new UTF8Encoding(false));
+            await writer.WriteLineAsync("sample," + string.Join(',', Enumerable.Range(1, channels.Length).Select(static index => $"channel{index}"))).ConfigureAwait(false);
+            foreach (var sample in channels.SelectMany(static channel => channel.Keys).Distinct().Order())
+            {
+                var values = channels.Select(channel => channel.TryGetValue(sample, out var value) ? value.ToString("R", CultureInfo.InvariantCulture) : "");
+                await writer.WriteLineAsync(sample.ToString("R", CultureInfo.InvariantCulture) + "," + string.Join(',', values)).ConfigureAwait(false);
+            }
+            app.Invoke(() => message.Text = $"已导出波形：{path}");
+        }));
+        export.X = Pos.Right(clear) + 1;
+        export.Y = 2;
+        graph.Y = 4;
+        view.Add(waveformMode, waveformType, waveformLength, waveformPaused, waveformFollow, clear, export, waveformStatus, graph);
         return view;
     }
 
@@ -428,12 +455,24 @@ public sealed partial class TerminalWorkbench
         waveformParser.Reset();
         wavePoints.Clear();
         sampleIndex = 0;
+        waveformStream = null;
         graph.Reset();
+        waveformStatus.Text = "0 个采样";
     }
 
-    private void FeedWaveform(byte[] data)
+    internal void FeedWaveform(SerialTrafficEvent item)
     {
-        var samples = waveformParser.Feed(data);
+        if (item.Direction != SerialDirection.Receive || item.Data.Length == 0 || waveformPaused.Value == CheckState.Checked)
+        {
+            return;
+        }
+        var stream = (item.ConnectionId, item.SegmentId);
+        if (waveformStream != stream)
+        {
+            ResetWaveform();
+            waveformStream = stream;
+        }
+        var samples = waveformParser.Feed(item.Data);
         foreach (var sample in samples)
         {
             while (wavePoints.Count < sample.Length)
@@ -446,7 +485,10 @@ public sealed partial class TerminalWorkbench
 
             for (var index = 0; index < sample.Length; index++)
             {
-                wavePoints[index].Add(new PointF(sampleIndex, (float)sample[index]));
+                if (float.IsFinite((float)sample[index]))
+                {
+                    wavePoints[index].Add(new PointF(sampleIndex, (float)sample[index]));
+                }
                 if (wavePoints[index].Count > 2000)
                 {
                     wavePoints[index].RemoveAt(0);
@@ -456,13 +498,17 @@ public sealed partial class TerminalWorkbench
         }
 
         var all = wavePoints.SelectMany(static item => item).ToArray();
+        waveformStatus.Text = $"{sampleIndex:N0} 个采样 · {wavePoints.Count} 通道";
         if (all.Length > 0)
         {
             var minimum = all.Min(static item => item.Y);
             var maximum = all.Max(static item => item.Y);
-            graph.ScrollOffset = new PointF(Math.Max(0, sampleIndex - 2000), minimum);
-            graph.CellSize = new PointF(Math.Max(1, Math.Min(sampleIndex, 2000) / (float)Math.Max(1, graph.Viewport.Width - 8)),
-                Math.Max(0.001f, (maximum - minimum) / Math.Max(1, graph.Viewport.Height - 4)));
+            if (waveformFollow.Value == CheckState.Checked)
+            {
+                graph.ScrollOffset = new PointF(Math.Max(0, sampleIndex - 2000), minimum);
+                graph.CellSize = new PointF(Math.Max(1, Math.Min(sampleIndex, 2000) / (float)Math.Max(1, graph.Viewport.Width - 8)),
+                    Math.Max(0.001f, (maximum - minimum) / Math.Max(1, graph.Viewport.Height - 4)));
+            }
             graph.SetNeedsDraw();
         }
     }

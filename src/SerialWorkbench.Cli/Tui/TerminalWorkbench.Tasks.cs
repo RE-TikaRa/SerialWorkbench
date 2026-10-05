@@ -15,6 +15,11 @@ public sealed partial class TerminalWorkbench
     private readonly ProgressBar progress = new() { Y = Pos.AnchorEnd(3), Width = Dim.Fill() };
     private readonly Label progressText = new() { Y = Pos.AnchorEnd(2), Width = Dim.Fill() };
     private OperationSnapshot[] displayedTasks = [];
+    private readonly TableView modbusResults = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Fill(), FullRowSelect = true };
+    private readonly Label modbusSummary = new() { Width = Dim.Fill(), Text = "选择参数并执行事务" };
+    private readonly List<ModbusSample> modbusSamples = [];
+    private Guid? modbusOperationId;
+    private long modbusRevision;
 
     private View BuildTasks()
     {
@@ -30,18 +35,19 @@ public sealed partial class TerminalWorkbench
 
     private View BuildModbus()
     {
-        var view = new View { Title = "Modbus", Width = Dim.Fill(), Height = Dim.Fill(), ViewportSettings = ViewportSettingsFlags.HasScrollBars };
-        var slave = Number(view, "从站", 0, 1);
-        var function = Number(view, "功能码", 2, 3);
-        var address = Number(view, "地址", 4, 0);
-        var quantity = Number(view, "数量", 6, 1);
-        var value = Number(view, "单个写入值", 8, 0);
-        var values = Field(view, "多个值", 10, "1,2,3");
-        var count = Number(view, "轮询次数", 12, 10);
-        var interval = Number(view, "间隔 ms", 14, 1000);
-        var timeout = Number(view, "超时 ms", 16, 2000);
-        var first = Number(view, "扫描起始从站", 18, 1);
-        var last = Number(view, "扫描结束从站", 20, 247);
+        var view = new View { Title = "Modbus", Width = Dim.Fill(), Height = Dim.Fill() };
+        var parameters = new FrameView { Title = "事务参数", Width = 42, Height = Dim.Fill(), ViewportSettings = ViewportSettingsFlags.HasScrollBars };
+        var slave = Number(parameters, "从站", 0, 1);
+        var function = Number(parameters, "功能码", 2, 3);
+        var address = Number(parameters, "地址", 4, 0);
+        var quantity = Number(parameters, "数量", 6, 1);
+        var value = Number(parameters, "单个写入值", 8, 0);
+        var values = Field(parameters, "多个值", 10, "1,2,3");
+        var count = Number(parameters, "轮询次数", 12, 10);
+        var interval = Number(parameters, "间隔 ms", 14, 1000);
+        var timeout = Number(parameters, "超时 ms", 16, 2000);
+        var first = Number(parameters, "扫描起始从站", 18, 1);
+        var last = Number(parameters, "扫描结束从站", 20, 247);
         var execute = Button("执行事务", () => RunUiAsync(async () =>
         {
             var id = RequiredConnection();
@@ -52,7 +58,7 @@ public sealed partial class TerminalWorkbench
             var frame = code switch
             {
                 1 or 2 or 3 or 4 => ModbusRtuCodec.BuildReadRequest(slaveAddress, code, register, checked((ushort)quantity.Value)),
-                5 => ModbusRtuCodec.BuildWriteSingleCoil(slaveAddress, register, value.Value != 0),
+                5 => ModbusRtuCodec.BuildWriteSingleCoil(slaveAddress, register, value.Value switch { 0 => false, 1 => true, _ => throw new ArgumentException("线圈值需要 0 或 1。") }),
                 6 => ModbusRtuCodec.BuildWriteSingleRegister(slaveAddress, register, checked((ushort)value.Value)),
                 15 => ModbusRtuCodec.BuildWriteMultipleCoils(slaveAddress, register, data.Select(static item => item switch { "0" => false, "1" => true, _ => throw new FormatException("线圈值需要 0 或 1。") }).ToArray()),
                 16 => ModbusRtuCodec.BuildWriteMultipleRegisters(slaveAddress, register, data.Select(static item => ushort.Parse(item, CultureInfo.InvariantCulture)).ToArray()),
@@ -69,8 +75,8 @@ public sealed partial class TerminalWorkbench
             return StartTaskAsync(OperationJson.Create("modbus.poll", id, new ModbusPollRequest(id, checked((byte)slave.Value),
                 checked((byte)function.Value), checked((ushort)address.Value), checked((ushort)quantity.Value), count.Value, interval.Value, timeout.Value)));
         }));
-        poll.X = Pos.Right(execute) + 1;
-        poll.Y = 22;
+        poll.X = 0;
+        poll.Y = 24;
         var scan = Button("扫描从站", () => RunUiAsync(() =>
         {
             var id = RequiredConnection();
@@ -78,8 +84,31 @@ public sealed partial class TerminalWorkbench
                 checked((ushort)address.Value), timeout.Value, interval.Value)));
         }));
         scan.X = Pos.Right(poll) + 1;
-        scan.Y = 22;
-        view.Add(execute, poll, scan);
+        scan.Y = 24;
+        parameters.Add(execute, poll, scan);
+        parameters.SetContentSize(new System.Drawing.Size(40, 26));
+        var results = new FrameView { Title = "结果 · Enter 查看详情", X = Pos.Right(parameters), Width = Dim.Fill(), Height = Dim.Fill() };
+        var copy = Button("复制结果", () => { app.Clipboard?.TrySetClipboardData(JsonSerializer.Serialize(modbusSamples, MachineOutput.DocumentOptions)); return Task.CompletedTask; });
+        copy.Y = 1;
+        var stop = Button("停止", () => RunUiAsync(async () =>
+        {
+            if (modbusOperationId is { } id)
+            {
+                await client.CancelOperationAsync(id, lifetime.Token).ConfigureAwait(false);
+            }
+        }));
+        stop.Y = 1;
+        stop.X = Pos.Right(copy) + 1;
+        modbusResults.Accepting += (_, args) =>
+        {
+            args.Handled = true;
+            if (modbusResults.Value is { } selection && selection.SelectedCell.Y >= 0 && selection.SelectedCell.Y < modbusSamples.Count)
+            {
+                ShowText("Modbus 响应", JsonSerializer.Serialize(modbusSamples[selection.SelectedCell.Y], MachineOutput.DocumentOptions));
+            }
+        };
+        results.Add(modbusSummary, copy, stop, modbusResults);
+        view.Add(parameters, results);
         return view;
     }
 
@@ -145,6 +174,13 @@ public sealed partial class TerminalWorkbench
         {
             message.Text = $"任务已启动：{operation.Id}";
             accepted?.Invoke(operation);
+            if (operation.Request.Command.StartsWith("modbus.", StringComparison.Ordinal))
+            {
+                modbusOperationId = operation.Id;
+                modbusRevision = 0;
+                modbusSamples.Clear();
+                RefreshModbusResults();
+            }
             ShowProgress(operation);
         });
         if (!background)
@@ -162,6 +198,40 @@ public sealed partial class TerminalWorkbench
     private async Task RefreshTasksAsync()
     {
         var listed = await client.ListOperationsAsync(lifetime.Token).ConfigureAwait(false);
+        if (modbusOperationId is { } id && listed.FirstOrDefault(item => item.Id == id) is { } current && current.Revision != modbusRevision)
+        {
+            var batch = await client.ReadOperationProgressAsync(new OperationProgressQuery(id, modbusRevision), lifetime.Token).ConfigureAwait(false);
+            await InvokeUiAsync(() =>
+            {
+                foreach (var update in batch.Updates)
+                {
+                    if (update.Progress.ItemJson is not { } itemJson)
+                    {
+                        continue;
+                    }
+                    var sample = OperationJson.Read<ModbusSample>(itemJson);
+                    if (!modbusSamples.Any(item => item.Index == sample.Index))
+                    {
+                        modbusSamples.Add(sample);
+                    }
+                }
+                if (batch.Operation.ResultJson is { } json)
+                {
+                    if (batch.Operation.Request.Command is "modbus.scan" or "modbus.poll")
+                    {
+                        modbusSamples.Clear();
+                        modbusSamples.AddRange(OperationJson.Read<ModbusBatchResult>(json).Samples);
+                    }
+                    else if (modbusSamples.Count == 0)
+                    {
+                        var request = OperationJson.Read<ModbusTransactionRequest>(batch.Operation.Request.ParametersJson);
+                        modbusSamples.Add(new ModbusSample(1, request.SlaveAddress, batch.Operation.UpdatedUtc, OperationJson.Read<ModbusTransactionResult>(json)));
+                    }
+                }
+                modbusRevision = batch.NextRevision;
+                RefreshModbusResults();
+            }).ConfigureAwait(false);
+        }
         app.Invoke(() =>
         {
             var selected = taskTable.Value is { } selection && selection.SelectedCell.Y >= 0 && selection.SelectedCell.Y < displayedTasks.Length
@@ -195,6 +265,29 @@ public sealed partial class TerminalWorkbench
         var total = operation.Progress?.Total;
         progress.Fraction = total is > 0 ? (float)Math.Clamp((double)completed / total.Value, 0, 1) : 0;
         progressText.Text = $"{operation.Request.Command} · {operation.State} · {completed}/{total?.ToString(CultureInfo.InvariantCulture) ?? "?"} {operation.Progress?.Unit}";
+    }
+
+    private void RefreshModbusResults()
+    {
+        var selection = modbusResults.Value;
+        var viewport = modbusResults.Viewport;
+        var succeeded = modbusSamples.Count(static sample => sample.Result.Success);
+        modbusSummary.Text = $"{modbusSamples.Count} 次 · 成功 {succeeded} · 失败 {modbusSamples.Count - succeeded}";
+        modbusResults.Table = new EnumerableTableSource<ModbusSample>(modbusSamples, new Dictionary<string, Func<ModbusSample, object>>
+        {
+            ["序号"] = item => item.Index,
+            ["从站"] = item => item.SlaveAddress,
+            ["功能"] = item => item.Result.FunctionCode,
+            ["数值"] = item => item.Result.Bits is { } bits ? string.Join(',', bits.Select(static bit => bit ? 1 : 0))
+                : string.Join(',', item.Result.Registers),
+            ["ms"] = item => item.Result.Duration.TotalMilliseconds.ToString("F1", CultureInfo.InvariantCulture),
+            ["状态"] = item => item.Result.Success ? "成功" : item.Result.ErrorCode ?? "失败",
+        });
+        if (selection is not null)
+        {
+            modbusResults.Value = selection;
+            modbusResults.Viewport = viewport;
+        }
     }
 
     private async Task CancelSelectedTaskAsync()

@@ -12,6 +12,23 @@ namespace SerialWorkbench.Tests;
 
 public sealed class TuiTests
 {
+    [Fact]
+    public async Task WaveformDoesNotJoinIncompleteSamplesAcrossReconnectedSegments()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-waveform-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        var graph = tabs.SubViews.SelectMany(static view => view.SubViews).OfType<GraphView>().Single();
+        var id = Guid.NewGuid();
+        workbench.FeedWaveform(new SerialTrafficEvent(1, DateTimeOffset.UtcNow, 1, id, SerialDirection.Receive, "12"u8.ToArray(), "serial", SegmentId: Guid.NewGuid()));
+        workbench.FeedWaveform(new SerialTrafficEvent(2, DateTimeOffset.UtcNow, 2, id, SerialDirection.Receive, "3\n"u8.ToArray(), "serial", SegmentId: Guid.NewGuid()));
+        var series = Assert.IsType<ScatterSeries>(Assert.Single(graph.Series));
+        Assert.Equal(3, Assert.Single(series.Points).Y);
+    }
+
     [Theory]
     [InlineData("csv")]
     [InlineData("jsonl")]
@@ -138,7 +155,7 @@ public sealed class TuiTests
         using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
 
         var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
-        var traffic = tabs.SubViews.SelectMany(static view => view.SubViews).OfType<FrameView>()
+        var traffic = tabs.SubViews.SelectMany(static view => view.SubViews).OfType<FrameView>().Where(static frame => frame.Title == "报文")
             .SelectMany(static frame => frame.SubViews).OfType<TableView>();
         Assert.Single(traffic);
         Assert.Single(workbench.Window.SubViews.OfType<StatusBar>());
