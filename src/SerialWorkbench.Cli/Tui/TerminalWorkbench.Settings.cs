@@ -13,7 +13,8 @@ public sealed partial class TerminalWorkbench
     private readonly View controlSettings = new() { CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
     private readonly View profileSettings = new() { CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
     private readonly View connectionSettings = new() { CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill(1) };
-    private readonly ListView managedConnections = new() { Width = Dim.Fill(), Height = Dim.Fill(2) };
+    private readonly ListView managedConnections = new() { Width = Dim.Fill(), Height = Dim.Fill(3) };
+    private readonly Label connectionMessage = new() { Id = "connection-message", Y = Pos.AnchorEnd(), Width = Dim.Fill(), Height = 1 };
     private Dialog? connectionDialog;
 
     internal View ConnectionSettings => connectionSettings;
@@ -83,13 +84,21 @@ public sealed partial class TerminalWorkbench
         }));
         reconnect.X = Pos.Right(details) + 1;
         reconnect.Y = Pos.Top(close);
-        connectionSettings.Add(open, refresh, parameters, profiles, managedConnections, close, details, reconnect);
+        connectionSettings.Add(open, refresh, parameters, profiles, managedConnections, close, details, reconnect, connectionMessage);
+        message.TextChanged += (_, _) =>
+        {
+            if (connectionDialog is not null)
+            {
+                connectionMessage.Text = message.Text;
+            }
+        };
     }
 
     private void ShowConnections()
     {
         using var dialog = new Dialog { Title = "连接管理", Width = Dim.Percent(90), Height = Dim.Percent(85) };
         managedConnections.Value = connections.Value;
+        connectionMessage.Text = "";
         connectionDialog = dialog;
         dialog.Add(connectionSettings);
         dialog.AddButton(new Button { Text = "关闭", ShadowStyle = null });

@@ -544,6 +544,7 @@ public sealed partial class TerminalWorkbench : IDisposable
             connectionId = snapshot.Id;
             SetConnections([.. snapshots.Where(item => item.Id != snapshot.Id), snapshot]);
             ApplyConnectionOptions(snapshot.Options);
+            ResumeLiveTraffic();
             tabs.Value = workbenchView;
             message.Text = $"已连接 {snapshot.Options.PortName}，{snapshot.Options.BaudRate} baud";
             if (connectionDialog is not null)

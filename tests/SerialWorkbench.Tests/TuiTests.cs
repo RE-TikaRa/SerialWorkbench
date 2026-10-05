@@ -558,6 +558,73 @@ public sealed class TuiTests
     }
 
     [Fact]
+    public async Task FailedConnectionKeepsTheDialogOpenAndDisplaysItsError()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-connection-error-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create().Init();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var driver = Assert.IsAssignableFrom<Terminal.Gui.Drivers.IDriver>(app.Driver);
+        driver.SetScreenSize(80, 24);
+        var stage = 0;
+        var timedOut = false;
+        Exception? failure = null;
+        app.AddTimeout(TimeSpan.FromSeconds(5), () =>
+        {
+            timedOut = true;
+            app.RequestStop();
+            return false;
+        });
+        app.Iteration += (_, _) =>
+        {
+            if (timedOut || failure is not null)
+            {
+                app.RequestStop();
+                return;
+            }
+            try
+            {
+                if (app.TopRunnableView is Dialog dialog)
+                {
+                    Assert.Equal("连接管理", dialog.Title);
+                    if (stage == 1)
+                    {
+                        stage = 2;
+                        workbench.ConnectionSettings.SubViews.OfType<Button>().Single(static button => button.Id == "connection-open").InvokeCommand(Command.Accept);
+                    }
+                    else
+                    {
+                        var message = Assert.Single(workbench.ConnectionSettings.SubViews.OfType<Label>(), static label => label.Id == "connection-message");
+                        Assert.Equal("请选择串口。", message.Text);
+                        Assert.False(dialog.StopRequested);
+                        stage = 3;
+                        app.Keyboard.RaiseKeyDownEvent(Key.Esc);
+                    }
+                }
+                else if (stage == 0)
+                {
+                    stage = 1;
+                    workbench.Window.NewKeyDownEvent(Key.F4);
+                }
+                else if (stage == 3)
+                {
+                    app.RequestStop(workbench.Window);
+                }
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+                app.RequestStop();
+            }
+        };
+        app.Run(workbench.Window);
+        Assert.Null(failure);
+        Assert.Equal(3, stage);
+        Assert.False(timedOut);
+    }
+
+    [Fact]
     public async Task WaveformDoesNotJoinIncompleteSamplesAcrossReconnectedSegments()
     {
         var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-waveform-{Guid.NewGuid():N}"));
