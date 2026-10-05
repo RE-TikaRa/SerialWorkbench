@@ -27,19 +27,19 @@ public sealed partial class TerminalWorkbench
         Text = "无校验",
         Source = new ListWrapper<string>(new ObservableCollection<string>(["无校验", "XOR", "SUM8", "CRC16 Modbus", "CRC16 XMODEM", "CRC32"]))
     };
-    private readonly NumericUpDown<int> sendInterval = new() { CanEdit = true, X = 9, Y = 3, Value = 1000, Width = 10 };
-    private readonly NumericUpDown<int> sendCount = new() { CanEdit = true, X = 32, Y = 3, Value = 0, Width = 10 };
+    private readonly NumericUpDown<int> sendInterval = new() { CanEdit = true, X = 9, Y = 2, Value = 1000, Width = 10 };
+    private readonly NumericUpDown<int> sendCount = new() { CanEdit = true, X = 32, Y = 2, Value = 0, Width = 10 };
     private Guid? repeatOperationId;
 
     private FrameView BuildSending()
     {
-        var view = new FrameView { Title = "发送 · Enter 发送 · 次数 0 持续发送", Y = Pos.AnchorEnd(7), Height = 6, Width = Dim.Fill() };
+        var view = new FrameView { Title = "发送 · Enter 发送 · 次数 0 持续发送", Y = Pos.AnchorEnd(6), Height = 5, Width = Dim.Fill() };
         lineEnding.X = 12;
         lineEnding.Y = 0;
         lineEnding.Width = 11;
         var repeat = Button("循环发送", () => RunUiAsync(RepeatSendAsync));
         repeat.X = 44;
-        repeat.Y = 3;
+        repeat.Y = 2;
         var stop = Button("停止", () => RunUiAsync(async () =>
         {
             if (repeatOperationId is { } id)
@@ -50,9 +50,9 @@ public sealed partial class TerminalWorkbench
             }
         }));
         stop.X = Pos.Right(repeat) + 1;
-        stop.Y = 3;
-        view.Add(sendFormat, lineEnding, checksum, new Label { Text = "间隔 ms", Y = 3 }, sendInterval,
-            new Label { Text = "次数", X = 22, Y = 3 }, sendCount, repeat, stop);
+        stop.Y = 2;
+        view.Add(sendFormat, lineEnding, checksum, new Label { Text = "间隔 ms", Y = 2 }, sendInterval,
+            new Label { Text = "次数", X = 22, Y = 2 }, sendCount, repeat, stop);
         return view;
     }
 

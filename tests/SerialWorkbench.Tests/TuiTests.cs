@@ -5,6 +5,7 @@ using SerialWorkbench.Host;
 using SerialWorkbench.Protocols;
 using SerialWorkbench.Storage;
 using Terminal.Gui.App;
+using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
@@ -12,6 +13,48 @@ namespace SerialWorkbench.Tests;
 
 public sealed class TuiTests
 {
+    [Fact]
+    public async Task SettingsShortcutAndDropdownKeysReachTheirControls()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-keyboard-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
+        workbench.Window.Layout(new System.Drawing.Size(80, 24));
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        workbench.Window.NewKeyDownEvent(Key.F4);
+        Assert.Equal("设置", tabs.Value?.Title);
+        var sending = workbench.Window.SubViews.OfType<FrameView>().Single();
+        var format = sending.SubViews.OfType<DropDownList>().Single(static field => field.Id == "send-format");
+        format.SetFocus();
+        format.NewKeyDownEvent(Key.CursorDown);
+        Assert.Equal("文本", format.Text);
+        format.NewKeyDownEvent(Key.CursorUp);
+        Assert.Equal("HEX", format.Text);
+        app.End(token);
+    }
+
+    [Fact]
+    public async Task ConnectionActionsHaveSeparateVisibleHitAreas()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-controls-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        workbench.Window.BeginInit();
+        workbench.Window.EndInit();
+        workbench.Window.Layout(new System.Drawing.Size(80, 24));
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        var frame = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<FrameView>().Single(static frame => frame.Title == "连接");
+        var close = frame.SubViews.OfType<Button>().Single(static button => button.Text == "关闭");
+        var reconnect = frame.SubViews.OfType<Button>().Single(static button => button.Text == "重连");
+        Assert.True(close.Frame.Bottom <= reconnect.Frame.Top, $"Close {close.Frame}, reconnect {reconnect.Frame}");
+        Assert.True(reconnect.Frame.Bottom <= frame.Viewport.Height);
+    }
+
     [Theory]
     [InlineData(80, 24)]
     [InlineData(120, 40)]

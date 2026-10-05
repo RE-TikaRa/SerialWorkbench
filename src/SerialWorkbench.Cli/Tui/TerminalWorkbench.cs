@@ -20,7 +20,7 @@ public sealed partial class TerminalWorkbench : IDisposable
     private readonly IHostRpc client;
     private readonly CancellationTokenSource lifetime = new();
     private readonly Window window = new() { Title = "SerialWorkbench", Width = Dim.Fill(), Height = Dim.Fill() };
-    private readonly Tabs tabs = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Fill(7), TabDepth = 2 };
+    private readonly Tabs tabs = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Fill(6) };
     private readonly Label status = new() { Y = 0, Width = Dim.Fill(16), Text = "正在连接 Host" };
     private readonly CheckBox backgroundTasks = new() { X = Pos.AnchorEnd(15), Y = 0, Text = "后台任务" };
     private readonly Label message = new() { Y = 1, Width = Dim.Fill() };
@@ -452,9 +452,13 @@ public sealed partial class TerminalWorkbench : IDisposable
                 sequence = batch.NextSequence;
                 streamId = batch.StreamId;
                 var current = snapshots.FirstOrDefault(item => item.Id == connectionId);
-                status.Text = current is null ? $"Host · {host.ClientCount} 客户端 · 未选择连接"
+                var statusText = current is null ? $"Host · {host.ClientCount} 客户端 · 未选择连接"
                     : $"{current.Options.PortName} · {current.State} · {current.Options.BaudRate} · RX {current.ReceivedBytes:N0} B / {current.ReceivedBytesPerSecond:N0} B/s · TX {current.TransmittedBytes:N0} B";
-                if (!paused && replayBuffer is null)
+                if (status.Text != statusText)
+                {
+                    status.Text = statusText;
+                }
+                if (!paused && replayBuffer is null && (batch.Events.Count != 0 || selection != connectionId || batch.ResetRequired))
                 {
                     RefreshTraffic();
                 }
@@ -702,7 +706,7 @@ public sealed partial class TerminalWorkbench : IDisposable
 
     private Button Button(string text, Func<Task> action)
     {
-        var button = new Button { Text = text };
+        var button = new Button { Text = text, ShadowStyle = null };
         button.Accepting += async (_, args) =>
         {
             args.Handled = true;
