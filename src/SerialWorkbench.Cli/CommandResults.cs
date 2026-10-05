@@ -12,6 +12,8 @@ public sealed record SessionDeleteReceipt(Guid SessionId, bool Success, string? 
 
 public sealed record SendReceipt(bool Success, int Bytes, string Hex, string? Error);
 
+public sealed record RepeatSendReceipt(bool Success, long Sends, long Bytes);
+
 public sealed record TransferReceipt(string Path, bool Success, long BytesTransferred, int? ReceivedBytes, int Blocks, int Retries, double DurationMilliseconds, string? Error, string? ErrorCode);
 
 public sealed record ModbusReceipt(bool Success, string RequestFrame, string ResponseFrame, byte FunctionCode, ushort[] Registers,

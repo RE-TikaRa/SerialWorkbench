@@ -186,8 +186,19 @@ static async Task<int> RunAsync(IHostRpc client, CommandArguments arguments, str
             return 0;
         case "operations show":
         case "operations result":
-            WriteResult(output, "operations.show", await client.ReadOperationAsync(new OperationQuery(ParseGuid(arguments.Get("--id"), "--id")), cancellationToken).ConfigureAwait(false));
+            var queriedOperation = await client.ReadOperationAsync(new OperationQuery(ParseGuid(arguments.Get("--id"), "--id")), cancellationToken).ConfigureAwait(false);
+            WriteResult(output, arguments.CommandId, queriedOperation);
+            return arguments.CommandId == "operations.result" ? OperationCommands.ExitCode(queriedOperation) : 0;
+        case "operations progress":
+            var operationProgress = await client.ReadOperationProgressAsync(new OperationProgressQuery(ParseGuid(arguments.Get("--id"), "--id"),
+                arguments.GetLong("--after", 0), arguments.GetInt("--count", 1000), arguments.GetInt("--wait", 0)), cancellationToken).ConfigureAwait(false);
+            WriteResult(output, arguments.CommandId, operationProgress);
             return 0;
+        case "operations wait":
+            var completedOperation = await OperationCommands.WaitAsync(client, ParseGuid(arguments.Get("--id"), "--id"),
+                arguments.GetInt("--timeout", 30_000), cancellationToken).ConfigureAwait(false);
+            WriteResult(output, arguments.CommandId, completedOperation);
+            return OperationCommands.ExitCode(completedOperation);
         case "operations cancel":
             WriteResult(output, "operations.cancel", await client.CancelOperationAsync(ParseGuid(arguments.Get("--id"), "--id"), cancellationToken).ConfigureAwait(false));
             return 0;
@@ -223,6 +234,7 @@ static async Task<int> RunAsync(IHostRpc client, CommandArguments arguments, str
         case "sessions delete":
             return await DeleteSessionAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "send":
+        case "send repeat":
         case "loopback run":
         case "modbus read":
         case "modbus write":
@@ -251,9 +263,11 @@ static async Task<int> RunDeviceCommandAsync(IHostRpc client, CommandArguments a
     switch (command)
     {
         case "send":
-            var data = arguments.Get("--hex") is { } hex ? HexCodec.Parse(hex)
-                : Encoding.GetEncoding(arguments.Get("--encoding") ?? "utf-8").GetBytes(arguments.Get("--text") + ParseLineEnding(arguments.Get("--line-ending")));
-            parameters = new SendRequest(connectionId, data, "cli.send");
+            parameters = arguments.CreateSendRequest(connectionId);
+            break;
+        case "send.repeat":
+            var repeatingData = arguments.CreateSendRequest(connectionId).Data;
+            parameters = new RepeatSendRequest(repeatingData, arguments.GetInt("--interval", 1000), arguments.GetInt("--count", 1), "cli.repeat");
             break;
         case "loopback.run":
             parameters = new LoopbackRequest(connectionId, arguments.GetInt("--length", 4096), arguments.GetInt("--iterations", 1),
@@ -343,6 +357,10 @@ static async Task<int> RunDeviceCommandAsync(IHostRpc client, CommandArguments a
                 var payload = ((SendRequest)parameters).Data;
                 WriteResult(output, command, new SendReceipt(sent.Success, payload.Length, Convert.ToHexString(payload), sent.Error));
                 return sent.Success ? 0 : 3;
+            case "send.repeat":
+                var repeated = OperationJson.Read<RepeatSendReceipt>(resultJson);
+                WriteResult(output, command, repeated);
+                return repeated.Success ? 0 : 3;
             case "loopback.run":
                 var loopback = OperationJson.Read<LoopbackResult>(resultJson);
                 WriteResult(output, command, loopback);
@@ -649,15 +667,6 @@ static async Task<ConnectionSnapshot> OpenAsync(IHostRpc client, CommandArgument
 
 static Task CloseTemporaryConnectionAsync(IHostRpc client, CommandArguments arguments, Guid connectionId) =>
     arguments.Has("--connection") ? Task.CompletedTask : client.CloseConnectionAsync(connectionId, CancellationToken.None);
-
-static string ParseLineEnding(string? value) => value?.ToLowerInvariant() switch
-{
-    null or "none" => "",
-    "cr" => "\r",
-    "lf" => "\n",
-    "crlf" => "\r\n",
-    _ => throw new ArgumentException("--line-ending must be none, cr, lf, or crlf."),
-};
 
 static void WriteResult(string output, string command, object value)
 {

@@ -2,6 +2,7 @@ using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Globalization;
 using SerialWorkbench.Domain;
+using SerialWorkbench.Protocols;
 
 namespace SerialWorkbench.Cli;
 
@@ -99,6 +100,14 @@ public sealed class CommandCatalog
         Id(Add("operations.show", "查询任务状态"));
         Id(Add("operations.result", "查询任务结果"));
         Id(Add("operations.cancel", "取消任务"));
+        var progress = Add("operations.progress", "分页查询任务进度");
+        Id(progress);
+        LongInteger(progress, "--after", "上次读取的进度版本", 0, 0, long.MaxValue);
+        Integer(progress, "--count", "最多返回的进度条数", 1000, 1, 10_000);
+        Integer(progress, "--wait", "等待新进度的时间，单位毫秒", 0, 0, 30_000);
+        var wait = Add("operations.wait", "等待已有任务完成");
+        Id(wait);
+        Integer(wait, "--timeout", "等待超时，单位毫秒", 30_000, 1, 600_000);
         var operation = Add("operations.start", "启动后台任务");
         GuidOption(operation, "--connection", "共享连接标识", true);
         Text(operation, "--kind", "任务命令", required: true);
@@ -117,16 +126,12 @@ public sealed class CommandCatalog
 
         var send = Add("send", "发送文本或 HEX");
         SerialOptions(send);
-        Text(send, "--text", "发送文本");
-        Text(send, "--hex", "发送 HEX");
-        Text(send, "--line-ending", "文本行尾", "none", choices: ["none", "cr", "lf", "crlf"]);
-        send.Command.Validators.Add(result =>
-        {
-            if ((result.GetValue<string?>("--text") is null) == (result.GetValue<string?>("--hex") is null))
-            {
-                result.AddError("发送需要指定 --text 或 --hex 中的一项。");
-            }
-        });
+        SendOptions(send);
+        var repeat = Add("send.repeat", "按间隔循环发送文本或 HEX");
+        SerialOptions(repeat);
+        SendOptions(repeat);
+        Integer(repeat, "--interval", "发送间隔，单位毫秒", 1000, 1, 600_000);
+        Integer(repeat, "--count", "发送次数，0 持续运行", 1, 0, 100_000);
 
         var monitor = Add("monitor", "实时监视新增报文");
         SerialOptions(monitor);
@@ -189,7 +194,7 @@ public sealed class CommandCatalog
         Text(inspect, "--hex", "帧 HEX", required: true);
         Text(inspect, "--template", "通用协议模板路径");
 
-        foreach (var definition in commands.Where(static item => item.Id is "send" or "loopback.run" or "sequence.run"
+        foreach (var definition in commands.Where(static item => item.Id is "send" or "send.repeat" or "loopback.run" or "sequence.run"
             or "modbus.read" or "modbus.write" or "modbus.scan" or "modbus.poll" or "xmodem.send" or "xmodem.receive"))
         {
             definition.Add(new Option<bool>("--background") { Description = "返回任务标识，在 Host 后台执行" }, false);
@@ -278,6 +283,35 @@ public sealed class CommandCatalog
         definition.Add(option, defaultValue, minimum, maximum);
     }
 
+    private static void LongInteger(CommandDefinition definition, string name, string description, long defaultValue, long minimum, long maximum)
+    {
+        var option = new Option<long>(name) { Description = description, DefaultValueFactory = _ => defaultValue };
+        option.Validators.Add(result =>
+        {
+            if (result.Tokens.Count == 1 && long.TryParse(result.Tokens[0].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+                && (value < minimum || value > maximum))
+            {
+                result.AddError($"{name} 必须在 {minimum} 到 {maximum} 之间。");
+            }
+        });
+        definition.Add(option, defaultValue, minimum, maximum);
+    }
+
+    private static void SendOptions(CommandDefinition definition)
+    {
+        Text(definition, "--text", "发送文本");
+        Text(definition, "--hex", "发送 HEX");
+        Text(definition, "--line-ending", "文本行尾", "none", choices: ["none", "cr", "lf", "crlf"]);
+        EnumOption(definition, "--checksum", "追加校验", ChecksumKind.None);
+        definition.Command.Validators.Add(result =>
+        {
+            if ((result.GetResult("--text") is OptionResult { Implicit: false }) == (result.GetResult("--hex") is OptionResult { Implicit: false }))
+            {
+                result.AddError("发送需要指定 --text 或 --hex 中的一项。");
+            }
+        });
+    }
+
     private static void GuidOption(CommandDefinition definition, string name, string description, bool required = false) =>
         definition.Add(new Option<Guid?>(name) { Description = description, Required = required });
 
@@ -352,13 +386,13 @@ public sealed record CommandDefinition(string Id, Command Command, Dictionary<st
 {
     public Dictionary<string, object?> DefaultValues { get; } = [];
 
-    public Dictionary<string, (int Minimum, int Maximum)> Ranges { get; } = [];
+    public Dictionary<string, (long Minimum, long Maximum)> Ranges { get; } = [];
 
     public Dictionary<string, string[]> Choices { get; } = [];
 
     public CommandArguments Bind(ParseResult result) => new(this, result);
 
-    internal void Add(Option option, object? defaultValue = null, int? minimum = null, int? maximum = null)
+    internal void Add(Option option, object? defaultValue = null, long? minimum = null, long? maximum = null)
     {
         Command.Options.Add(option);
         Options.Add(option.Name, option);

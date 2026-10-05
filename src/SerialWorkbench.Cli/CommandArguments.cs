@@ -1,6 +1,9 @@
 using System.CommandLine;
 using System.Globalization;
+using System.Text;
 using SerialWorkbench.Domain;
+using SerialWorkbench.Ipc;
+using SerialWorkbench.Protocols;
 
 namespace SerialWorkbench.Cli;
 
@@ -23,6 +26,17 @@ public sealed class CommandArguments(CommandDefinition definition, ParseResult r
     };
 
     public int GetInt(string name, int defaultValue) => Read(name) is int value ? value : defaultValue;
+
+    public long GetLong(string name, long defaultValue) => Read(name) is long value ? value : defaultValue;
+
+    internal SendRequest CreateSendRequest(Guid connectionId)
+    {
+        var ending = Get("--line-ending") switch { "cr" => "\r", "lf" => "\n", "crlf" => "\r\n", _ => "" };
+        var data = Get("--hex") is { } hex ? HexCodec.Parse(hex)
+            : Encoding.GetEncoding(Get("--encoding") ?? "utf-8").GetBytes(Get("--text") + ending);
+        var checksum = Enum.Parse<ChecksumKind>(Get("--checksum") ?? "None", true);
+        return new SendRequest(connectionId, Checksums.Append(data, checksum), "cli.send");
+    }
 
     public bool? GetBool(string name) => Read(name) is bool value ? value : null;
 

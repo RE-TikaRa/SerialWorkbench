@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "command": "send",
+  "command": "send.repeat",
   "input": {
     "type": "object",
     "additionalProperties": false,
@@ -184,6 +184,26 @@
         ],
         "default": "None"
       },
+      "--interval": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 1000,
+        "minimum": 1,
+        "maximum": 600000
+      },
+      "--count": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 100000
+      },
       "--background": {
         "type": "boolean",
         "default": false
@@ -207,7 +227,7 @@
         "const": 2
       },
       "command": {
-        "const": "send"
+        "const": "send.repeat"
       },
       "type": {
         "const": "result"
@@ -235,28 +255,25 @@
               "success": {
                 "type": "boolean"
               },
-              "bytes": {
+              "sends": {
                 "type": [
                   "string",
                   "integer"
                 ],
                 "pattern": "^-?(?:0|[1-9]\\d*)$"
               },
-              "hex": {
-                "type": "string"
-              },
-              "error": {
+              "bytes": {
                 "type": [
                   "string",
-                  "null"
-                ]
+                  "integer"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
               }
             },
             "required": [
               "success",
-              "bytes",
-              "hex",
-              "error"
+              "sends",
+              "bytes"
             ]
           },
           {

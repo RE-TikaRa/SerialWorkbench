@@ -1,3 +1,4 @@
+using SerialWorkbench.Cli;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Host;
 using SerialWorkbench.Ipc;
@@ -54,6 +55,26 @@ public sealed class OperationTests
         Assert.Null(result.Operation);
         Assert.Empty(await service.ListOperationsAsync(TestContext.Current.CancellationToken));
         Assert.Equal(0, runtime.Leases.ActiveCount);
+    }
+
+    [Fact]
+    public async Task WaitingForInterruptedTasksKeepsTheirUnknownOutcome()
+    {
+        var paths = CreatePaths();
+        var now = DateTimeOffset.UtcNow;
+        var original = new OperationSnapshot(Guid.NewGuid(), OperationJson.Create("send", Guid.NewGuid(), new { }),
+            OperationState.Running, ExecutionOutcome.Pending, now, now);
+        var token = TestContext.Current.CancellationToken;
+        await using (var store = new OperationStore(paths))
+        {
+            await store.SaveAsync(original, token);
+        }
+        await using var runtime = new HostRuntime(paths);
+        var result = await OperationCommands.WaitAsync(new HostRpcService(runtime), original.Id, 1000, token);
+        Assert.Equal(OperationState.Interrupted, result.State);
+        Assert.Equal(ExecutionOutcome.Unknown, result.Outcome);
+        Assert.Equal(3, OperationCommands.ExitCode(result));
+        Assert.Empty(runtime.Journal.ReadAfter(0, 10));
     }
 
     private static ApplicationPaths CreatePaths()

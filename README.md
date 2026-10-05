@@ -108,6 +108,18 @@ serial-workbench operations start --connection CONNECTION_ID --kind modbus.poll 
 
 `operations start` 返回后台任务标识，`operations result` 查询结果。`--request-id` 保存请求身份，相同身份和参数返回原任务；参数不同时返回 `REQUEST_ID_CONFLICT`。任务和结果保存于 `data/operations.sqlite3`。
 
+单次和循环发送支持 `--checksum None/Xor/Sum8/Crc16Modbus/Crc16Xmodem/Crc32`。循环发送通过 Host 执行，`--count 0` 持续运行，`--background` 返回任务标识：
+
+```powershell
+serial-workbench --agent send --connection CONNECTION_ID --hex "01 03 00 00 00 01" --checksum Crc16Modbus
+serial-workbench --agent send repeat --connection CONNECTION_ID --text "status" --line-ending crlf --interval 1000 --count 10 --background
+serial-workbench --agent operations progress --id OPERATION_ID --after 0 --count 100 --wait 1000
+serial-workbench --agent operations wait --id OPERATION_ID --timeout 30000
+serial-workbench --agent operations result --id OPERATION_ID
+```
+
+任务进度查询返回版本化的进度列表和 `nextRevision`，下一次查询将其传入 `--after`。等待命令只观察已有任务，等待超时或取消等待不会取消 Host 中的任务。`operations result` 和 `operations wait` 的退出码反映任务结果，取消为 5、超时为 4，其他执行失败为 3。
+
 发送、Modbus、回环、序列和 XMODEM 命令支持 `--background` 与 `--request-id`。默认等待结果；后台模式返回 `operationId`，可通过任务命令查询或取消。使用 `--port` 与这两个选项时，连接由 Host 打开并保留，任务结束后可使用 `connections close` 关闭。相同端口请求在 Host 重启后也返回保存的结果，不再次打开串口或发送。XMODEM 接收文件由 Host 写入指定路径，后台接收同样保存文件。
 
 ```powershell
