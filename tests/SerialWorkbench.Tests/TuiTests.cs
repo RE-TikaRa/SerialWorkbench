@@ -13,6 +13,79 @@ namespace SerialWorkbench.Tests;
 
 public sealed class TuiTests
 {
+    [Theory]
+    [InlineData(60, 20)]
+    [InlineData(80, 24)]
+    [InlineData(120, 40)]
+    public async Task PortSelectorDisplaysDeviceNamesAndOpensTheSelectedPort(int width, int height)
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-port-names-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create().Init();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var driver = Assert.IsAssignableFrom<Terminal.Gui.Drivers.IDriver>(app.Driver);
+        driver.SetScreenSize(width, height);
+        var bluetooth = new SerialPortDescriptor("COM3", "COM3 - 蓝牙串口", "BTH\\DEVICE");
+        var adapter = new SerialPortDescriptor("COM20", "COM20 - USB-SERIAL CH340", "USB\\CH340");
+        workbench.SetPorts([bluetooth, adapter]);
+        var port = Assert.Single(workbench.ConnectionSettings.SubViews.OfType<DropDownList>());
+        var snapshot = new ConnectionSnapshot(Guid.NewGuid(), new SerialConnectionOptions(adapter.PortName, DeviceInstanceId: adapter.DeviceInstanceId),
+            ConnectionState.Open, 0, 0, 0, 0, 0, null, null);
+        workbench.SetConnections([snapshot]);
+        RunDialog(app, workbench, () =>
+        {
+            app.LayoutAndDraw(true);
+            Assert.Contains("COM20 已连接", driver.ToString(), StringComparison.Ordinal);
+            workbench.Window.NewKeyDownEvent(Key.F4);
+        }, dialog =>
+        {
+            Assert.Equal("连接管理", dialog.Title);
+            Assert.Equal(adapter.DisplayName, port.Text);
+            Assert.Equal(adapter.PortName, workbench.ReadConnectionOptions().PortName);
+            Assert.Equal(adapter.DeviceInstanceId, workbench.ReadConnectionOptions().DeviceInstanceId);
+            app.LayoutAndDraw(true);
+            Assert.Contains(adapter.DisplayName, driver.ToString(), StringComparison.Ordinal);
+            port.SetFocus();
+            dialog.NewKeyDownEvent(Key.CursorUp);
+            Assert.Equal(bluetooth.DisplayName, port.Text);
+            Assert.Equal(bluetooth.PortName, workbench.ReadConnectionOptions().PortName);
+            Assert.Equal(bluetooth.DeviceInstanceId, workbench.ReadConnectionOptions().DeviceInstanceId);
+        });
+    }
+
+    [Fact]
+    public async Task PortRefreshPreservesSelectionWhenDescriptionsAndPortNumbersChange()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-port-selection-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var bluetooth = new SerialPortDescriptor("COM3", "COM3 - 蓝牙串口", "BTH\\DEVICE");
+        var adapter = new SerialPortDescriptor("COM20", "COM20 - USB-SERIAL CH340", "USB\\CH340");
+        workbench.SetPorts([bluetooth, adapter]);
+        var port = Assert.Single(workbench.ConnectionSettings.SubViews.OfType<DropDownList>());
+        port.Text = adapter.DisplayName;
+        var renamed = adapter with { DisplayName = "COM20 - 调试设备" };
+        workbench.SetPorts([renamed, bluetooth]);
+        Assert.Equal(renamed.DisplayName, port.Text);
+        Assert.Equal(adapter.PortName, workbench.ReadConnectionOptions().PortName);
+        var snapshot = new ConnectionSnapshot(Guid.NewGuid(), new SerialConnectionOptions(adapter.PortName, DeviceInstanceId: adapter.DeviceInstanceId),
+            ConnectionState.Open, 0, 0, 0, 0, 0, null, null);
+        workbench.SetConnections([snapshot]);
+        var reconnected = adapter with { PortName = "COM24", DisplayName = "COM24 - USB-SERIAL CH340" };
+        workbench.SetPorts([bluetooth, reconnected]);
+        Assert.Equal(reconnected.DisplayName, port.Text);
+        Assert.Equal("COM24", workbench.ReadConnectionOptions().PortName);
+        Assert.Equal(adapter.DeviceInstanceId, workbench.ReadConnectionOptions().DeviceInstanceId);
+        workbench.SetPorts([]);
+        Assert.Throws<InvalidOperationException>(() => workbench.ReadConnectionOptions());
+        workbench.SetPorts([bluetooth, reconnected]);
+        Assert.Equal(reconnected.DisplayName, port.Text);
+        Assert.Equal(adapter.DeviceInstanceId, workbench.ReadConnectionOptions().DeviceInstanceId);
+    }
+
     [Fact]
     public async Task SwitchingSharedConnectionsUsesTheirEncodingWithoutOverwritingDraftsOnRefresh()
     {

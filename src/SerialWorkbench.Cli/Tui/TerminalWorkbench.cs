@@ -523,16 +523,18 @@ public sealed partial class TerminalWorkbench : IDisposable
     private async Task RefreshPortsAsync()
     {
         var listed = await client.ListPortsAsync(lifetime.Token).ConfigureAwait(false);
-        app.Invoke(() =>
-        {
-            ports = listed;
-            var selected = port.Text;
-            var deviceId = configuredDeviceId;
-            port.Source = new ListWrapper<string>(new ObservableCollection<string>(ports.Select(static item => item.PortName)));
-            port.Text = ports.FirstOrDefault(item => deviceId is not null ? item.DeviceInstanceId == deviceId : item.PortName == selected)?.PortName
-                ?? (deviceId is not null ? selected : ports.Count > 0 ? ports[0].PortName : "");
-            configuredDeviceId = deviceId;
-        });
+        app.Invoke(() => SetPorts(listed));
+    }
+
+    internal void SetPorts(IReadOnlyList<SerialPortDescriptor> listed)
+    {
+        var selected = SelectedPort?.PortName ?? port.Text;
+        ports = listed;
+        var deviceId = configuredDeviceId;
+        port.Source = new ListWrapper<string>(new ObservableCollection<string>(ports.Select(static item => item.DisplayName)));
+        port.Text = ports.FirstOrDefault(item => deviceId is not null ? item.DeviceInstanceId == deviceId : item.PortName == selected)?.DisplayName
+            ?? (deviceId is not null ? selected : ports.Count > 0 ? ports[0].DisplayName : "");
+        configuredDeviceId = deviceId;
     }
 
     private async Task OpenConnectionAsync()

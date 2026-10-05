@@ -20,6 +20,8 @@ public sealed partial class TerminalWorkbench
 
     internal View ConnectionSettings => connectionSettings;
 
+    private SerialPortDescriptor? SelectedPort => ports.FirstOrDefault(item => item.DisplayName == port.Text);
+
     private View BuildSettings()
     {
         var view = new View { Title = "设置", Width = Dim.Fill(), Height = Dim.Fill() };
@@ -251,9 +253,9 @@ public sealed partial class TerminalWorkbench
         Text = value.ToString(),
     };
 
-    private SerialConnectionOptions ReadConnectionOptions()
+    internal SerialConnectionOptions ReadConnectionOptions()
     {
-        var descriptor = ports.FirstOrDefault(item => item.PortName == port.Text) ?? throw new InvalidOperationException("请选择串口。");
+        var descriptor = SelectedPort ?? throw new InvalidOperationException("请选择串口。");
         return new SerialConnectionOptions(descriptor.PortName, baud.Value, dataBits.Value, Enum.Parse<SerialParity>(parity.Text),
             Enum.Parse<SerialStopBits>(stopBits.Text), Enum.Parse<SerialHandshake>(handshake.Text),
             dtr.Value == CheckState.Checked, rts.Value == CheckState.Checked, encoding.Text, Enum.Parse<SerialConnectionRole>(role.Text),
@@ -265,16 +267,16 @@ public sealed partial class TerminalWorkbench
     {
         var descriptor = ports.FirstOrDefault(item => profile.DeviceInstanceId is not null
             ? item.DeviceInstanceId?.Equals(profile.DeviceInstanceId, StringComparison.OrdinalIgnoreCase) == true : item.PortName == profile.PortName);
-        port.Text = descriptor?.PortName ?? profile.PortName ?? "";
+        var portName = descriptor?.PortName ?? profile.PortName ?? "";
         profileName.Text = profile.Name;
-        ApplyConnectionOptions(new SerialConnectionOptions(port.Text, profile.BaudRate, profile.DataBits, profile.Parity, profile.StopBits,
+        ApplyConnectionOptions(new SerialConnectionOptions(portName, profile.BaudRate, profile.DataBits, profile.Parity, profile.StopBits,
             profile.Handshake, profile.DtrEnable, profile.RtsEnable, profile.EncodingName, profile.Role, profile.DeviceInstanceId,
             profile.Rs485Mode, profile.RtsBeforeSendMilliseconds, profile.RtsAfterSendMilliseconds, profile.AutoReconnect));
     }
 
     private void ApplyConnectionOptions(SerialConnectionOptions options)
     {
-        port.Text = options.PortName;
+        port.Text = ports.FirstOrDefault(item => item.PortName == options.PortName)?.DisplayName ?? options.PortName;
         configuredDeviceId = options.DeviceInstanceId;
         baud.Value = options.BaudRate;
         dataBits.Value = options.DataBits;
