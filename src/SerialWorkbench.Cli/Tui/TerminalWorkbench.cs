@@ -20,14 +20,14 @@ public sealed partial class TerminalWorkbench : IDisposable
     private readonly IHostRpc client;
     private readonly CancellationTokenSource lifetime = new();
     private readonly Window window = new() { Title = "SerialWorkbench", Width = Dim.Fill(), Height = Dim.Fill() };
-    private readonly Tabs tabs = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Fill(4) };
+    private readonly Tabs tabs = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Fill(7) };
     private readonly Label status = new() { Y = 0, Width = Dim.Fill(16), Text = "正在连接 Host" };
     private readonly CheckBox backgroundTasks = new() { X = Pos.AnchorEnd(15), Y = 0, Text = "后台任务" };
     private readonly Label message = new() { Y = 1, Width = Dim.Fill() };
     private readonly ListView connections = new() { Width = Dim.Fill(), Height = Dim.Fill(1) };
     private readonly ObservableCollection<string> connectionItems = [];
     private readonly TableView traffic = new() { Width = Dim.Fill(), Height = Dim.Fill(2), FullRowSelect = true };
-    private readonly TextField input = new() { X = 0, Width = Dim.Fill(12) };
+    private readonly TextField input = new() { Id = "send-input", Y = 1, Width = Dim.Fill(12) };
     private readonly DropDownList format = new() { X = 0, Y = 0, Width = 12, ReadOnly = true, Text = "HEX", Source = new ListWrapper<string>(new ObservableCollection<string>(["HEX", "文本"])) };
     private readonly DropDownList direction = new() { X = 14, Width = 12, ReadOnly = true, Text = "全部", Source = new ListWrapper<string>(new ObservableCollection<string>(["全部", "RX", "TX"])) };
     private readonly TextField filter = new() { X = 28, Width = Dim.Fill(1) };
@@ -106,7 +106,8 @@ public sealed partial class TerminalWorkbench : IDisposable
         tabs.Add(workbench, settingsView, BuildHistory(), BuildModbus(), BuildTransfers(), BuildTasks(), BuildSessions(), BuildProtocol(), BuildWaveform());
         var send = Button("发送", () => RunUiAsync(SendAsync));
         send.X = Pos.AnchorEnd();
-        var sending = new FrameView { Title = "发送 · 输入框 Enter 发送", Y = Pos.AnchorEnd(4), Height = 3, Width = Dim.Fill() };
+        send.Y = 1;
+        var sending = BuildSending();
         input.Accepting += (_, args) => { args.Handled = true; _ = RunUiAsync(SendAsync); };
         sending.Add(input, send);
         var shortcuts = new StatusBar([
@@ -204,7 +205,6 @@ public sealed partial class TerminalWorkbench : IDisposable
             new Label { Text = "停止位", Y = 9 }, stopBits,
             new Label { Text = "HEX 间隔 ms", Y = 13 }, hexGap,
             new Label { Text = "文本编码", Y = 15 }, encoding,
-            new Label { Text = "行尾", Y = 17 }, lineEnding,
             new Label { Text = "流控", Y = 20 }, handshake,
             new Label { Text = "设备角色", Y = 23 }, role,
             dtr, rts, rs485, autoReconnect,
@@ -499,16 +499,14 @@ public sealed partial class TerminalWorkbench : IDisposable
 
     private async Task SendAsync()
     {
-        var id = connectionId ?? throw new InvalidOperationException("请先连接串口。");
         var text = input.Text;
-        var ending = lineEnding.Text switch { "CR" => "\r", "LF" => "\n", "CRLF" => "\r\n", _ => "" };
-        var data = format.Text == "HEX" ? HexCodec.Parse(text) : Encoding.GetEncoding(encoding.Text).GetBytes(text + ending);
-        await client.SendAsync(new SendRequest(id, data, "tui.send"), lifetime.Token).ConfigureAwait(false);
+        var request = CreateSendRequest();
+        await client.SendAsync(request, lifetime.Token).ConfigureAwait(false);
         var configuration = await client.AddSendHistoryAsync(text, lifetime.Token).ConfigureAwait(false);
         app.Invoke(() =>
         {
             ApplyConfiguration(configuration);
-            message.Text = $"已发送 {data.Length} 字节";
+            message.Text = $"已发送 {request.Data.Length} 字节";
         });
     }
 

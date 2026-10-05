@@ -8,6 +8,26 @@ namespace SerialWorkbench.Tests;
 public sealed class SharedConnectionTests
 {
     [Fact]
+    public async Task RepeatedSendingKeepsTheLeaseUntilItsConfiguredCountCompletes()
+    {
+        var port = Environment.GetEnvironmentVariable("SERIALWORKBENCH_TEST_PORT");
+        Assert.SkipWhen(string.IsNullOrWhiteSpace(port), "Set SERIALWORKBENCH_TEST_PORT to run serial hardware tests.");
+        await using var runtime = CreateRuntime();
+        var client = new HostRpcService(runtime);
+        var token = TestContext.Current.CancellationToken;
+        var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(new SerialConnectionOptions(port)), token);
+        var request = OperationJson.Create("send.repeat", connection.Id, new RepeatSendRequest([0x53, 0x57, 0x42], 10, 3));
+        var result = await client.RunOperationAsync<System.Text.Json.JsonElement>(request, token);
+        Assert.Equal(3, result.GetProperty("sends").GetInt64());
+        Assert.Equal(9, runtime.Connections.GetSnapshots().Single().TransmittedBytes);
+        var events = runtime.Journal.ReadAfter(0, 100, connection.Id, SerialDirection.Transmit);
+        Assert.Equal(3, events.Count);
+        Assert.All(events, item => Assert.Equal([0x53, 0x57, 0x42], item.Data));
+        Assert.Equal(0, runtime.Leases.ActiveCount);
+        await client.CloseConnectionAsync(connection.Id, token);
+    }
+
+    [Fact]
     public async Task HostRemainsRunningWhileAWritingTaskExists()
     {
         await using var runtime = CreateRuntime();

@@ -2,6 +2,7 @@ using SerialWorkbench.Application;
 using SerialWorkbench.Cli.Tui;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Host;
+using SerialWorkbench.Protocols;
 using SerialWorkbench.Storage;
 using Terminal.Gui.App;
 using Terminal.Gui.ViewBase;
@@ -11,6 +12,27 @@ namespace SerialWorkbench.Tests;
 
 public sealed class TuiTests
 {
+    [Fact]
+    public async Task SendingUsesItsOwnFormatAndAppendsTheSelectedChecksum()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-sending-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var sending = workbench.Window.SubViews.OfType<FrameView>().Single();
+        var input = sending.SubViews.OfType<TextField>().Single(static field => field.Id == "send-input");
+        var format = sending.SubViews.OfType<DropDownList>().Single(static field => field.Id == "send-format");
+        var checksum = sending.SubViews.OfType<DropDownList>().Single(static field => field.Id == "send-checksum");
+        input.Text = "01 03 00 00 00 01";
+        checksum.Text = "CRC16 Modbus";
+        Assert.Equal("010300000001840A", Convert.ToHexString(workbench.CreateSendRequest(Guid.NewGuid()).Data));
+        format.Text = "文本";
+        input.Text = "测试";
+        checksum.Text = "无校验";
+        Assert.Equal("测试"u8.ToArray(), workbench.CreateSendRequest(Guid.NewGuid()).Data);
+    }
+
     [Fact]
     public async Task TableRefreshKeepsSelectedMessagesAfterFilteringAndCapacityChanges()
     {

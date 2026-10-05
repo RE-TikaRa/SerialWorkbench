@@ -1,7 +1,41 @@
 namespace SerialWorkbench.Protocols;
 
+public enum ChecksumKind
+{
+    None,
+    Xor,
+    Sum8,
+    Crc16Modbus,
+    Crc16Xmodem,
+    Crc32,
+}
+
 public static class Checksums
 {
+    public static byte[] Append(byte[] data, ChecksumKind kind)
+    {
+        switch (kind)
+        {
+            case ChecksumKind.None:
+                return data;
+            case ChecksumKind.Xor:
+                return [.. data, Xor(data)];
+            case ChecksumKind.Sum8:
+                return [.. data, Sum8(data)];
+            case ChecksumKind.Crc16Modbus:
+                var modbus = Crc16Modbus(data);
+                return [.. data, (byte)modbus, (byte)(modbus >> 8)];
+            case ChecksumKind.Crc16Xmodem:
+                var xmodem = Crc16XModem(data);
+                return [.. data, (byte)(xmodem >> 8), (byte)xmodem];
+            case ChecksumKind.Crc32:
+                var crc = Crc32(data);
+                return [.. data, (byte)crc, (byte)(crc >> 8), (byte)(crc >> 16), (byte)(crc >> 24)];
+            default:
+                throw new ArgumentOutOfRangeException(nameof(kind));
+        }
+    }
+
     public static byte Xor(ReadOnlySpan<byte> data)
     {
         byte value = 0;

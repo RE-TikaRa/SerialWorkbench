@@ -262,6 +262,21 @@ public sealed class OperationManager(HostRuntime runtime) : IAsyncDisposable
                     result = loopbackResult;
                     error = loopbackResult.Passed ? null : Failure(loopbackResult.ErrorCode, loopbackResult.Error, snapshot);
                     break;
+                case "send.repeat":
+                    var repeating = OperationJson.Read<RepeatSendRequest>(request.ParametersJson);
+                    long sent = 0;
+                    while (repeating.Count == 0 || sent < repeating.Count)
+                    {
+                        await runtime.Connections.SendAsync(request.ConnectionId, repeating.Data, repeating.Source, token, lease).ConfigureAwait(false);
+                        sent++;
+                        Report(new OperationProgress(sent, repeating.Count == 0 ? null : repeating.Count, "sends"));
+                        if (repeating.Count == 0 || sent < repeating.Count)
+                        {
+                            await Task.Delay(repeating.IntervalMilliseconds, token).ConfigureAwait(false);
+                        }
+                    }
+                    result = new { success = true, sends = sent, bytes = sent * repeating.Data.LongLength };
+                    break;
                 case "sequence.run":
                     result = await runtime.Connections.RunSequenceAsync(request.ConnectionId, OperationJson.Read<SerialSequenceDefinition>(request.ParametersJson), token, lease, Report).ConfigureAwait(false);
                     break;
@@ -493,6 +508,7 @@ public sealed class OperationManager(HostRuntime runtime) : IAsyncDisposable
         object parameters = request.Command switch
         {
             "send" => OperationJson.Read<SendRequest>(request.ParametersJson) with { ConnectionId = request.ConnectionId },
+            "send.repeat" => OperationJson.Read<RepeatSendRequest>(request.ParametersJson),
             "loopback.run" => OperationJson.Read<LoopbackRequest>(request.ParametersJson) with { ConnectionId = request.ConnectionId },
             "sequence.run" => OperationJson.Read<SerialSequenceDefinition>(request.ParametersJson),
             "xmodem.send" => OperationJson.Read<byte[]>(request.ParametersJson),
@@ -505,6 +521,13 @@ public sealed class OperationManager(HostRuntime runtime) : IAsyncDisposable
 
         switch (parameters)
         {
+            case RepeatSendRequest repeating:
+                ArgumentNullException.ThrowIfNull(repeating.Data);
+                ArgumentException.ThrowIfNullOrWhiteSpace(repeating.Source);
+                CheckRange(repeating.Data.Length, 1, 16 * 1024 * 1024, nameof(repeating.Data));
+                CheckRange(repeating.IntervalMilliseconds, 1, 600_000, nameof(repeating.IntervalMilliseconds));
+                CheckRange(repeating.Count, 0, 100_000, nameof(repeating.Count));
+                break;
             case SendRequest send:
                 ArgumentNullException.ThrowIfNull(send.Data);
                 ArgumentException.ThrowIfNullOrWhiteSpace(send.Source);

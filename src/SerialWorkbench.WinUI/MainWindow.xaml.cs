@@ -1997,27 +1997,7 @@ public sealed partial class MainWindow : Window
         _ => "",
     };
 
-    private static byte[] AppendChecksum(byte[] data, int index)
-    {
-        switch (index)
-        {
-            case 1:
-                return [.. data, Protocols.Checksums.Xor(data)];
-            case 2:
-                return [.. data, Protocols.Checksums.Sum8(data)];
-            case 3:
-                var modbus = Protocols.Checksums.Crc16Modbus(data);
-                return [.. data, (byte)modbus, (byte)(modbus >> 8)];
-            case 4:
-                var xmodem = Protocols.Checksums.Crc16XModem(data);
-                return [.. data, (byte)(xmodem >> 8), (byte)xmodem];
-            case 5:
-                var crc32 = Protocols.Checksums.Crc32(data);
-                return [.. data, (byte)crc32, (byte)(crc32 >> 8), (byte)(crc32 >> 16), (byte)(crc32 >> 24)];
-            default:
-                return data;
-        }
-    }
+    private static byte[] AppendChecksum(byte[] data, int index) => Protocols.Checksums.Append(data, (Protocols.ChecksumKind)index);
 
     private void ShowError(string message)
     {

@@ -135,7 +135,7 @@ public sealed partial class TerminalWorkbench
         return view;
     }
 
-    private async Task StartTaskAsync(OperationRequest request)
+    private async Task StartTaskAsync(OperationRequest request, Action<OperationSnapshot>? accepted = null)
     {
         var background = backgroundTasks.Value == CheckState.Checked;
         lifetime.Token.ThrowIfCancellationRequested();
@@ -148,6 +148,7 @@ public sealed partial class TerminalWorkbench
         app.Invoke(() =>
         {
             message.Text = $"任务已启动：{operation.Id}";
+            accepted?.Invoke(operation);
             ShowProgress(operation);
         });
         if (!background)

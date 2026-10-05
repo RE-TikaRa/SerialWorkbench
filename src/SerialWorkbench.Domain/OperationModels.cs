@@ -33,6 +33,8 @@ public sealed record OperationRequest(
 
 public sealed record XmodemReceiveRequest(string? DestinationPath = null);
 
+public sealed record RepeatSendRequest(byte[] Data, int IntervalMilliseconds = 1000, int Count = 0, string Source = "repeat.send");
+
 public sealed record OperationProgress(
     long Completed,
     long? Total = null,
