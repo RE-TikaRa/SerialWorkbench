@@ -33,7 +33,7 @@ internal static partial class KillCommand
                     }
                     try
                     {
-                        if (!process.HasExited && IsProjectProcess(root, ReadExecutablePath(process)))
+                        if (ReadExecutablePath(process) is { } path && IsProjectProcess(root, path))
                         {
                             processes.Add(process);
                         }
@@ -141,12 +141,21 @@ internal static partial class KillCommand
         }
     }
 
-    private static unsafe string ReadExecutablePath(Process process)
+    private static unsafe string? ReadExecutablePath(Process process)
     {
         using var handle = OpenProcess(QueryLimitedInformation, false, (uint)process.Id);
         if (handle.IsInvalid)
         {
+            var error = Marshal.GetLastPInvokeError();
+            return error == 87 ? null : throw new Win32Exception(error);
+        }
+        if (!GetExitCodeProcess(handle, out var exitCode))
+        {
             throw new Win32Exception(Marshal.GetLastPInvokeError());
+        }
+        if (exitCode != 259)
+        {
+            return null;
         }
         Span<char> path = stackalloc char[32768];
         var length = path.Length;
@@ -154,7 +163,8 @@ internal static partial class KillCommand
         {
             if (!QueryFullProcessImageName(handle, 0, buffer, ref length))
             {
-                throw new Win32Exception(Marshal.GetLastPInvokeError());
+                var error = Marshal.GetLastPInvokeError();
+                return GetExitCodeProcess(handle, out exitCode) && exitCode != 259 ? null : throw new Win32Exception(error);
             }
         }
         return new string(path[..length]);
@@ -162,6 +172,10 @@ internal static partial class KillCommand
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     private static partial SafeProcessHandle OpenProcess(uint desiredAccess, [MarshalAs(UnmanagedType.Bool)] bool inheritHandle, uint processId);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetExitCodeProcess(SafeProcessHandle process, out uint exitCode);
 
     [LibraryImport("kernel32.dll", EntryPoint = "QueryFullProcessImageNameW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

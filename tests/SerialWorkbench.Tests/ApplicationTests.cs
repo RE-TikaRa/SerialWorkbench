@@ -5,6 +5,7 @@ using SerialWorkbench.Serial.Windows;
 
 namespace SerialWorkbench.Tests;
 
+[Collection("Application processes")]
 public sealed class ApplicationTests
 {
     [Fact]
@@ -227,7 +228,7 @@ public sealed class ApplicationTests
         Assert.Equal(0, started.ExitCode);
         var result = await EntryPointTests.InvokeAsync("SW_CLI", "--agent", "kill", "--app-root", AppContext.BaseDirectory);
 
-        Assert.Equal(0, result.ExitCode);
+        Assert.True(result.ExitCode == 0, result.Output + result.Error);
         Assert.Empty(result.Error);
         using var document = System.Text.Json.JsonDocument.Parse(result.Output);
         var receipt = document.RootElement.GetProperty("result");

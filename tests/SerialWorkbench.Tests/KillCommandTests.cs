@@ -4,6 +4,7 @@ using SerialWorkbench.Cli;
 
 namespace SerialWorkbench.Tests;
 
+[Collection("Application processes")]
 public sealed class KillCommandTests
 {
     [Theory]

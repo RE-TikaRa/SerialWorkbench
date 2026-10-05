@@ -3,6 +3,7 @@ using System.Text.Json;
 
 namespace SerialWorkbench.Tests;
 
+[Collection("Application processes")]
 public sealed class EntryPointTests
 {
     [Fact]
