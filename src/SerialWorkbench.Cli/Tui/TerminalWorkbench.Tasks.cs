@@ -36,7 +36,7 @@ public sealed partial class TerminalWorkbench
     private View BuildModbus()
     {
         var view = new View { Title = "Modbus", Width = Dim.Fill(), Height = Dim.Fill() };
-        var parameters = new FrameView { Title = "事务参数", Width = 42, Height = Dim.Fill(), ViewportSettings = ViewportSettingsFlags.HasScrollBars };
+        var parameters = new FrameView { Title = "事务参数", Width = 43, Height = Dim.Fill(), ViewportSettings = ViewportSettingsFlags.HasScrollBars };
         var slave = Number(parameters, "从站", 0, 1);
         var function = Number(parameters, "功能码", 2, 3);
         var address = Number(parameters, "地址", 4, 0);
@@ -157,7 +157,7 @@ public sealed partial class TerminalWorkbench
         }));
         loopback.Y = 19;
         view.Add(browse, send, receive, new Label { Text = "回环模式", Y = 15 }, pattern, loopback);
-        view.SetContentSize(new System.Drawing.Size(80, 21));
+        view.SetContentHeight(21);
         EnableFormScrolling(view);
         return view;
     }

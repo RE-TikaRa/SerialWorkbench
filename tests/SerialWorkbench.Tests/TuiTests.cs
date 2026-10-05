@@ -141,6 +141,7 @@ public sealed class TuiTests
         var first = panel.SubViews.Where(static view => view.CanFocus).OrderBy(static view => view.Frame.Top).First();
         first.SetFocus();
         Assert.True(panel.Viewport.Contains(first.Frame));
+        Assert.Equal(0, panel.Viewport.X);
         app.End(token);
     }
 
