@@ -85,7 +85,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         workbenchView = workbench;
         settingsView = BuildSettings();
         workbench.Add(connectionsFrame, trafficFrame);
-        tabs.Add(workbench, settingsView, BuildHistory());
+        tabs.Add(workbench, settingsView, BuildHistory(), BuildModbus(), BuildTransfers(), BuildTasks());
         var send = Button("发送", () => RunUiAsync(SendAsync));
         send.X = Pos.AnchorEnd();
         var sending = new FrameView { Title = "发送 · 输入框 Enter 发送", Y = Pos.AnchorEnd(4), Height = 3, Width = Dim.Fill() };
@@ -201,6 +201,10 @@ public sealed partial class TerminalWorkbench : IDisposable
         try
         {
             var host = await client.GetStatusAsync(lifetime.Token).ConfigureAwait(false);
+            if (host.ActiveOperationCount > 0 || displayedTasks.Any(static item => item.State == OperationState.Running))
+            {
+                await RefreshTasksAsync().ConfigureAwait(false);
+            }
             var batch = await client.ReadEventBatchAsync(new EventQuery(sequence, 1000, StreamId: streamId), lifetime.Token).ConfigureAwait(false);
             app.Invoke(() =>
             {

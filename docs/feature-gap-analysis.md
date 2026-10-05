@@ -58,6 +58,7 @@ Host 持有串口句柄、写入租约、原始事件和 SQLite 会话。WinUI �
 - CLI 使用 System.CommandLine 处理带类型的参数、Help、补全建议和 Response File，使用 Spectre.Console 呈现文本结果，并提供自动化序列入口。
 - Agent 与 CLI 共享 Schema v2，提供离线能力发现、命令 Schema 和帮助；结构化错误写入 stdout，JSONL 保持逐条单行并输出最终结果。
 - Terminal.Gui 终端工作台提供连接、报文、发送、历史、过滤、设置、暂停、范围选择和复制，复用 WinUI 的文本与 HEX 聚合实现。
+- TUI 支持 Modbus 事务、扫描、轮询、XMODEM 收发、自动化序列、回环，以及 Host 任务进度、取消和结果查询。
 - self-contained `win-x64` 便携发布。
 
 ## 仍可增强的功能
