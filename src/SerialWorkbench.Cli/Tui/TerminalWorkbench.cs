@@ -21,7 +21,8 @@ public sealed partial class TerminalWorkbench : IDisposable
     private readonly CancellationTokenSource lifetime = new();
     private readonly Window window = new() { Title = "SerialWorkbench", Width = Dim.Fill(), Height = Dim.Fill() };
     private readonly Tabs tabs = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Fill(4) };
-    private readonly Label status = new() { Y = 0, Width = Dim.Fill(), Text = "正在连接 Host" };
+    private readonly Label status = new() { Y = 0, Width = Dim.Fill(16), Text = "正在连接 Host" };
+    private readonly CheckBox backgroundTasks = new() { X = Pos.AnchorEnd(15), Y = 0, Text = "后台任务" };
     private readonly Label message = new() { Y = 1, Width = Dim.Fill() };
     private readonly ListView connections = new() { Width = Dim.Fill(), Height = Dim.Fill(1) };
     private readonly ObservableCollection<string> connectionItems = [];
@@ -117,7 +118,7 @@ public sealed partial class TerminalWorkbench : IDisposable
             new Shortcut(Key.F7, "实时", ResumeLiveTraffic),
             new Shortcut(Key.Q.WithCtrl, "退出", () => app.RequestStop(window)),
         ]);
-        window.Add(status, message, tabs, sending, shortcuts);
+        window.Add(status, backgroundTasks, message, tabs, sending, shortcuts);
         format.ValueChanged += (_, _) => RefreshTraffic();
         direction.ValueChanged += (_, _) => RefreshTraffic();
         filter.TextChanged += (_, _) => RefreshTraffic();
@@ -602,7 +603,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         return completion.Task.WaitAsync(lifetime.Token);
     }
 
-    private static Button Button(string text, Func<Task> action)
+    private Button Button(string text, Func<Task> action)
     {
         var button = new Button { Text = text };
         button.Accepting += async (_, args) =>
@@ -615,7 +616,10 @@ public sealed partial class TerminalWorkbench : IDisposable
             }
             finally
             {
-                button.Enabled = true;
+                if (!lifetime.IsCancellationRequested)
+                {
+                    app.Invoke(() => button.Enabled = true);
+                }
             }
         };
         return button;

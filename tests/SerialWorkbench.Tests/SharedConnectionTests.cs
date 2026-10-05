@@ -182,4 +182,27 @@ public sealed class SharedConnectionTests
         Assert.Empty(restarted.Connections.GetSnapshots());
         Assert.Empty(restarted.Journal.ReadAfter(0, 100));
     }
+
+    [Fact]
+    public async Task ForegroundCancellationStopsAnAcceptedTaskBeforeProgressIsRead()
+    {
+        var port = Environment.GetEnvironmentVariable("SERIALWORKBENCH_TEST_PORT");
+        Assert.SkipWhen(string.IsNullOrWhiteSpace(port), "Set SERIALWORKBENCH_TEST_PORT to run serial hardware tests.");
+        await using var runtime = CreateRuntime();
+        var service = new HostRpcService(runtime);
+        var token = TestContext.Current.CancellationToken;
+        var connection = await service.OpenConnectionAsync(new OpenConnectionRequest(new SerialConnectionOptions(port)), token);
+        var definition = new SerialSequenceDefinition("foreground", [new SerialSequenceStep([0x53], "hex", 5000, 1, 0)]);
+        var started = await service.StartOperationAsync(OperationJson.Create("sequence.run", connection.Id, definition), token);
+        var operation = Assert.IsType<OperationSnapshot>(started.Operation);
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.WaitOperationAsync<SerialSequenceProgress>(operation, cancelled.Token));
+
+        Assert.Equal(OperationState.Cancelled, (await service.ReadOperationAsync(new OperationQuery(operation.Id), token)).State);
+        Assert.Equal(0, runtime.Operations.ActiveCount);
+        Assert.Equal(0, runtime.Leases.ActiveCount);
+        await service.CloseConnectionAsync(connection.Id, token);
+    }
 }

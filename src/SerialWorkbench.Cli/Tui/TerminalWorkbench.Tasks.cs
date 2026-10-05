@@ -111,9 +111,7 @@ public sealed partial class TerminalWorkbench
 
             var id = RequiredConnection();
             var request = OperationJson.Create("xmodem.receive", id, new XmodemReceiveRequest(Path.GetFullPath(destination)));
-            var result = await client.RunOperationAsync<XmodemReceiveResult>(request, lifetime.Token,
-                item => app.Invoke(() => ShowProgress(item))).ConfigureAwait(false);
-            app.Invoke(() => message.Text = result.Result.Success ? $"已保存 {result.Data.Length} 字节" : result.Result.Error ?? "接收失败");
+            await StartTaskAsync(request).ConfigureAwait(false);
         }));
         receive.Y = 4;
         receive.X = Pos.Right(send) + 1;
@@ -139,7 +137,9 @@ public sealed partial class TerminalWorkbench
 
     private async Task StartTaskAsync(OperationRequest request)
     {
-        var started = await client.StartOperationAsync(request, lifetime.Token).ConfigureAwait(false);
+        var background = backgroundTasks.Value == CheckState.Checked;
+        lifetime.Token.ThrowIfCancellationRequested();
+        var started = await client.StartOperationAsync(request, CancellationToken.None).ConfigureAwait(false);
         if (started.Operation is not { } operation)
         {
             throw new HostOperationException(started.Error ?? new WorkbenchError("OPERATION_FAILED", "任务未接受。"));
@@ -150,6 +150,15 @@ public sealed partial class TerminalWorkbench
             message.Text = $"任务已启动：{operation.Id}";
             ShowProgress(operation);
         });
+        if (!background)
+        {
+            await client.WaitOperationAsync<JsonElement>(operation, lifetime.Token, item =>
+            {
+                operation = item;
+                app.Invoke(() => ShowProgress(item));
+            }).ConfigureAwait(false);
+            app.Invoke(() => message.Text = operation.Error?.Message ?? $"{operation.Request.Command} · {operation.State}");
+        }
         await RefreshTasksAsync().ConfigureAwait(false);
     }
 
