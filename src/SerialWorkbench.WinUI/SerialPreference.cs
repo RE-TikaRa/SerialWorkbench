@@ -90,31 +90,6 @@ public static class SerialPreferenceStore
     }
 }
 
-public static class WorkspacePreferenceStore
-{
-    private static readonly string FilePath = Path.Combine(AppContext.BaseDirectory, "data", "settings", "workspace.json");
-
-    public static string? Load()
-    {
-        try
-        {
-            return File.Exists(FilePath) ? JsonSerializer.Deserialize<Document>(File.ReadAllText(FilePath))?.Path : null;
-        }
-        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-    }
-
-    public static void Save(string? path)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(new Document(path)));
-    }
-
-    private sealed record Document(string? Path);
-}
-
 public static class SerialProfileStore
 {
     private static readonly string FilePath = Path.Combine(AppContext.BaseDirectory, "data", "settings", "serial-profiles.json");

@@ -42,6 +42,7 @@ public sealed partial class TerminalWorkbench : IDisposable
     private readonly TextField encoding = new() { X = 16, Y = 15, Width = 20, Text = "utf-8" };
     private readonly DropDownList lineEnding = new() { X = 16, Y = 17, Width = 20, Text = "无", ReadOnly = true, Source = new ListWrapper<string>(new ObservableCollection<string>(["无", "CR", "LF", "CRLF"])) };
     private readonly ListView history = new() { Width = Dim.Fill(), Height = Dim.Fill() };
+    private readonly Label workspace = new() { Y = 21, Width = Dim.Fill(), Text = "全局工作区" };
     private readonly ObservableCollection<string> historyItems = [];
     private readonly Dictionary<Guid, TrafficBuffer> buffers = [];
     private IReadOnlyList<ConnectionSnapshot> snapshots = [];
@@ -192,7 +193,26 @@ public sealed partial class TerminalWorkbench : IDisposable
             new Label { Text = "行尾", Y = 17 }, lineEnding);
         var open = Button("打开连接", () => RunUiAsync(OpenConnectionAsync));
         open.Y = 19;
-        view.Add(open);
+        var chooseWorkspace = Button("选择工作区", () => RunUiAsync(async () =>
+        {
+            using var dialog = new OpenDialog { Title = "选择工作区", OpenMode = OpenMode.Directory, Path = Environment.CurrentDirectory, AllowsMultipleSelection = false };
+            app.Run(dialog);
+            if (!dialog.Canceled)
+            {
+                await client.SetWorkspaceAsync(new SetWorkspaceRequest(dialog.Path), lifetime.Token).ConfigureAwait(false);
+                await RefreshSessionsAsync().ConfigureAwait(false);
+            }
+        }));
+        chooseWorkspace.Y = 23;
+        var clearWorkspace = Button("全局工作区", () => RunUiAsync(async () =>
+        {
+            await client.SetWorkspaceAsync(new SetWorkspaceRequest(null), lifetime.Token).ConfigureAwait(false);
+            await RefreshSessionsAsync().ConfigureAwait(false);
+        }));
+        clearWorkspace.Y = 23;
+        clearWorkspace.X = Pos.Right(chooseWorkspace) + 1;
+        view.SetContentSize(new System.Drawing.Size(80, 25));
+        view.Add(open, workspace, chooseWorkspace, clearWorkspace);
         return view;
     }
 
@@ -232,6 +252,7 @@ public sealed partial class TerminalWorkbench : IDisposable
             app.Invoke(() =>
             {
                 var selection = connectionId;
+                workspace.Text = host.WorkspaceRoot is null ? $"全局数据：{host.DataRoot}" : $"工作区：{host.WorkspaceRoot}";
                 snapshots = host.Connections;
                 updatingConnections = true;
                 var names = snapshots.Select(static snapshot => $"{snapshot.Options.PortName} · {snapshot.State}").ToArray();

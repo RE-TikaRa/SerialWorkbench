@@ -3,6 +3,7 @@ using Microsoft.Data.Sqlite;
 using SerialWorkbench.Application;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Host;
+using SerialWorkbench.Ipc;
 using SerialWorkbench.Sessions;
 using SerialWorkbench.Storage;
 using SerialWorkbench.WinUI;
@@ -300,6 +301,27 @@ public sealed class StorageAndSessionTests
 
         Assert.Equal(workspaceRoot, runtime.Paths.WorkspaceRoot);
         Assert.Equal(Path.Combine(workspaceRoot, "sessions"), runtime.Paths.SessionsRoot);
+    }
+
+    [Fact]
+    public async Task WorkspaceSelectionIsSharedAndSurvivesHostRestart()
+    {
+        var paths = new ApplicationPaths(CreateArtifactDirectory("shared-workspace-app"));
+        paths.EnsureWritable();
+        var workspaceRoot = CreateArtifactDirectory("shared-workspace");
+        var token = TestContext.Current.CancellationToken;
+        await using (var runtime = new HostRuntime(paths))
+        {
+            await new HostRpcService(runtime).SetWorkspaceAsync(new SetWorkspaceRequest(workspaceRoot), token);
+            Assert.Equal(workspaceRoot, (await new HostRpcService(runtime).GetStatusAsync(token)).WorkspaceRoot);
+        }
+        await using (var restored = new HostRuntime(paths))
+        {
+            Assert.Equal(workspaceRoot, restored.Paths.WorkspaceRoot);
+            await restored.SetWorkspaceAsync(null, token);
+        }
+        await using var cleared = new HostRuntime(paths);
+        Assert.Null(cleared.Paths.WorkspaceRoot);
     }
 
     private static SerialTrafficEvent CreateEvent(long sequence, Guid connectionId, SerialDirection direction, byte[] data) =>

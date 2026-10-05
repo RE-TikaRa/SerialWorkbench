@@ -69,7 +69,6 @@ public sealed partial class MainWindow : Window
     private CancellationTokenSource? modbusPollCancellation;
     private ModbusPage? modbusPage;
     private readonly SerialPreference serialPreference = SerialPreferenceStore.Load();
-    private readonly string? preferredWorkspace = WorkspacePreferenceStore.Load();
 
     public MainWindow()
     {
@@ -127,10 +126,6 @@ public sealed partial class MainWindow : Window
             await RefreshPortsAsync();
             workbenchPage?.ApplySerialPreference(serialPreference);
             SetSerialConfigurationEnabled(true);
-            if (preferredWorkspace is not null && !workspaceSelected)
-            {
-                await ChangeWorkspaceAsync(preferredWorkspace);
-            }
             eventTimer.Start();
             await RefreshStatusAsync();
         }
@@ -1877,9 +1872,9 @@ public sealed partial class MainWindow : Window
         try
         {
             var status = await client.SetWorkspaceAsync(new SetWorkspaceRequest(path), CancellationToken.None);
-            WorkspacePreferenceStore.Save(path);
             workspaceSelected = status.WorkspaceRoot is not null;
             workspacePath = status.WorkspaceRoot is null ? $"全局数据：{status.DataRoot}" : $"工作区：{status.WorkspaceRoot}";
+            settingsPage?.SetWorkspace(workspacePath, workspaceSelected);
             settingsPage?.SetWorkspace(workspacePath, workspaceSelected);
             activeSessionId = status.ActiveSession?.Id;
             sessionsPage?.SetWorkspace(workspacePath);

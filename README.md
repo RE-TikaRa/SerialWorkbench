@@ -63,6 +63,8 @@ SerialWorkbench.Host.exe  串口和会话服务
 
 Host 在存在客户端、连接或写入任务时保持运行；全部结束后等待 30 秒退出。
 
+工作区选择由 Host 保存，WinUI、TUI 和 CLI 共用同一个工作区及活动会话，Host 重启后恢复选择。TUI 设置页可选择工作区或返回全局数据目录；工作区切换前需要关闭连接。
+
 设备断开后由 Host 每两秒检查恢复条件，WinUI、TUI 和 Agent 共用同一个 `connectionId`。重连更换 `segmentId`，原始事件和会话保留分段，文本与 HEX 不跨分段拼接。周期读取等待设备恢复；写入、自动化和文件传输停止，不自动重放。`connections reconnect --id CONNECTION_ID` 明确重连，`connections open --no-reconnect` 关闭自动恢复。
 
 ## Host 任务

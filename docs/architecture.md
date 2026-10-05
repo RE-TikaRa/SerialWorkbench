@@ -43,6 +43,7 @@ RPC 契约位于 `src/SerialWorkbench.Ipc/RpcContracts.cs`。握手使用主版�
 CLI 结构化输出使用带 `schemaVersion` 的 JSON 文档，其契约位于 `schemas/`。
 
 工作区切换由 Host 执行。客户端提交工作区路径，并使用 Host 返回的数据目录和会话状态更新界面。
+Host 将工作区选择保存于应用数据目录，启动时恢复；客户端连接时读取共享状态。
 
 ## 界面
 

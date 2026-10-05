@@ -15,6 +15,7 @@ public sealed class HostRuntime : IAsyncDisposable
     private readonly Channel<SerialTrafficEvent> sessionEvents = Channel.CreateUnbounded<SerialTrafficEvent>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
     private readonly Task sessionWriter;
     private readonly Task connectionMonitor;
+    private readonly WorkspacePreferenceStore workspacePreferences;
     private readonly object sessionQueueGate = new();
     private readonly SemaphoreSlim connectionGate = new(1, 1);
     private TaskCompletionSource<bool> sessionFlushed = CompletedSignal();
@@ -27,10 +28,11 @@ public sealed class HostRuntime : IAsyncDisposable
 
     public HostRuntime(ApplicationPaths paths)
     {
-        Paths = paths;
+        workspacePreferences = new WorkspacePreferenceStore(paths);
+        Paths = paths.WithWorkspace(paths.WorkspaceRoot ?? workspacePreferences.Load());
         Journal = new EventJournal();
         Leases = new WriteLeaseManager();
-        Sessions = new SessionStore(paths);
+        Sessions = new SessionStore(Paths);
         Connections = new SerialConnectionManager(Journal, Leases, PersistAsync);
         Operations = new OperationManager(this);
         sessionWriter = Task.Run(WriteSessionEventsAsync);
@@ -187,6 +189,7 @@ public sealed class HostRuntime : IAsyncDisposable
             var nextPaths = Paths.WithWorkspace(workspaceRoot);
             nextPaths.EnsureWritable();
             await FlushSessionEventsAsync(cancellationToken).ConfigureAwait(false);
+            await workspacePreferences.SaveAsync(nextPaths.WorkspaceRoot, cancellationToken).ConfigureAwait(false);
             await Sessions.DisposeAsync().ConfigureAwait(false);
             Paths = nextPaths;
             Sessions = new SessionStore(nextPaths);
