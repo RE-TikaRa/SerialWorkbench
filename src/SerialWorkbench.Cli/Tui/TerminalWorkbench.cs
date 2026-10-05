@@ -36,13 +36,25 @@ public sealed partial class TerminalWorkbench : IDisposable
     private readonly DropDownList port = new() { X = 16, Y = 0, Width = Dim.Fill(1), ReadOnly = true };
     private readonly NumericUpDown<int> baud = new() { X = 16, Y = 2, Value = 115200, Width = 20 };
     private readonly NumericUpDown<int> dataBits = new() { X = 16, Y = 4, Value = 8, Width = 20 };
-    private readonly OptionSelector<SerialParity> parity = new() { X = 16, Y = 6 };
-    private readonly OptionSelector<SerialStopBits> stopBits = new() { X = 16, Y = 9 };
+    private readonly OptionSelector<SerialParity> parity = new() { X = 16, Y = 6, Orientation = Orientation.Horizontal };
+    private readonly OptionSelector<SerialStopBits> stopBits = new() { X = 16, Y = 9, Orientation = Orientation.Horizontal };
+    private readonly OptionSelector<SerialHandshake> handshake = new() { X = 16, Y = 20, Orientation = Orientation.Horizontal };
+    private readonly OptionSelector<SerialConnectionRole> role = new() { X = 16, Y = 23, Orientation = Orientation.Horizontal };
+    private readonly CheckBox dtr = new() { X = 16, Y = 26, Text = "DTR" };
+    private readonly CheckBox rts = new() { X = 32, Y = 26, Text = "RTS" };
+    private readonly CheckBox rs485 = new() { X = 16, Y = 28, Text = "RS-485 RTS 方向控制" };
+    private readonly CheckBox autoReconnect = new() { X = 16, Y = 30, Text = "自动重连", Value = CheckState.Checked };
+    private readonly NumericUpDown<int> rtsBefore = new() { X = 16, Y = 32, Value = 0, Width = 20 };
+    private readonly NumericUpDown<int> rtsAfter = new() { X = 16, Y = 34, Value = 0, Width = 20 };
+    private readonly DropDownList profileSelector = new() { X = 16, Y = 38, Width = 30, ReadOnly = true };
+    private readonly TextField profileName = new() { X = 16, Y = 40, Width = 30 };
+    private SerialProfile[] profiles = [];
+    private long configurationRevision;
     private readonly NumericUpDown<int> hexGap = new() { X = 16, Y = 13, Value = 10, Width = 20 };
     private readonly TextField encoding = new() { X = 16, Y = 15, Width = 20, Text = "utf-8" };
     private readonly DropDownList lineEnding = new() { X = 16, Y = 17, Width = 20, Text = "无", ReadOnly = true, Source = new ListWrapper<string>(new ObservableCollection<string>(["无", "CR", "LF", "CRLF"])) };
     private readonly ListView history = new() { Width = Dim.Fill(), Height = Dim.Fill() };
-    private readonly Label workspace = new() { Y = 21, Width = Dim.Fill(), Text = "全局工作区" };
+    private readonly Label workspace = new() { Y = 45, Width = Dim.Fill(), Text = "全局工作区" };
     private readonly ObservableCollection<string> historyItems = [];
     private readonly Dictionary<Guid, TrafficBuffer> buffers = [];
     private IReadOnlyList<ConnectionSnapshot> snapshots = [];
@@ -110,6 +122,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         direction.ValueChanged += (_, _) => RefreshTraffic();
         filter.TextChanged += (_, _) => RefreshTraffic();
         timestamps.ValueChanged += (_, _) => RefreshTraffic();
+        port.ValueChanged += (_, _) => configuredDeviceId = null;
         traffic.ValueChanged += (_, _) =>
         {
             if (!updatingTraffic && traffic.HasFocus)
@@ -190,9 +203,49 @@ public sealed partial class TerminalWorkbench : IDisposable
             new Label { Text = "停止位", Y = 9 }, stopBits,
             new Label { Text = "HEX 间隔 ms", Y = 13 }, hexGap,
             new Label { Text = "文本编码", Y = 15 }, encoding,
-            new Label { Text = "行尾", Y = 17 }, lineEnding);
+            new Label { Text = "行尾", Y = 17 }, lineEnding,
+            new Label { Text = "流控", Y = 20 }, handshake,
+            new Label { Text = "设备角色", Y = 23 }, role,
+            dtr, rts, rs485, autoReconnect,
+            new Label { Text = "发送前延时 ms", Y = 32 }, rtsBefore,
+            new Label { Text = "发送后延时 ms", Y = 34 }, rtsAfter,
+            new Label { Text = "连接配置", Y = 38 }, profileSelector,
+            new Label { Text = "配置名称", Y = 40 }, profileName);
         var open = Button("打开连接", () => RunUiAsync(OpenConnectionAsync));
-        open.Y = 19;
+        open.Y = 36;
+        var controlLines = Button("更新 DTR/RTS", () => RunUiAsync(() => client.SetControlLinesAsync(RequiredConnection(),
+            new SerialControlLines(dtr.Value == CheckState.Checked, rts.Value == CheckState.Checked), lifetime.Token)));
+        controlLines.X = Pos.Right(open) + 1;
+        controlLines.Y = 36;
+        var loadProfile = Button("应用配置", () =>
+        {
+            var selected = profiles.FirstOrDefault(item => item.Name == profileSelector.Text);
+            if (selected is not null)
+            {
+                ApplySerialProfile(selected);
+            }
+            return Task.CompletedTask;
+        });
+        loadProfile.Y = 42;
+        var saveProfile = Button("保存配置", () => RunUiAsync(async () =>
+        {
+            var options = ReadConnectionOptions();
+            var profile = new SerialProfile(profileName.Text, options.PortName, options.BaudRate, options.DataBits, options.Parity, options.StopBits,
+                options.Handshake, options.EncodingName, options.DtrEnable, options.RtsEnable, options.Role, options.DeviceInstanceId, options.Rs485Mode,
+                options.RtsBeforeSendMilliseconds, options.RtsAfterSendMilliseconds, options.AutoReconnect);
+            var original = profiles.Any(item => item.Name == profileName.Text) ? profileName.Text : null;
+            var saved = await client.SaveSerialProfileAsync(new SaveSerialProfileRequest(profile, original), lifetime.Token).ConfigureAwait(false);
+            await InvokeUiAsync(() => ApplyConfiguration(saved)).ConfigureAwait(false);
+        }));
+        saveProfile.Y = 42;
+        saveProfile.X = Pos.Right(loadProfile) + 1;
+        var deleteProfile = Button("删除配置", () => RunUiAsync(async () =>
+        {
+            var saved = await client.DeleteSerialProfileAsync(profileSelector.Text, lifetime.Token).ConfigureAwait(false);
+            await InvokeUiAsync(() => ApplyConfiguration(saved)).ConfigureAwait(false);
+        }));
+        deleteProfile.Y = 42;
+        deleteProfile.X = Pos.Right(saveProfile) + 1;
         var chooseWorkspace = Button("选择工作区", () => RunUiAsync(async () =>
         {
             using var dialog = new OpenDialog { Title = "选择工作区", OpenMode = OpenMode.Directory, Path = Environment.CurrentDirectory, AllowsMultipleSelection = false };
@@ -203,16 +256,16 @@ public sealed partial class TerminalWorkbench : IDisposable
                 await RefreshSessionsAsync().ConfigureAwait(false);
             }
         }));
-        chooseWorkspace.Y = 23;
+        chooseWorkspace.Y = 47;
         var clearWorkspace = Button("全局工作区", () => RunUiAsync(async () =>
         {
             await client.SetWorkspaceAsync(new SetWorkspaceRequest(null), lifetime.Token).ConfigureAwait(false);
             await RefreshSessionsAsync().ConfigureAwait(false);
         }));
-        clearWorkspace.Y = 23;
+        clearWorkspace.Y = 47;
         clearWorkspace.X = Pos.Right(chooseWorkspace) + 1;
-        view.SetContentSize(new System.Drawing.Size(80, 25));
-        view.Add(open, workspace, chooseWorkspace, clearWorkspace);
+        view.SetContentSize(new System.Drawing.Size(100, 50));
+        view.Add(open, controlLines, loadProfile, saveProfile, deleteProfile, workspace, chooseWorkspace, clearWorkspace);
         return view;
     }
 
@@ -244,6 +297,11 @@ public sealed partial class TerminalWorkbench : IDisposable
         try
         {
             var host = await client.GetStatusAsync(lifetime.Token).ConfigureAwait(false);
+            if (host.ConfigurationRevision != configurationRevision)
+            {
+                var configuration = await client.ReadConfigurationAsync(lifetime.Token).ConfigureAwait(false);
+                await InvokeUiAsync(() => ApplyConfiguration(configuration)).ConfigureAwait(false);
+            }
             if (host.ActiveOperationCount > 0 || displayedTasks.Any(static item => item.State == OperationState.Running))
             {
                 await RefreshTasksAsync().ConfigureAwait(false);
@@ -414,19 +472,18 @@ public sealed partial class TerminalWorkbench : IDisposable
         app.Invoke(() =>
         {
             ports = listed;
+            var selected = port.Text;
+            var deviceId = configuredDeviceId;
             port.Source = new ListWrapper<string>(new ObservableCollection<string>(ports.Select(static item => item.PortName)));
-            if (port.Text.Length == 0 && ports.Count > 0)
-            {
-                port.Text = ports[0].PortName;
-            }
+            port.Text = ports.FirstOrDefault(item => deviceId is not null ? item.DeviceInstanceId == deviceId : item.PortName == selected)?.PortName
+                ?? (deviceId is not null ? selected : ports.Count > 0 ? ports[0].PortName : "");
+            configuredDeviceId = deviceId;
         });
     }
 
     private async Task OpenConnectionAsync()
     {
-        var descriptor = ports.FirstOrDefault(item => item.PortName == port.Text) ?? throw new InvalidOperationException("请选择串口。");
-        var options = new SerialConnectionOptions(descriptor.PortName, baud.Value, dataBits.Value, parity.Value ?? SerialParity.None,
-            stopBits.Value ?? SerialStopBits.One, EncodingName: encoding.Text, DeviceInstanceId: descriptor.DeviceInstanceId);
+        var options = ReadConnectionOptions();
         var snapshot = await client.OpenConnectionAsync(new OpenConnectionRequest(options), lifetime.Token).ConfigureAwait(false);
         app.Invoke(() => { connectionId = snapshot.Id; tabs.Value = workbenchView; });
     }
@@ -446,12 +503,10 @@ public sealed partial class TerminalWorkbench : IDisposable
         var ending = lineEnding.Text switch { "CR" => "\r", "LF" => "\n", "CRLF" => "\r\n", _ => "" };
         var data = format.Text == "HEX" ? HexCodec.Parse(text) : Encoding.GetEncoding(encoding.Text).GetBytes(text + ending);
         await client.SendAsync(new SendRequest(id, data, "tui.send"), lifetime.Token).ConfigureAwait(false);
+        var configuration = await client.AddSendHistoryAsync(text, lifetime.Token).ConfigureAwait(false);
         app.Invoke(() =>
         {
-            if (text.Length > 0 && !historyItems.Contains(text))
-            {
-                historyItems.Insert(0, text);
-            }
+            ApplyConfiguration(configuration);
             message.Text = $"已发送 {data.Length} 字节";
         });
     }

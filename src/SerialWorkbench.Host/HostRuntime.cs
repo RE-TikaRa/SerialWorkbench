@@ -35,11 +35,14 @@ public sealed class HostRuntime : IAsyncDisposable
         Sessions = new SessionStore(Paths);
         Connections = new SerialConnectionManager(Journal, Leases, PersistAsync);
         Operations = new OperationManager(this);
+        Configuration = new ConfigurationStore(Paths);
         sessionWriter = Task.Run(WriteSessionEventsAsync);
         connectionMonitor = Task.Run(MaintainConnectionsAsync);
     }
 
     public ApplicationPaths Paths { get; private set; }
+
+    public ConfigurationStore Configuration { get; }
 
     public EventJournal Journal { get; }
 
@@ -111,12 +114,15 @@ public sealed class HostRuntime : IAsyncDisposable
 
     internal async Task<ConnectionSnapshot> OpenConnectionCoreAsync(OpenConnectionRequest request, CancellationToken cancellationToken)
     {
-        if (request.Options.DeviceInstanceId is null)
+        var ports = await SerialPortCatalog.GetPortsAsync(cancellationToken).ConfigureAwait(false);
+        var port = ports.FirstOrDefault(item => request.Options.DeviceInstanceId is { } deviceId
+            ? item.DeviceInstanceId?.Equals(deviceId, StringComparison.OrdinalIgnoreCase) == true
+            : item.PortName.Equals(request.Options.PortName, StringComparison.OrdinalIgnoreCase));
+        if (request.Options.DeviceInstanceId is not null && port is null)
         {
-            var ports = await SerialPortCatalog.GetPortsAsync(cancellationToken).ConfigureAwait(false);
-            var port = ports.FirstOrDefault(item => item.PortName.Equals(request.Options.PortName, StringComparison.OrdinalIgnoreCase));
-            request = request with { Options = request.Options with { DeviceInstanceId = port?.DeviceInstanceId } };
+            throw new IOException("The configured serial device is not present.");
         }
+        request = request with { Options = request.Options with { PortName = port?.PortName ?? request.Options.PortName, DeviceInstanceId = port?.DeviceInstanceId } };
         await Sessions.EnsureSessionAsync(cancellationToken).ConfigureAwait(false);
         return await Connections.OpenAsync(request.Options, cancellationToken, request.ReuseExisting).ConfigureAwait(false);
     }
@@ -217,6 +223,7 @@ public sealed class HostRuntime : IAsyncDisposable
         await sessionWriter.ConfigureAwait(false);
         await Sessions.DisposeAsync().ConfigureAwait(false);
         stopping.Dispose();
+        Configuration.Dispose();
         connectionGate.Dispose();
     }
 

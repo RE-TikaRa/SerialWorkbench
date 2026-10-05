@@ -190,6 +190,8 @@ public static class AgentDiscovery
         "schemas.export" => typeof(string),
         "version" => typeof(VersionInfo),
         "ports.list" => typeof(SerialPortDescriptor[]),
+        "profiles.list" => typeof(SerialProfile[]),
+        "history.list" => typeof(string[]),
         "host.status" or "workspace.show" or "workspace.set" or "workspace.clear" => typeof(HostStatusDto),
         "host.stop" or "connections.close" => typeof(RpcResult),
         "connections.list" => typeof(ConnectionSnapshot[]),

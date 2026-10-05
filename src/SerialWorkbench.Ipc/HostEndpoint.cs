@@ -133,6 +133,18 @@ public sealed class HostRpcClient : IHostRpc, IAsyncDisposable
     public Task<IReadOnlyList<SerialPortDescriptor>> ListPortsAsync(CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<IReadOnlyList<SerialPortDescriptor>>(nameof(ListPortsAsync), [], cancellationToken);
 
+    public Task<ConfigurationSnapshot> ReadConfigurationAsync(CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<ConfigurationSnapshot>(nameof(ReadConfigurationAsync), [], cancellationToken);
+
+    public Task<ConfigurationSnapshot> SaveSerialProfileAsync(SaveSerialProfileRequest request, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<ConfigurationSnapshot>(nameof(SaveSerialProfileAsync), [request], cancellationToken);
+
+    public Task<ConfigurationSnapshot> DeleteSerialProfileAsync(string name, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<ConfigurationSnapshot>(nameof(DeleteSerialProfileAsync), [name], cancellationToken);
+
+    public Task<ConfigurationSnapshot> AddSendHistoryAsync(string text, CancellationToken cancellationToken) =>
+        rpc.InvokeWithCancellationAsync<ConfigurationSnapshot>(nameof(AddSendHistoryAsync), [text], cancellationToken);
+
     public Task<ConnectionSnapshot> OpenConnectionAsync(OpenConnectionRequest request, CancellationToken cancellationToken) =>
         rpc.InvokeWithCancellationAsync<ConnectionSnapshot>(nameof(OpenConnectionAsync), [request], cancellationToken);
 

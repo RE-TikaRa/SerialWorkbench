@@ -191,6 +191,12 @@ static async Task<int> RunAsync(IHostRpc client, CommandArguments arguments, str
         case "workspace show":
             WriteResult(output, "workspace.show", await client.GetStatusAsync(cancellationToken).ConfigureAwait(false));
             return 0;
+        case "profiles list":
+            WriteResult(output, "profiles.list", (await client.ReadConfigurationAsync(cancellationToken).ConfigureAwait(false)).Profiles);
+            return 0;
+        case "history list":
+            WriteResult(output, "history.list", (await client.ReadConfigurationAsync(cancellationToken).ConfigureAwait(false)).SendHistory);
+            return 0;
         case "workspace set":
             WriteResult(output, "workspace.set", await client.SetWorkspaceAsync(new SetWorkspaceRequest(arguments.Get("--path") ?? throw new ArgumentException("workspace set requires --path.")), cancellationToken).ConfigureAwait(false));
             return 0;

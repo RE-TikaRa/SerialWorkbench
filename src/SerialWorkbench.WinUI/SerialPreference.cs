@@ -26,24 +26,8 @@ public sealed record SerialPreference(
     bool Rs485Mode = false,
     int RtsBeforeSendMilliseconds = 0,
     int RtsAfterSendMilliseconds = 0,
-    int HexReceiveGapMilliseconds = 10);
-
-public sealed record SerialProfile(
-    string Name,
-    string? PortName,
-    int BaudRate,
-    int DataBits,
-    SerialParity Parity,
-    SerialStopBits StopBits,
-    SerialHandshake Handshake,
-    string EncodingName,
-    bool DtrEnable,
-    bool RtsEnable,
-    SerialConnectionRole Role = SerialConnectionRole.Dut,
-    string? DeviceInstanceId = null,
-    bool Rs485Mode = false,
-    int RtsBeforeSendMilliseconds = 0,
-    int RtsAfterSendMilliseconds = 0);
+    int HexReceiveGapMilliseconds = 10,
+    bool AutoReconnect = true);
 
 public static class SerialPreferenceStore
 {
@@ -87,55 +71,5 @@ public static class SerialPreferenceStore
         {
             return null;
         }
-    }
-}
-
-public static class SerialProfileStore
-{
-    private static readonly string FilePath = Path.Combine(AppContext.BaseDirectory, "data", "settings", "serial-profiles.json");
-
-    public static IReadOnlyList<SerialProfile> Load()
-    {
-        try
-        {
-            return File.Exists(FilePath)
-                ? JsonSerializer.Deserialize<List<SerialProfile>>(File.ReadAllText(FilePath)) ?? []
-                : [];
-        }
-        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
-        {
-            return [];
-        }
-    }
-
-    public static void Save(IReadOnlyList<SerialProfile> profiles)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(profiles));
-    }
-}
-
-public static class SendHistoryStore
-{
-    private static readonly string FilePath = Path.Combine(AppContext.BaseDirectory, "data", "settings", "send-history.json");
-
-    public static IReadOnlyList<string> Load()
-    {
-        try
-        {
-            return File.Exists(FilePath)
-                ? JsonSerializer.Deserialize<List<string>>(File.ReadAllText(FilePath)) ?? []
-                : [];
-        }
-        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
-        {
-            return [];
-        }
-    }
-
-    public static void Save(IReadOnlyList<string> history)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(history));
     }
 }

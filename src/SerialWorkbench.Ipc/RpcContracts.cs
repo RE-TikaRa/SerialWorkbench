@@ -5,7 +5,7 @@ namespace SerialWorkbench.Ipc;
 public static class RpcProtocol
 {
     public const int MajorVersion = 1;
-    public const int MinorVersion = 6;
+    public const int MinorVersion = 7;
 }
 
 public sealed record HandshakeRequest(int MajorVersion, int MinorVersion, string ClientName, string Culture);
@@ -25,7 +25,8 @@ public sealed record HostStatusDto(
     double SessionEventPersistenceEventsPerSecond = 0,
     int ActiveOperationCount = 0,
     long EarliestEventSequence = 1,
-    Guid? EventStreamId = null);
+    Guid? EventStreamId = null,
+    long ConfigurationRevision = 0);
 
 public sealed record OpenConnectionRequest(SerialConnectionOptions Options, bool ReuseExisting = true);
 
@@ -55,6 +56,14 @@ public sealed record RpcResult(bool Success, string? Error = null);
 
 public interface IHostRpc
 {
+    Task<ConfigurationSnapshot> ReadConfigurationAsync(CancellationToken cancellationToken);
+
+    Task<ConfigurationSnapshot> SaveSerialProfileAsync(SaveSerialProfileRequest request, CancellationToken cancellationToken);
+
+    Task<ConfigurationSnapshot> DeleteSerialProfileAsync(string name, CancellationToken cancellationToken);
+
+    Task<ConfigurationSnapshot> AddSendHistoryAsync(string text, CancellationToken cancellationToken);
+
     Task<StartOperationResult> StartOperationAsync(OperationRequest request, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<OperationSnapshot>> ListOperationsAsync(CancellationToken cancellationToken);

@@ -69,6 +69,7 @@ public sealed partial class MainWindow : Window
     private CancellationTokenSource? modbusPollCancellation;
     private ModbusPage? modbusPage;
     private readonly SerialPreference serialPreference = SerialPreferenceStore.Load();
+    private ConfigurationSnapshot? configuration;
 
     public MainWindow()
     {
@@ -178,7 +179,8 @@ public sealed partial class MainWindow : Window
                 port.DeviceInstanceId,
                 workbenchPage?.Rs485Mode ?? false,
                 workbenchPage?.RtsBeforeSendMilliseconds ?? 0,
-                workbenchPage?.RtsAfterSendMilliseconds ?? 0);
+                workbenchPage?.RtsAfterSendMilliseconds ?? 0,
+                workbenchPage?.AutoReconnect ?? true);
             SerialPreferenceStore.Save(workbenchPage!.ReadSerialPreference(port.PortName));
             var connection = await client.OpenConnectionAsync(new OpenConnectionRequest(options), CancellationToken.None);
             connectionContexts[connection.Id] = new ConnectionContext(connection);
@@ -201,7 +203,7 @@ public sealed partial class MainWindow : Window
     {
         if (await SendCurrentAsync() && workbenchPage is not null)
         {
-            workbenchPage.AddSendHistory(workbenchPage.SendText);
+            await RecordSendHistoryAsync(workbenchPage.SendText);
         }
     }
 
@@ -367,6 +369,11 @@ public sealed partial class MainWindow : Window
         }
 
         var status = await client.GetStatusAsync(CancellationToken.None);
+        if (configuration?.Revision != status.ConfigurationRevision)
+        {
+            configuration = await client.ReadConfigurationAsync(CancellationToken.None);
+            workbenchPage?.ApplyConfiguration(configuration);
+        }
         SyncConnectionContexts(status.Connections);
         if (connectionId is null && status.Connections.FirstOrDefault(static item => item.State == ConnectionState.Open) is { } shared)
         {
@@ -396,6 +403,7 @@ public sealed partial class MainWindow : Window
         workspacePath = status.WorkspaceRoot is null ? $"全局数据：{status.DataRoot}" : $"工作区：{status.WorkspaceRoot}";
         sessionsPage?.SetWorkspace(workspacePath);
         connectionsPage?.SetConnections(status.Connections, connectionId);
+        settingsPage?.SetWorkspace(workspacePath, workspaceSelected);
         connectionsPage?.SetHostMetrics(status.LatestEventSequence, status.PendingSessionEvents, status.SessionEventPersistenceEventsPerSecond);
     }
 
@@ -465,7 +473,8 @@ public sealed partial class MainWindow : Window
             context.Snapshot.Options.DeviceInstanceId,
             context.Snapshot.Options.Rs485Mode,
             context.Snapshot.Options.RtsBeforeSendMilliseconds,
-            context.Snapshot.Options.RtsAfterSendMilliseconds));
+            context.Snapshot.Options.RtsAfterSendMilliseconds,
+            context.Snapshot.Options.AutoReconnect));
         workbenchPage?.SetConnectionStatus($"{context.Snapshot.Options.PortName} · {context.Snapshot.Options.BaudRate:N0} baud");
         workbenchPage?.SetTrafficCounts(context.Snapshot.ReceivedBytes, context.Snapshot.TransmittedBytes);
         workbenchPage?.SetPauseState(paused, paused ? Math.Max(0, currentTrafficBytes - pauseBaselineBytes) : 0);
@@ -617,6 +626,10 @@ public sealed partial class MainWindow : Window
         {
             case WorkbenchPage page:
                 workbenchPage = page;
+                if (configuration is not null)
+                {
+                    page.ApplyConfiguration(configuration);
+                }
                 page.BindRows(TrafficRows);
                 UpdateTrafficPresentation();
                 page.ConnectRequested -= WorkbenchPage_ConnectRequested;
@@ -915,7 +928,7 @@ public sealed partial class MainWindow : Window
         SendButton_Click(this, new RoutedEventArgs());
     }
 
-    private void WorkbenchPage_LoopSendStarted(object? sender, EventArgs e)
+    private async void WorkbenchPage_LoopSendStarted(object? sender, EventArgs e)
     {
         if (workbenchPage is null)
         {
@@ -929,9 +942,9 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        workbenchPage.AddSendHistory(workbenchPage.SendText);
         loopSendTimer.Interval = TimeSpan.FromMilliseconds(workbenchPage.LoopIntervalMs);
         loopSendTimer.Start();
+        await RecordSendHistoryAsync(workbenchPage.SendText);
     }
 
     private void WorkbenchPage_LoopSendStopped(object? sender, EventArgs e) => loopSendTimer.Stop();
@@ -994,7 +1007,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void WorkbenchPage_ProfileNewRequested(object? sender, string name)
+    private async void WorkbenchPage_ProfileNewRequested(object? sender, string name)
     {
         if (workbenchPage is not { } page)
         {
@@ -1002,12 +1015,10 @@ public sealed partial class MainWindow : Window
         }
 
         var profile = page.ReadSerialProfile(name);
-        var profiles = page.Profiles.Append(profile).ToArray();
-        SerialProfileStore.Save(profiles);
-        page.AddProfile(profile);
+        await SaveSerialProfileAsync(profile);
     }
 
-    private void WorkbenchPage_ProfileRenameRequested(object? sender, string name)
+    private async void WorkbenchPage_ProfileRenameRequested(object? sender, string name)
     {
         if (workbenchPage is not { } page || page.SelectedProfile is not { } current || name.Equals(current.Name, StringComparison.Ordinal))
         {
@@ -1015,21 +1026,28 @@ public sealed partial class MainWindow : Window
         }
 
         var renamed = current with { Name = name };
-        var profiles = page.Profiles.Select(item => item == current ? renamed : item).ToArray();
-        SerialProfileStore.Save(profiles);
-        page.ReplaceProfile(renamed);
+        await SaveSerialProfileAsync(renamed, current.Name);
     }
 
-    private void WorkbenchPage_ProfileDeleteRequested(object? sender, EventArgs e)
+    private async void WorkbenchPage_ProfileDeleteRequested(object? sender, EventArgs e)
     {
         if (workbenchPage is not { } page || page.SelectedProfile is not { } profile)
         {
             return;
         }
 
-        var profiles = page.Profiles.Where(item => item != profile).ToArray();
-        SerialProfileStore.Save(profiles);
-        page.RemoveSelectedProfile();
+        if (client is not null)
+        {
+            try
+            {
+                configuration = await client.DeleteSerialProfileAsync(profile.Name, CancellationToken.None);
+                page.ApplyConfiguration(configuration);
+            }
+            catch (Exception ex)
+            {
+                ShowError(ex.Message);
+            }
+        }
     }
 
     private void WorkbenchPage_ProfileApplyRequested(object? sender, EventArgs e)
@@ -1037,6 +1055,40 @@ public sealed partial class MainWindow : Window
         if (workbenchPage?.SelectedProfile is { } profile)
         {
             workbenchPage.ApplySerialProfile(profile);
+        }
+    }
+
+    private async Task SaveSerialProfileAsync(SerialProfile profile, string? originalName = null)
+    {
+        if (client is null)
+        {
+            return;
+        }
+        try
+        {
+            configuration = await client.SaveSerialProfileAsync(new SaveSerialProfileRequest(profile, originalName), CancellationToken.None);
+            workbenchPage?.ApplyConfiguration(configuration, profile.Name);
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private async Task RecordSendHistoryAsync(string text)
+    {
+        if (client is null)
+        {
+            return;
+        }
+        try
+        {
+            configuration = await client.AddSendHistoryAsync(text, CancellationToken.None);
+            workbenchPage?.ApplyConfiguration(configuration);
+        }
+        catch (Exception ex)
+        {
+            ShowMessage("发送历史保存失败", ex.Message, InfoBarSeverity.Warning);
         }
     }
 
@@ -1874,7 +1926,6 @@ public sealed partial class MainWindow : Window
             var status = await client.SetWorkspaceAsync(new SetWorkspaceRequest(path), CancellationToken.None);
             workspaceSelected = status.WorkspaceRoot is not null;
             workspacePath = status.WorkspaceRoot is null ? $"全局数据：{status.DataRoot}" : $"工作区：{status.WorkspaceRoot}";
-            settingsPage?.SetWorkspace(workspacePath, workspaceSelected);
             settingsPage?.SetWorkspace(workspacePath, workspaceSelected);
             activeSessionId = status.ActiveSession?.Id;
             sessionsPage?.SetWorkspace(workspacePath);

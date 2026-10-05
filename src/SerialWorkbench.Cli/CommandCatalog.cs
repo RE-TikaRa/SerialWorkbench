@@ -36,6 +36,8 @@ public sealed class CommandCatalog
         Add("workspace.show", "查询工作区");
         Text(Add("workspace.set", "选择工作区"), "--path", "工作区路径", required: true);
         Add("workspace.clear", "使用全局工作区");
+        Add("profiles.list", "查询共享连接配置");
+        Add("history.list", "查询共享发送历史");
         Add("connections.list", "查询共享连接");
         SerialOptions(Add("connections.open", "打开持久连接"), true);
         Id(Add("connections.close", "关闭共享连接"));

@@ -470,6 +470,14 @@
             ],
             "format": "uuid",
             "default": null
+          },
+          "configurationRevision": {
+            "type": [
+              "string",
+              "integer"
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "default": 0
           }
         },
         "required": [

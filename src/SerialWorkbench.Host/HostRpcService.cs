@@ -6,6 +6,14 @@ namespace SerialWorkbench.Host;
 
 public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
 {
+    public Task<ConfigurationSnapshot> ReadConfigurationAsync(CancellationToken cancellationToken) => runtime.Configuration.ReadAsync(cancellationToken);
+
+    public Task<ConfigurationSnapshot> SaveSerialProfileAsync(SaveSerialProfileRequest request, CancellationToken cancellationToken) => runtime.Configuration.SaveProfileAsync(request, cancellationToken);
+
+    public Task<ConfigurationSnapshot> DeleteSerialProfileAsync(string name, CancellationToken cancellationToken) => runtime.Configuration.DeleteProfileAsync(name, cancellationToken);
+
+    public Task<ConfigurationSnapshot> AddSendHistoryAsync(string text, CancellationToken cancellationToken) => runtime.Configuration.AddHistoryAsync(text, cancellationToken);
+
     public Task<StartOperationResult> StartOperationAsync(OperationRequest request, CancellationToken cancellationToken) =>
         runtime.StartOperationAsync(request, cancellationToken);
 
@@ -59,7 +67,8 @@ public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
             runtime.SessionEventPersistenceEventsPerSecond,
             runtime.Operations.ActiveCount,
             runtime.Journal.EarliestSequence,
-            runtime.Journal.StreamId);
+            runtime.Journal.StreamId,
+            runtime.Configuration.Revision);
 
     public Task<IReadOnlyList<SerialPortDescriptor>> ListPortsAsync(CancellationToken cancellationToken) =>
         SerialPortCatalog.GetPortsAsync(cancellationToken);

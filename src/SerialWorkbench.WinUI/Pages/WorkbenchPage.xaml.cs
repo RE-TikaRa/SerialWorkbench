@@ -23,7 +23,7 @@ public sealed partial class WorkbenchPage : Page
     private bool serialConfigurationEnabled = true;
     private bool renamingProfile;
     private int baudRate = 115200;
-    private readonly ObservableCollection<SerialProfile> profiles = new(SerialProfileStore.Load());
+    private readonly ObservableCollection<SerialProfile> profiles = [];
     private readonly ObservableCollection<TrafficRow> visibleRows = [];
     private readonly TrafficCopyMenu copyMenu;
     private ObservableCollection<TrafficRow>? sourceRows;
@@ -47,7 +47,7 @@ public sealed partial class WorkbenchPage : Page
         ActualThemeChanged += WorkbenchPage_ActualThemeChanged;
     }
 
-    private readonly ObservableCollection<string> sendHistory = new(SendHistoryStore.Load());
+    private readonly ObservableCollection<string> sendHistory = [];
 
     public event EventHandler? ConnectRequested;
     public event EventHandler? PauseRequested;
@@ -143,6 +143,7 @@ public sealed partial class WorkbenchPage : Page
     public bool DtrEnable => DtrToggle.IsChecked == true;
     public bool RtsEnable => RtsToggle.IsChecked == true;
     public bool Rs485Mode => Rs485ModeCheckBox.IsChecked == true;
+    public bool AutoReconnect => AutoReconnectCheckBox.IsChecked == true;
     public int RtsBeforeSendMilliseconds => checked((int)RtsBeforeSendNumberBox.Value);
     public int RtsAfterSendMilliseconds => checked((int)RtsAfterSendNumberBox.Value);
     public int MonitorFormatIndex => MonitorFormat.SelectedIndex;
@@ -174,6 +175,7 @@ public sealed partial class WorkbenchPage : Page
         DtrToggle.IsChecked = preference.DtrEnable;
         RtsToggle.IsChecked = preference.RtsEnable;
         Rs485ModeCheckBox.IsChecked = preference.Rs485Mode;
+        AutoReconnectCheckBox.IsChecked = preference.AutoReconnect;
         RtsBeforeSendNumberBox.Value = preference.RtsBeforeSendMilliseconds;
         RtsAfterSendNumberBox.Value = preference.RtsAfterSendMilliseconds;
         MonitorFormat.SelectedIndex = preference.MonitorFormatIndex;
@@ -205,6 +207,7 @@ public sealed partial class WorkbenchPage : Page
         DtrToggle.IsChecked = profile.DtrEnable;
         RtsToggle.IsChecked = profile.RtsEnable;
         Rs485ModeCheckBox.IsChecked = profile.Rs485Mode;
+        AutoReconnectCheckBox.IsChecked = profile.AutoReconnect;
         RtsBeforeSendNumberBox.Value = profile.RtsBeforeSendMilliseconds;
         RtsAfterSendNumberBox.Value = profile.RtsAfterSendMilliseconds;
         if ((profile.PortName is not null || profile.DeviceInstanceId is not null)
@@ -232,38 +235,8 @@ public sealed partial class WorkbenchPage : Page
         SelectedPort?.DeviceInstanceId,
         Rs485Mode,
         RtsBeforeSendMilliseconds,
-        RtsAfterSendMilliseconds);
-
-    public void AddProfile(SerialProfile profile)
-    {
-        profiles.Add(profile);
-        ProfileComboBox.SelectedItem = profile;
-    }
-
-    public void ReplaceProfile(SerialProfile profile)
-    {
-        if (SelectedProfile is not { } current)
-        {
-            return;
-        }
-
-        var index = profiles.IndexOf(current);
-        if (index < 0)
-        {
-            return;
-        }
-
-        profiles[index] = profile;
-        ProfileComboBox.SelectedItem = profile;
-    }
-
-    public void RemoveSelectedProfile()
-    {
-        if (SelectedProfile is { } profile)
-        {
-            profiles.Remove(profile);
-        }
-    }
+        RtsAfterSendMilliseconds,
+        AutoReconnect);
 
     public SerialPreference ReadSerialPreference(string? portName) => new(
         portName,
@@ -288,7 +261,8 @@ public sealed partial class WorkbenchPage : Page
         Rs485Mode,
         RtsBeforeSendMilliseconds,
         RtsAfterSendMilliseconds,
-        HexReceiveGapMilliseconds);
+        HexReceiveGapMilliseconds,
+        AutoReconnect);
 
     private void ConnectButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => ConnectRequested?.Invoke(this, EventArgs.Empty);
     private void RefreshPortsButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => RefreshPortsRequested?.Invoke(this, EventArgs.Empty);
@@ -440,21 +414,26 @@ public sealed partial class WorkbenchPage : Page
         }
     }
 
-    public void AddSendHistory(string entry)
+    public void ApplyConfiguration(ConfigurationSnapshot configuration, string? selectedName = null)
     {
-        if (string.IsNullOrEmpty(entry))
+        selectedName ??= SelectedProfile?.Name;
+        if (!profiles.SequenceEqual(configuration.Profiles))
         {
-            return;
+            profiles.Clear();
+            foreach (var profile in configuration.Profiles)
+            {
+                profiles.Add(profile);
+            }
+            ProfileComboBox.SelectedItem = profiles.FirstOrDefault(item => item.Name == selectedName);
         }
-
-        sendHistory.Remove(entry);
-        sendHistory.Insert(0, entry);
-        while (sendHistory.Count > 20)
+        if (!sendHistory.SequenceEqual(configuration.SendHistory))
         {
-            sendHistory.RemoveAt(sendHistory.Count - 1);
+            sendHistory.Clear();
+            foreach (var entry in configuration.SendHistory)
+            {
+                sendHistory.Add(entry);
+            }
         }
-
-        SendHistoryStore.Save(sendHistory);
     }
 
     public string SendText => SendEditor.Text;

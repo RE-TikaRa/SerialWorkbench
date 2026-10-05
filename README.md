@@ -37,7 +37,7 @@ SerialWorkbench 是面向 Windows 11 的串口调试工作台。它把串口连�
 
 在 Windows Terminal 中运行 `serial-workbench.exe` 进入 Terminal.Gui 工作台。连接列表、报文表格、输入区、状态栏和标签页使用库控件，支持鼠标、键盘焦点、滚动和窗口尺寸变化。
 
-设置页选择端口、波特率、数据位、校验、停止位、编码、HEX 分行间隔和行尾，打开连接后切回工作台。输入区使用 Enter 发送，发送历史可选择后重新载入。报文支持方向和内容过滤，文本与 HEX 使用和 WinUI 相同的跨读取块处理。
+设置页选择端口、波特率、数据位、校验、停止位、流控、设备角色、编码、HEX 分行间隔和行尾，也可设置 DTR/RTS、RS-485 方向延时与自动重连。打开连接后切回工作台。输入区使用 Enter 发送，发送历史可选择后重新载入。报文支持方向和内容过滤，文本与 HEX 使用和 WinUI 相同的跨读取块处理。
 
 F2 暂停显示，F3 清空，F4 设置，F5 刷新端口，F6 复制所选报文，F7 返回实时视图，Ctrl+Q 退出。表格支持范围选择；选择报文时停止跟随，刷新和筛选保留仍可见的选择。退出终端工作台保留 Host 共享连接，并明确取消前台任务。
 
@@ -64,6 +64,8 @@ SerialWorkbench.Host.exe  串口和会话服务
 Host 在存在客户端、连接或写入任务时保持运行；全部结束后等待 30 秒退出。
 
 工作区选择由 Host 保存，WinUI、TUI 和 CLI 共用同一个工作区及活动会话，Host 重启后恢复选择。TUI 设置页可选择工作区或返回全局数据目录；工作区切换前需要关闭连接。
+
+命名连接配置和最近 20 条发送历史由 Host 保存并共享。WinUI 与 TUI 可应用、创建、修改或删除配置，按设备实例标识寻找当前串口。`profiles list` 与 `history list` 提供相同数据的 CLI 和 Agent 查询入口。
 
 设备断开后由 Host 每两秒检查恢复条件，WinUI、TUI 和 Agent 共用同一个 `connectionId`。重连更换 `segmentId`，原始事件和会话保留分段，文本与 HEX 不跨分段拼接。周期读取等待设备恢复；写入、自动化和文件传输停止，不自动重放。`connections reconnect --id CONNECTION_ID` 明确重连，`connections open --no-reconnect` 关闭自动恢复。
 
