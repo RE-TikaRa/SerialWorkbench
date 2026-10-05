@@ -73,15 +73,16 @@ public sealed partial class TerminalWorkbench
 
     private void ShowHelp() => ShowText("快捷键与操作", """
         Tab / Shift+Tab 切换控件焦点
-        F1 帮助    F2 暂停报文    F3 清空报文    F4 设置
-        F5 刷新端口    F6 复制    F7 返回实时    Ctrl+Q 退出
+        F1 帮助    F2 暂停报文    F3 清空报文    F4 展开下拉选项
+        F5 刷新端口    F6 复制    F7 返回实时    F8 设置    Ctrl+Q 退出
         报文：Shift+方向键选择范围，Ctrl+单击选择多条
         Ctrl+C 复制所选内容，Ctrl+Space 或右键打开复制菜单
         Enter 查看完整报文或会话事件
         发送框：Enter 发送，格式与报文显示独立
         循环发送：次数 0 持续发送，停止按钮结束任务
         顶部后台任务：勾选后退出保留任务；前台任务退出时取消
-        设置和步骤参数支持滚动，波形方向键浏览历史
+        Modbus 和回环参数支持滚轮、PageUp / PageDown，Tab 自动显示焦点
+        步骤参数在独立对话框中编辑，波形方向键浏览历史
         回放结束后 F7 返回实时，Host 持续记录原始数据
         """);
 }

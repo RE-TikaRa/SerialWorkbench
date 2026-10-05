@@ -56,8 +56,19 @@ public sealed class TuiTests
                     Assert.All(content.SubViews.Where(static view => view.CanFocus), view => Assert.True(content.Viewport.Contains(view.Frame), view.ToString()));
                     var data = content.SubViews.OfType<TextField>().Single(static field => field.Id == "sequence-data");
                     Assert.Equal("01", data.Text);
-                    data.Text = edits == 0 ? "02" : "03";
-                    dialog.Buttons[edits++].InvokeCommand(Command.Accept);
+                    Assert.Same(data, dialog.MostFocused);
+                    dialog.NewKeyDownEvent(Key.A.WithCtrl);
+                    dialog.NewKeyDownEvent(new Key('0'));
+                    dialog.NewKeyDownEvent(new Key(edits == 0 ? '2' : '3'));
+                    Assert.Equal(edits == 0 ? "02" : "03", data.Text);
+                    if (edits++ == 0)
+                    {
+                        dialog.Buttons[0].InvokeCommand(Command.Accept);
+                    }
+                    else
+                    {
+                        dialog.NewKeyDownEvent(Key.Enter);
+                    }
                     Assert.True(dialog.StopRequested);
                 }
                 else if (edits == 2)
@@ -84,6 +95,29 @@ public sealed class TuiTests
         Assert.Equal(2, edits);
         Assert.Equal(new byte[] { 0x03 }, Assert.Single(workbench.ReadSequence().Steps).Data);
         Assert.Null(editor?.SuperView);
+    }
+
+    [Fact]
+    public async Task TrafficFiltersReceiveInputThroughTheWindow()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-filter-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
+        workbench.Window.Layout(new System.Drawing.Size(80, 24));
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        var frame = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<FrameView>().Single(static frame => frame.Title == "报文");
+        var filters = Assert.Single(frame.SubViews, static view => view is not TableView && view.SubViews.OfType<TextField>().Any());
+        foreach (var field in filters.SubViews.OfType<TextField>().Where(static field => !field.ReadOnly))
+        {
+            field.SetFocus();
+            Assert.Same(field, workbench.Window.MostFocused);
+            workbench.Window.NewKeyDownEvent(Key.A);
+            Assert.Equal("a", field.Text);
+        }
+        app.End(token);
     }
 
     [Theory]
@@ -121,7 +155,7 @@ public sealed class TuiTests
         var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
         workbench.Window.Layout(new System.Drawing.Size(80, 24));
         var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
-        workbench.Window.NewKeyDownEvent(Key.F4);
+        workbench.Window.NewKeyDownEvent(Key.F8);
         Assert.Equal("设置", tabs.Value?.Title);
         var settings = Assert.IsAssignableFrom<View>(tabs.Value);
         Assert.All(settings.SubViews.Where(static view => view.CanFocus), view => Assert.True(view.Frame.Bottom <= settings.Viewport.Height, view.ToString()));

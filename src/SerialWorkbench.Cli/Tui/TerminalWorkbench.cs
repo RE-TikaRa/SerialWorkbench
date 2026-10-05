@@ -114,7 +114,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         reconnect.Y = Pos.AnchorEnd();
         connectionsFrame.Add(connections, close, details, reconnect);
         var trafficFrame = new FrameView { Title = "报文", X = Pos.Right(connectionsFrame), Width = Dim.Fill(), Height = Dim.Fill() };
-        var filters = new View { Height = 2, Width = Dim.Fill() };
+        var filters = new View { CanFocus = true, Height = 2, Width = Dim.Fill() };
         filters.Add(format, direction, filter, new Label { Text = "来源", Y = 1 }, sourceFilter);
         traffic.Y = 2;
         trafficFrame.Add(filters, traffic, follow, timestamps, copyFormat);
@@ -133,7 +133,7 @@ public sealed partial class TerminalWorkbench : IDisposable
             new Shortcut(Key.F1, "帮助", ShowHelp),
             new Shortcut(Key.F2, "暂停", TogglePause),
             new Shortcut(Key.F3, "清空", ClearTraffic),
-            new Shortcut(Key.F4, "设置", () => tabs.Value = settingsView),
+            new Shortcut(Key.F8, "设置", () => tabs.Value = settingsView),
             new Shortcut(Key.F5, "刷新", () => _ = RunUiAsync(RefreshPortsAsync)),
             new Shortcut(Key.F6, "复制", CopySelected),
             new Shortcut(Key.F7, "实时", ResumeLiveTraffic),

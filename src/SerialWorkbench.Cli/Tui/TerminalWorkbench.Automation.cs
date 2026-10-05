@@ -12,7 +12,7 @@ public sealed partial class TerminalWorkbench
 {
     private readonly TextField sequenceName = new() { Id = "sequence-name", X = 12, Width = Dim.Fill(), Text = "新建序列" };
     private readonly TableView sequenceTable = new() { Id = "sequence-steps", Y = 4, Height = Dim.Fill(), Width = Dim.Fill(), FullRowSelect = true, MultiSelect = false };
-    private readonly View sequenceEditor = new() { Width = Dim.Fill(), Height = Dim.Fill() };
+    private readonly View sequenceEditor = new() { CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
     private readonly List<SerialSequenceStep> sequenceSteps = [];
     private readonly TextField stepData = new() { Id = "sequence-data", X = 20, Width = Dim.Fill(1) };
     private readonly DropDownList stepFormat = new()

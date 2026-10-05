@@ -9,9 +9,9 @@ namespace SerialWorkbench.Cli.Tui;
 public sealed partial class TerminalWorkbench
 {
     private string? configuredDeviceId;
-    private readonly View serialSettings = new() { Width = Dim.Fill(), Height = Dim.Fill() };
-    private readonly View controlSettings = new() { Width = Dim.Fill(), Height = Dim.Fill() };
-    private readonly View profileSettings = new() { Width = Dim.Fill(), Height = Dim.Fill() };
+    private readonly View serialSettings = new() { CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
+    private readonly View controlSettings = new() { CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
+    private readonly View profileSettings = new() { CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
 
     private void BuildSerialSettings()
     {
