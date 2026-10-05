@@ -1,25 +1,88 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://serialworkbench.local/schemas/cli-error.schema.json",
-  "title": "SerialWorkbench CLI error",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["schemaVersion", "code", "message", "time"],
+  "type": [
+    "object",
+    "null"
+  ],
   "properties": {
     "schemaVersion": {
-      "const": 1
+      "const": 2
     },
-    "code": {
-      "type": "string",
-      "pattern": "^SWB-[A-Z0-9-]+$"
+    "command": {
+      "type": "string"
     },
-    "message": {
-      "type": "string",
-      "minLength": 1
+    "type": {
+      "const": "result"
+    },
+    "status": {
+      "enum": [
+        "error",
+        "cancelled"
+      ]
     },
     "time": {
       "type": "string",
       "format": "date-time"
+    },
+    "result": {
+      "type": "null"
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "connectionId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid",
+          "default": null
+        },
+        "operationId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid",
+          "default": null
+        },
+        "owner": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ]
+    },
+    "operationId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid",
+      "default": null
     }
-  }
+  },
+  "required": [
+    "schemaVersion",
+    "command",
+    "type",
+    "status",
+    "time",
+    "result",
+    "error",
+    "operationId"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false
 }

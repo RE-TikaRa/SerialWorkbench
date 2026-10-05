@@ -8,6 +8,7 @@ namespace SerialWorkbench.Cli;
 public sealed class CommandCatalog
 {
     private readonly Dictionary<string, Option> globalOptions = [];
+    private readonly Dictionary<string, object?> globalDefaults = [];
     private readonly List<CommandDefinition> commands = [];
 
     public CommandCatalog()
@@ -15,6 +16,19 @@ public sealed class CommandCatalog
         AddGlobal("--output", "输出格式", "text", ["text", "json", "jsonl"]);
         AddGlobal("--culture", "界面语言", System.Globalization.CultureInfo.CurrentUICulture.Name);
         AddGlobal("--app-root", "应用目录", AppContext.BaseDirectory);
+        var agent = new Option<bool>("--agent") { Description = "使用机器接口", Recursive = true };
+        Root.Options.Add(agent);
+        globalOptions.Add(agent.Name, agent);
+        globalDefaults.Add(agent.Name, false);
+
+        Add("capabilities", "查询能力描述");
+        Add("version", "查询版本");
+        var schema = Add("schema", "查询命令的 JSON Schema");
+        schema.Command.Arguments.Add(new Argument<string>("command"));
+        var help = Add("help", "查询命令和参数说明");
+        help.Command.Arguments.Add(new Argument<string?>("command") { Arity = ArgumentArity.ZeroOrOne });
+        var schemaExport = Add("schemas.export", "导出命令契约");
+        Text(schemaExport, "--path", "Schema 导出目录", required: true);
 
         Add("ports.list", "枚举串口");
         Add("host.status", "查询 Host 状态");
@@ -144,6 +158,11 @@ public sealed class CommandCatalog
         var command = new Command(parts[^1], description);
         parent.Subcommands.Add(command);
         var definition = new CommandDefinition(id, command, new Dictionary<string, Option>(globalOptions));
+        foreach (var pair in globalDefaults)
+        {
+            definition.DefaultValues.Add(pair.Key, pair.Value);
+        }
+        definition.Choices.Add("--output", ["text", "json", "jsonl"]);
         commands.Add(definition);
         return definition;
     }
@@ -158,6 +177,7 @@ public sealed class CommandCatalog
 
         Root.Options.Add(option);
         globalOptions.Add(name, option);
+        globalDefaults.Add(name, defaultValue);
     }
 
     private static void Text(CommandDefinition definition, string name, string description, string? defaultValue = null, bool required = false, string[]? choices = null)
@@ -173,7 +193,11 @@ public sealed class CommandCatalog
             option.AcceptOnlyFromAmong(choices);
         }
 
-        definition.Add(option);
+        definition.Add(option, defaultValue);
+        if (choices is not null)
+        {
+            definition.Choices.Add(name, choices);
+        }
     }
 
     private static void Integer(CommandDefinition definition, string name, string description, int defaultValue, int minimum, int maximum)
@@ -188,14 +212,14 @@ public sealed class CommandCatalog
                 result.AddError($"{name} 必须在 {minimum} 到 {maximum} 之间。");
             }
         });
-        definition.Add(option);
+        definition.Add(option, defaultValue, minimum, maximum);
     }
 
     private static void GuidOption(CommandDefinition definition, string name, string description, bool required = false) =>
         definition.Add(new Option<Guid?>(name) { Description = description, Required = required });
 
     private static void EnumOption<T>(CommandDefinition definition, string name, string description, T defaultValue) where T : struct, Enum =>
-        definition.Add(new Option<T>(name) { Description = description, DefaultValueFactory = _ => defaultValue });
+        definition.Add(new Option<T>(name) { Description = description, DefaultValueFactory = _ => defaultValue }, defaultValue);
 
     private static void Id(CommandDefinition definition) => GuidOption(definition, "--id", "标识", true);
 
@@ -230,7 +254,7 @@ public sealed class CommandCatalog
         Text(definition, "--device-id", "设备实例标识");
         foreach (var flag in new[] { "--dtr", "--rts", "--rs485" })
         {
-            definition.Add(new Option<bool>(flag));
+            definition.Add(new Option<bool>(flag), false);
         }
 
         Integer(definition, "--rts-before", "RS-485 发送前延时，单位毫秒", 0, 0, 60_000);
@@ -255,17 +279,29 @@ public sealed class CommandCatalog
             }
         });
         function.CompletionSources.Add(_ => functions.Select(static item => new System.CommandLine.Completions.CompletionItem(item.ToString(System.Globalization.CultureInfo.InvariantCulture))));
-        definition.Add(function);
+        definition.Add(function, defaultFunction);
+        definition.Choices.Add(function.Name, functions.Select(static value => value.ToString(CultureInfo.InvariantCulture)).ToArray());
     }
 }
 
 public sealed record CommandDefinition(string Id, Command Command, Dictionary<string, Option> Options)
 {
+    public Dictionary<string, object?> DefaultValues { get; } = [];
+
+    public Dictionary<string, (int Minimum, int Maximum)> Ranges { get; } = [];
+
+    public Dictionary<string, string[]> Choices { get; } = [];
+
     public CommandArguments Bind(ParseResult result) => new(this, result);
 
-    internal void Add(Option option)
+    internal void Add(Option option, object? defaultValue = null, int? minimum = null, int? maximum = null)
     {
         Command.Options.Add(option);
         Options.Add(option.Name, option);
+        DefaultValues.Add(option.Name, defaultValue);
+        if (minimum is { } min && maximum is { } max)
+        {
+            Ranges.Add(option.Name, (min, max));
+        }
     }
 }

@@ -490,7 +490,18 @@ HEX 发送：
 
 ## CLI 输出和退出码
 
-使用 `--output json` 或 `--output jsonl` 时，结果带有 `schemaVersion`、命令名称、UTC 时间和结果对象。错误输出使用 `schemas/cli-error.schema.json`，普通结果使用 `schemas/cli-result.schema.json`，监视事件使用 `schemas/cli-event.schema.json`。
+`--agent` 与 `--output json/jsonl` 使用 Schema v2。每条记录包含 `schemaVersion`、`command`、`type`、`status`、`time`、`result`、`error` 和 `operationId`。结果与结构化错误均写入 stdout，stderr 用于诊断。机器输出不使用颜色、ANSI、动画或终端宽度。
+
+普通命令输出一个 JSON 文档。监视使用 JSONL，周期轮询可使用 JSONL 逐条输出进度，并以结果记录结束；指定 `--output json` 的轮询只返回最终文档。JSONL 每行均为独立 JSON，对载荷中的换行进行转义。会话 JSONL 导出同样逐条保存原始事件。
+
+```powershell
+serial-workbench --agent capabilities
+serial-workbench --agent schema modbus.read
+serial-workbench --agent help
+serial-workbench --agent protocol inspect --hex "01 03 00 00 00 01 84 0A"
+```
+
+能力发现和 Schema 查询无需 Host。各命令的具体参数和结果契约位于 `schemas/COMMAND.schema.json`；构建脚本通过 `schemas export` 从当前类型与命令树生成契约。错误、普通结果和监视事件的汇总 Schema 分别为 `cli-error.schema.json`、`cli-result.schema.json` 和 `cli-event.schema.json`。
 
 退出码：
 

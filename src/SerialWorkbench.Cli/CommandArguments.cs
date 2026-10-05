@@ -23,6 +23,8 @@ public sealed class CommandArguments(CommandDefinition definition, ParseResult r
 
     public int GetInt(string name, int defaultValue) => Read(name) is int value ? value : defaultValue;
 
+    public string? GetArgument(string name) => result.GetValue<string?>(name);
+
     private object? Read(string name) => definition.Options.TryGetValue(name, out var option)
         ? result.GetResult(option)?.GetValueOrDefault<object>()
         : null;

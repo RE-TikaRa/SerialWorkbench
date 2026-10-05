@@ -10,7 +10,7 @@ public static class OperationClient
         var started = await client.StartOperationAsync(request, CancellationToken.None).ConfigureAwait(false);
         if (started.Operation is not { } operation)
         {
-            throw new InvalidOperationException($"{started.Error?.Code}: {started.Error?.Message}");
+            throw new HostOperationException(started.Error ?? new WorkbenchError("OPERATION_FAILED", "The Host did not accept the operation."));
         }
 
         using var tracking = (client as HostRpcClient)?.TrackForegroundOperation(operation.Id);
@@ -42,7 +42,7 @@ public static class OperationClient
 
             return operation.ResultJson is { } json
                 ? OperationJson.Read<T>(json)
-                : throw new InvalidOperationException($"{operation.Error?.Code}: {operation.Error?.Message}");
+                : throw new HostOperationException(operation.Error ?? new WorkbenchError("OPERATION_FAILED", "The operation has no result.", operation.Request.ConnectionId, operation.Id));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

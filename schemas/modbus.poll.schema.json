@@ -1,0 +1,680 @@
+{
+  "schemaVersion": 2,
+  "command": "modbus.poll",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "--output": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "default": "text",
+        "enum": [
+          "text",
+          "json",
+          "jsonl"
+        ]
+      },
+      "--culture": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--app-root": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--agent": {
+        "type": "boolean",
+        "default": false
+      },
+      "--port": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--connection": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "--baud": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 115200,
+        "minimum": 1,
+        "maximum": 2147483647
+      },
+      "--data-bits": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 8,
+        "minimum": 5,
+        "maximum": 8
+      },
+      "--parity": {
+        "enum": [
+          "None",
+          "Odd",
+          "Even",
+          "Mark",
+          "Space"
+        ],
+        "default": "None"
+      },
+      "--stop-bits": {
+        "enum": [
+          "One",
+          "OnePointFive",
+          "Two"
+        ],
+        "default": "One"
+      },
+      "--handshake": {
+        "enum": [
+          "None",
+          "XOnXOff",
+          "RequestToSend",
+          "RequestToSendXOnXOff"
+        ],
+        "default": "None"
+      },
+      "--role": {
+        "enum": [
+          "Dut",
+          "Debug",
+          "Controller",
+          "Loopback"
+        ],
+        "default": "Dut"
+      },
+      "--encoding": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "default": "utf-8"
+      },
+      "--device-id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--dtr": {
+        "type": "boolean",
+        "default": false
+      },
+      "--rts": {
+        "type": "boolean",
+        "default": false
+      },
+      "--rs485": {
+        "type": "boolean",
+        "default": false
+      },
+      "--rts-before": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 0,
+        "minimum": 0,
+        "maximum": 60000
+      },
+      "--rts-after": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 0,
+        "minimum": 0,
+        "maximum": 60000
+      },
+      "--slave": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 1,
+        "minimum": 1,
+        "maximum": 247
+      },
+      "--address": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 0,
+        "minimum": 0,
+        "maximum": 65535
+      },
+      "--quantity": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 1,
+        "minimum": 1,
+        "maximum": 2000
+      },
+      "--timeout": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 2000,
+        "minimum": 1,
+        "maximum": 600000
+      },
+      "--function": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 3,
+        "enum": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "--count": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 10,
+        "minimum": 1,
+        "maximum": 100000
+      },
+      "--interval": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 1000,
+        "minimum": 0,
+        "maximum": 600000
+      }
+    },
+    "required": []
+  },
+  "output": {
+    "type": [
+      "object",
+      "null"
+    ],
+    "properties": {
+      "schemaVersion": {
+        "const": 2
+      },
+      "command": {
+        "const": "modbus.poll"
+      },
+      "type": {
+        "const": "result"
+      },
+      "status": {
+        "enum": [
+          "success",
+          "running",
+          "error",
+          "cancelled"
+        ]
+      },
+      "time": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "result": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "samples": {
+            "type": "array",
+            "items": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "index": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "pattern": "^-?(?:0|[1-9]\\d*)$"
+                },
+                "slaveAddress": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "pattern": "^-?(?:0|[1-9]\\d*)$"
+                },
+                "utc": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "result": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "responseFrame": {
+                      "type": "string"
+                    },
+                    "functionCode": {
+                      "type": [
+                        "string",
+                        "integer"
+                      ],
+                      "pattern": "^-?(?:0|[1-9]\\d*)$"
+                    },
+                    "registers": {
+                      "type": "array",
+                      "items": {
+                        "type": [
+                          "string",
+                          "integer"
+                        ],
+                        "pattern": "^-?(?:0|[1-9]\\d*)$"
+                      }
+                    },
+                    "address": {
+                      "type": [
+                        "string",
+                        "integer",
+                        "null"
+                      ],
+                      "pattern": "^-?(?:0|[1-9]\\d*)$"
+                    },
+                    "value": {
+                      "type": [
+                        "string",
+                        "integer",
+                        "null"
+                      ],
+                      "pattern": "^-?(?:0|[1-9]\\d*)$"
+                    },
+                    "exceptionCode": {
+                      "type": [
+                        "string",
+                        "integer",
+                        "null"
+                      ],
+                      "pattern": "^-?(?:0|[1-9]\\d*)$"
+                    },
+                    "duration": {
+                      "$comment": "Represents a System.TimeSpan value.",
+                      "type": "string",
+                      "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$"
+                    },
+                    "error": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "bits": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "boolean"
+                      },
+                      "default": null
+                    },
+                    "errorCode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "default": null
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "responseFrame",
+                    "functionCode",
+                    "registers",
+                    "address",
+                    "value",
+                    "exceptionCode",
+                    "duration",
+                    "error"
+                  ]
+                }
+              },
+              "required": [
+                "index",
+                "slaveAddress",
+                "utc",
+                "result"
+              ]
+            }
+          },
+          "successful": {
+            "type": [
+              "string",
+              "integer"
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$"
+          },
+          "failed": {
+            "type": [
+              "string",
+              "integer"
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$"
+          }
+        },
+        "required": [
+          "samples",
+          "successful",
+          "failed"
+        ]
+      },
+      "error": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "connectionId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "operationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "operationId": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "format": "uuid",
+        "default": null
+      }
+    },
+    "required": [
+      "schemaVersion",
+      "command",
+      "type",
+      "status",
+      "time",
+      "result",
+      "error",
+      "operationId"
+    ],
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false
+  },
+  "events": {
+    "type": [
+      "object",
+      "null"
+    ],
+    "properties": {
+      "schemaVersion": {
+        "const": 2
+      },
+      "command": {
+        "const": "modbus.poll"
+      },
+      "type": {
+        "const": "progress"
+      },
+      "status": {
+        "enum": [
+          "success",
+          "running",
+          "error",
+          "cancelled"
+        ]
+      },
+      "time": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "result": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "index": {
+            "type": [
+              "string",
+              "integer"
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$"
+          },
+          "slaveAddress": {
+            "type": [
+              "string",
+              "integer"
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$"
+          },
+          "utc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "success": {
+                "type": "boolean"
+              },
+              "responseFrame": {
+                "type": "string"
+              },
+              "functionCode": {
+                "type": [
+                  "string",
+                  "integer"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "registers": {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "pattern": "^-?(?:0|[1-9]\\d*)$"
+                }
+              },
+              "address": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "value": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "exceptionCode": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "duration": {
+                "$comment": "Represents a System.TimeSpan value.",
+                "type": "string",
+                "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$"
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "bits": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "boolean"
+                },
+                "default": null
+              },
+              "errorCode": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "success",
+              "responseFrame",
+              "functionCode",
+              "registers",
+              "address",
+              "value",
+              "exceptionCode",
+              "duration",
+              "error"
+            ]
+          }
+        },
+        "required": [
+          "index",
+          "slaveAddress",
+          "utc",
+          "result"
+        ]
+      },
+      "error": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "connectionId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "operationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "operationId": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "format": "uuid",
+        "default": null
+      }
+    },
+    "required": [
+      "schemaVersion",
+      "command",
+      "type",
+      "status",
+      "time",
+      "result",
+      "error",
+      "operationId"
+    ],
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false
+  }
+}

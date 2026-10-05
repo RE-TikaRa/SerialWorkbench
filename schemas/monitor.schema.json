@@ -1,0 +1,603 @@
+{
+  "schemaVersion": 2,
+  "command": "monitor",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "--output": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "default": "text",
+        "enum": [
+          "text",
+          "json",
+          "jsonl"
+        ]
+      },
+      "--culture": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--app-root": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--agent": {
+        "type": "boolean",
+        "default": false
+      },
+      "--port": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--connection": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "--baud": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 115200,
+        "minimum": 1,
+        "maximum": 2147483647
+      },
+      "--data-bits": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 8,
+        "minimum": 5,
+        "maximum": 8
+      },
+      "--parity": {
+        "enum": [
+          "None",
+          "Odd",
+          "Even",
+          "Mark",
+          "Space"
+        ],
+        "default": "None"
+      },
+      "--stop-bits": {
+        "enum": [
+          "One",
+          "OnePointFive",
+          "Two"
+        ],
+        "default": "One"
+      },
+      "--handshake": {
+        "enum": [
+          "None",
+          "XOnXOff",
+          "RequestToSend",
+          "RequestToSendXOnXOff"
+        ],
+        "default": "None"
+      },
+      "--role": {
+        "enum": [
+          "Dut",
+          "Debug",
+          "Controller",
+          "Loopback"
+        ],
+        "default": "Dut"
+      },
+      "--encoding": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "default": "utf-8"
+      },
+      "--device-id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--dtr": {
+        "type": "boolean",
+        "default": false
+      },
+      "--rts": {
+        "type": "boolean",
+        "default": false
+      },
+      "--rs485": {
+        "type": "boolean",
+        "default": false
+      },
+      "--rts-before": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 0,
+        "minimum": 0,
+        "maximum": 60000
+      },
+      "--rts-after": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 0,
+        "minimum": 0,
+        "maximum": 60000
+      },
+      "--seconds": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 10,
+        "minimum": 1,
+        "maximum": 86400
+      },
+      "--direction": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "default": "all",
+        "enum": [
+          "all",
+          "rx",
+          "tx"
+        ]
+      },
+      "--source": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": []
+  },
+  "output": {
+    "type": [
+      "object",
+      "null"
+    ],
+    "properties": {
+      "schemaVersion": {
+        "const": 2
+      },
+      "command": {
+        "const": "monitor"
+      },
+      "type": {
+        "const": "result"
+      },
+      "status": {
+        "enum": [
+          "success",
+          "running",
+          "error",
+          "cancelled"
+        ]
+      },
+      "time": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "result": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "events": {
+            "type": [
+              "string",
+              "integer"
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$"
+          },
+          "bytes": {
+            "type": [
+              "string",
+              "integer"
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$"
+          },
+          "nextSequence": {
+            "type": [
+              "string",
+              "integer"
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$"
+          },
+          "streamId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "connectionId",
+          "events",
+          "bytes",
+          "nextSequence",
+          "streamId"
+        ]
+      },
+      "error": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "connectionId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "operationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "operationId": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "format": "uuid",
+        "default": null
+      }
+    },
+    "required": [
+      "schemaVersion",
+      "command",
+      "type",
+      "status",
+      "time",
+      "result",
+      "error",
+      "operationId"
+    ],
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false
+  },
+  "events": {
+    "oneOf": [
+      {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": 2
+          },
+          "command": {
+            "const": "monitor"
+          },
+          "type": {
+            "const": "event"
+          },
+          "status": {
+            "enum": [
+              "success",
+              "running",
+              "error",
+              "cancelled"
+            ]
+          },
+          "time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "result": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "sequence": {
+                "type": [
+                  "string",
+                  "integer"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "utc": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "monotonicTicks": {
+                "type": [
+                  "string",
+                  "integer"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "connectionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "direction": {
+                "enum": [
+                  "Receive",
+                  "Transmit"
+                ]
+              },
+              "data": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "message": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "sequence",
+              "utc",
+              "monotonicTicks",
+              "connectionId",
+              "direction",
+              "data",
+              "source"
+            ]
+          },
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "connectionId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "default": null
+              },
+              "operationId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "default": null
+              },
+              "owner": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          },
+          "operationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "command",
+          "type",
+          "status",
+          "time",
+          "result",
+          "error",
+          "operationId"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false
+      },
+      {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": 2
+          },
+          "command": {
+            "const": "monitor"
+          },
+          "type": {
+            "const": "event"
+          },
+          "status": {
+            "enum": [
+              "success",
+              "running",
+              "error",
+              "cancelled"
+            ]
+          },
+          "time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "result": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "streamId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "gap": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "fromSequence": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ],
+                    "pattern": "^-?(?:0|[1-9]\\d*)$"
+                  },
+                  "toSequence": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ],
+                    "pattern": "^-?(?:0|[1-9]\\d*)$"
+                  }
+                },
+                "required": [
+                  "fromSequence",
+                  "toSequence"
+                ]
+              },
+              "resetRequired": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "streamId",
+              "gap",
+              "resetRequired"
+            ]
+          },
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "connectionId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "default": null
+              },
+              "operationId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "default": null
+              },
+              "owner": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          },
+          "operationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "command",
+          "type",
+          "status",
+          "time",
+          "result",
+          "error",
+          "operationId"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false
+      }
+    ]
+  }
+}

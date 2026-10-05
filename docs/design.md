@@ -33,3 +33,5 @@ ScottPlot.WinUI 承载波形图。报文、波形、Modbus、协议帧、回环�
 CLI 提供端口枚举、连接、发送、监视、回环、Modbus 事务、工作区和会话操作。终端输出使用适合阅读的文本格式，结构化结果使用 JSON 或 JSON Lines；字段契约位于 `schemas/`。
 
 System.CommandLine 定义命令树和带类型的参数，处理 Help、补全建议与 Response File。Spectre.Console 呈现一次性文本结果。离线协议检查和命令帮助独立于 Host 生命周期。
+
+Agent 和 CLI 的 JSON 输出共享 Schema v2，使用固定信封和命令特定的结果结构。所有契约记录写入 stdout，诊断写入 stderr。JSONL 一行一条记录，流结束时输出最终结果。能力描述、参数和结果 Schema 根据命令树及实际类型生成。

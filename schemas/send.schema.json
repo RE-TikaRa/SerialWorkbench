@@ -1,0 +1,299 @@
+{
+  "schemaVersion": 2,
+  "command": "send",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "--output": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "default": "text",
+        "enum": [
+          "text",
+          "json",
+          "jsonl"
+        ]
+      },
+      "--culture": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--app-root": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--agent": {
+        "type": "boolean",
+        "default": false
+      },
+      "--port": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--connection": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "--baud": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 115200,
+        "minimum": 1,
+        "maximum": 2147483647
+      },
+      "--data-bits": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 8,
+        "minimum": 5,
+        "maximum": 8
+      },
+      "--parity": {
+        "enum": [
+          "None",
+          "Odd",
+          "Even",
+          "Mark",
+          "Space"
+        ],
+        "default": "None"
+      },
+      "--stop-bits": {
+        "enum": [
+          "One",
+          "OnePointFive",
+          "Two"
+        ],
+        "default": "One"
+      },
+      "--handshake": {
+        "enum": [
+          "None",
+          "XOnXOff",
+          "RequestToSend",
+          "RequestToSendXOnXOff"
+        ],
+        "default": "None"
+      },
+      "--role": {
+        "enum": [
+          "Dut",
+          "Debug",
+          "Controller",
+          "Loopback"
+        ],
+        "default": "Dut"
+      },
+      "--encoding": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "default": "utf-8"
+      },
+      "--device-id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--dtr": {
+        "type": "boolean",
+        "default": false
+      },
+      "--rts": {
+        "type": "boolean",
+        "default": false
+      },
+      "--rs485": {
+        "type": "boolean",
+        "default": false
+      },
+      "--rts-before": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 0,
+        "minimum": 0,
+        "maximum": 60000
+      },
+      "--rts-after": {
+        "type": [
+          "string",
+          "integer"
+        ],
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "default": 0,
+        "minimum": 0,
+        "maximum": 60000
+      },
+      "--text": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--hex": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--line-ending": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "default": "none",
+        "enum": [
+          "none",
+          "cr",
+          "lf",
+          "crlf"
+        ]
+      }
+    },
+    "required": []
+  },
+  "output": {
+    "type": [
+      "object",
+      "null"
+    ],
+    "properties": {
+      "schemaVersion": {
+        "const": 2
+      },
+      "command": {
+        "const": "send"
+      },
+      "type": {
+        "const": "result"
+      },
+      "status": {
+        "enum": [
+          "success",
+          "running",
+          "error",
+          "cancelled"
+        ]
+      },
+      "time": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "result": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "bytes": {
+            "type": [
+              "string",
+              "integer"
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$"
+          },
+          "hex": {
+            "type": "string"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "bytes",
+          "hex",
+          "error"
+        ]
+      },
+      "error": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "connectionId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "operationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "operationId": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "format": "uuid",
+        "default": null
+      }
+    },
+    "required": [
+      "schemaVersion",
+      "command",
+      "type",
+      "status",
+      "time",
+      "result",
+      "error",
+      "operationId"
+    ],
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false
+  },
+  "events": null
+}

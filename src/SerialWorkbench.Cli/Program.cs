@@ -11,22 +11,53 @@ using SerialWorkbench.Protocols;
 using StreamJsonRpc;
 
 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+Console.OutputEncoding = new UTF8Encoding(false);
 
 var catalog = new CommandCatalog();
-catalog.Root.SetAction(_ => catalog.Root.Parse(["--help"]).Invoke());
+catalog.Root.SetAction(result =>
+{
+    if (result.GetValue<bool>("--agent"))
+    {
+        MachineOutput.Write(result.GetValue<string>("--output") == "jsonl" ? "jsonl" : "json", "help", AgentDiscovery.Capabilities());
+        return 0;
+    }
+
+    return catalog.Root.Parse(["--help"]).Invoke();
+});
 foreach (var definition in catalog.Commands)
 {
     definition.Command.SetAction((result, token) => ExecuteCommandAsync(definition.Bind(result), token));
 }
 
 var parsed = catalog.Root.Parse(args);
+var isAgent = parsed.GetResult("--agent") is System.CommandLine.Parsing.OptionResult { Implicit: false };
+var agentOutput = parsed.GetResult("--output") is { Tokens.Count: > 0 } requestedFormat && requestedFormat.Tokens[0].Value == "jsonl" ? "jsonl" : "json";
+if (isAgent && catalog.Root.Directives.Any(directive => parsed.GetResult(directive) is not null))
+{
+    WriteError(agentOutput, "INVALID_ARGUMENT", "Agent commands use capabilities, schema or help for discovery.");
+    return 2;
+}
+if (isAgent && catalog.Root.Options.OfType<VersionOption>().Any(option => parsed.GetResult(option) is { Implicit: false }))
+{
+    MachineOutput.Write(agentOutput, "version", new VersionInfo(typeof(CommandCatalog).Assembly.GetName().Version?.ToString() ?? "0.0.0", RpcProtocol.MajorVersion, RpcProtocol.MinorVersion));
+    return 0;
+}
+if (parsed.GetResult("--agent") is System.CommandLine.Parsing.OptionResult { Implicit: false }
+    && catalog.Root.Options.OfType<HelpOption>().Any(option => parsed.GetResult(option) is { Implicit: false }))
+{
+    var selected = catalog.Commands.FirstOrDefault(item => item.Command == parsed.CommandResult.Command);
+    MachineOutput.Write(agentOutput, "help", selected is null ? AgentDiscovery.Capabilities() : AgentDiscovery.Schema(selected.Id));
+    return 0;
+}
 var frameworkAction = catalog.Root.Options.Where(static option => option is HelpOption or VersionOption)
     .Any(option => parsed.GetResult(option) is { Implicit: false })
     || catalog.Root.Directives.Any(directive => parsed.GetResult(directive) is not null);
 if (parsed.Errors.Count > 0 && !frameworkAction)
 {
     var requestedOutput = parsed.GetResult("--output") is { Tokens.Count: > 0 } outputResult ? outputResult.Tokens[0].Value : null;
-    WriteError(requestedOutput is "json" or "jsonl" ? requestedOutput : "text", "SWB-ARGUMENT", string.Join(Environment.NewLine, parsed.Errors.Select(static error => error.Message)));
+    var agent = parsed.GetResult("--agent") is System.CommandLine.Parsing.OptionResult { Implicit: false };
+    var selected = catalog.Commands.FirstOrDefault(item => item.Command == parsed.CommandResult.Command);
+    WriteError(requestedOutput is "json" or "jsonl" ? requestedOutput : agent ? "json" : "text", "INVALID_ARGUMENT", string.Join(Environment.NewLine, parsed.Errors.Select(static error => error.Message)), selected?.Id ?? "cli");
     return 2;
 }
 
@@ -35,10 +66,33 @@ return await parsed.InvokeAsync(new InvocationConfiguration { EnableDefaultExcep
 static async Task<int> ExecuteCommandAsync(CommandArguments arguments, CancellationToken cancellationToken)
 {
     var output = arguments.Get("--output") ?? "text";
+    if (arguments.Has("--agent") && output == "text")
+    {
+        output = arguments.CommandId is "monitor" or "modbus.poll" ? "jsonl" : "json";
+    }
     var culture = arguments.Get("--culture") ?? CultureInfo.CurrentUICulture.Name;
     var applicationRoot = arguments.Get("--app-root") ?? AppContext.BaseDirectory;
     try
     {
+        switch (arguments.CommandId)
+        {
+            case "capabilities":
+                WriteResult(output, "capabilities", AgentDiscovery.Capabilities());
+                return 0;
+            case "version":
+                WriteResult(output, "version", new VersionInfo(typeof(CommandCatalog).Assembly.GetName().Version?.ToString() ?? "0.0.0", RpcProtocol.MajorVersion, RpcProtocol.MinorVersion));
+                return 0;
+            case "schema":
+                WriteResult(output, "schema", AgentDiscovery.Schema(arguments.GetArgument("command") ?? throw new ArgumentException("A command is required.")));
+                return 0;
+            case "help":
+                WriteResult(output, "help", arguments.GetArgument("command") is { } helpCommand ? AgentDiscovery.Schema(helpCommand) : AgentDiscovery.Capabilities());
+                return 0;
+            case "schemas.export":
+                WriteResult(output, "schemas.export", await AgentDiscovery.ExportAsync(arguments.Get("--path") ?? throw new ArgumentException("--path is required."), cancellationToken).ConfigureAwait(false));
+                return 0;
+        }
+
         if (arguments.CommandId == "protocol.inspect")
         {
             return InspectProtocol(arguments, output);
@@ -48,7 +102,7 @@ static async Task<int> ExecuteCommandAsync(CommandArguments arguments, Cancellat
         var handshake = await client.HandshakeAsync(new HandshakeRequest(RpcProtocol.MajorVersion, RpcProtocol.MinorVersion, "cli", culture), cancellationToken).ConfigureAwait(false);
         if (!handshake.Accepted)
         {
-            WriteError(output, "SWB-IPC-VERSION", handshake.Error ?? "IPC version mismatch.");
+            WriteError(output, "RPC_VERSION_MISMATCH", handshake.Error ?? "IPC version mismatch.", arguments.CommandId);
             return 3;
         }
 
@@ -56,23 +110,36 @@ static async Task<int> ExecuteCommandAsync(CommandArguments arguments, Cancellat
     }
     catch (OperationCanceledException)
     {
-        WriteError(output, "SWB-CANCELLED", "Task cancelled.");
+        WriteError(output, "CANCELLED", "Task cancelled.", arguments.CommandId);
         return 5;
     }
     catch (TimeoutException ex)
     {
-        WriteError(output, "SWB-TIMEOUT", ex.Message);
+        WriteError(output, "TIMEOUT", ex.Message, arguments.CommandId);
         return 4;
     }
     catch (Exception ex) when (ex is FormatException or OverflowException or JsonException)
     {
-        WriteError(output, "SWB-ARGUMENT", ex.Message);
+        WriteError(output, "INVALID_ARGUMENT", ex.Message, arguments.CommandId);
         return 2;
+    }
+    catch (HostOperationException ex)
+    {
+        if (output is "json" or "jsonl")
+        {
+            MachineOutput.WriteError(output, arguments.CommandId, ex.Error);
+        }
+        else
+        {
+            Console.Error.WriteLine(ex.Message);
+        }
+
+        return ex.Error.Code == "TIMEOUT" ? 4 : 3;
     }
     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or KeyNotFoundException or RemoteInvocationException)
     {
-        WriteError(output, "SWB-RUNTIME", ex.Message);
-        return 3;
+        WriteError(output, ex is ArgumentException ? "INVALID_ARGUMENT" : "RUNTIME_ERROR", ex.Message, arguments.CommandId);
+        return ex is ArgumentException ? 2 : 3;
     }
 }
 static async Task<int> RunAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
@@ -169,7 +236,7 @@ static async Task<int> RunAsync(IHostRpc client, CommandArguments arguments, str
         case "protocol inspect":
             return InspectProtocol(arguments, output);
         default:
-            WriteError(output, "SWB-ARGUMENT", $"Unknown command: {arguments.CommandId}");
+            WriteError(output, "INVALID_ARGUMENT", $"Unknown command: {arguments.CommandId}");
             return 2;
     }
 }
@@ -189,7 +256,7 @@ static async Task<int> ShowSessionAsync(IHostRpc client, CommandArguments argume
         ?? throw new KeyNotFoundException($"Session {sessionId:D} does not exist.");
     var events = await client.ReadAllSessionEventsAsync(sessionId, cancellationToken).ConfigureAwait(false);
     var loopbacks = await client.ReadLoopbackResultsAsync(sessionId, cancellationToken).ConfigureAwait(false);
-    WriteResult(output, "sessions.show", new { session, events, loopbacks });
+    WriteResult(output, "sessions.show", new SessionDetails(session, events, loopbacks));
     return 0;
 }
 
@@ -228,7 +295,7 @@ static async Task<int> ExportSessionAsync(IHostRpc client, CommandArguments argu
             }
         }
 
-        WriteResult(output, "sessions.export", new { sessionId, path, format, bytes = binaryBytes });
+        WriteResult(output, "sessions.export", new SessionExportReceipt(sessionId, path, format, binaryBytes));
         return 0;
     }
 
@@ -257,7 +324,7 @@ static async Task<int> ExportSessionAsync(IHostRpc client, CommandArguments argu
             }
         }
 
-        WriteResult(output, "sessions.export", new { sessionId, path, format, bytes = textBytes });
+        WriteResult(output, "sessions.export", new SessionExportReceipt(sessionId, path, format, textBytes));
         return 0;
     }
 
@@ -277,7 +344,7 @@ static async Task<int> ExportSessionAsync(IHostRpc client, CommandArguments argu
 
                 foreach (var item in events)
                 {
-                    var line = JsonSerializer.Serialize(item, CliJson.Options);
+                    var line = JsonSerializer.Serialize(item, MachineOutput.CompactOptions);
                     await writer.WriteLineAsync(line).ConfigureAwait(false);
                     bytes += Encoding.UTF8.GetByteCount(line) + Environment.NewLine.Length;
                     afterSequence = item.Sequence;
@@ -285,7 +352,7 @@ static async Task<int> ExportSessionAsync(IHostRpc client, CommandArguments argu
             }
         }
 
-        WriteResult(output, "sessions.export", new { sessionId, path, format, bytes });
+        WriteResult(output, "sessions.export", new SessionExportReceipt(sessionId, path, format, bytes));
         return 0;
     }
 
@@ -316,7 +383,7 @@ static async Task<int> ExportSessionAsync(IHostRpc client, CommandArguments argu
         }
     }
 
-    WriteResult(output, "sessions.export", new { sessionId, path, format, bytes = bytesWritten });
+    WriteResult(output, "sessions.export", new SessionExportReceipt(sessionId, path, format, bytesWritten));
     return 0;
 }
 
@@ -366,7 +433,7 @@ static async Task<int> DeleteSessionAsync(IHostRpc client, CommandArguments argu
 {
     var sessionId = ParseGuid(arguments.Get("--id"), "--id");
     var result = await client.DeleteSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
-    WriteResult(output, "sessions.delete", new { sessionId, result.Success, result.Error });
+    WriteResult(output, "sessions.delete", new SessionDeleteReceipt(sessionId, result.Success, result.Error));
     return result.Success ? 0 : 3;
 }
 
@@ -411,56 +478,17 @@ static async Task<int> XmodemReceiveAsync(IHostRpc client, CommandArguments argu
 static int InspectProtocol(CommandArguments arguments, string output)
 {
     var frame = HexCodec.Parse(arguments.Get("--hex") ?? throw new ArgumentException("protocol inspect requires --hex."));
-    if (arguments.Get("--template") is { } templatePath)
-    {
-        var template = ProtocolTemplateCodec.Deserialize(File.ReadAllText(templatePath));
-        var inspection = ProtocolTemplateParser.Inspect(template, frame);
-        WriteResult(output, "protocol.inspect", new
-        {
-            valid = inspection.IsValid,
-            template = inspection.Template,
-            frameLength = inspection.FrameLength,
-            expectedLength = inspection.ExpectedLength,
-            checksumValid = inspection.ChecksumValid,
-            fields = inspection.Fields,
-            error = inspection.Error,
-        });
-        return inspection.IsValid ? 0 : 1;
-    }
-
-    var modbus = ModbusRtuCodec.Inspect(frame);
-    WriteResult(output, "protocol.inspect", new
-    {
-        valid = modbus.IsValid,
-        kind = modbus.Kind,
-        address = modbus.Address,
-        functionCode = modbus.FunctionCode,
-        exceptionCode = modbus.ExceptionCode,
-        frameLength = modbus.FrameLength,
-        expectedLength = modbus.ExpectedLength,
-        byteCount = modbus.ByteCount,
-        dataAddress = modbus.DataAddress,
-        registerValue = modbus.Value,
-        calculatedCrc = modbus.CalculatedCrc,
-        actualCrc = modbus.ActualCrc,
-        error = modbus.Error,
-    });
-    return modbus.IsValid ? 0 : 1;
+    var template = arguments.Get("--template") is { } templatePath
+        ? ProtocolTemplateParser.Inspect(ProtocolTemplateCodec.Deserialize(File.ReadAllText(templatePath)), frame) : null;
+    var modbus = template is null ? ModbusRtuCodec.Inspect(frame) : null;
+    var valid = template?.IsValid ?? modbus?.IsValid ?? false;
+    WriteResult(output, "protocol.inspect", new ProtocolInspectionResult(valid, Convert.ToHexString(frame), modbus, template));
+    return valid ? 0 : 1;
 }
 static void WriteTransferResult(string output, string command, string path, XmodemTransferResult result, int? receivedBytes = null)
 {
-    var value = new
-    {
-        path,
-        success = result.Success,
-        bytesTransferred = result.BytesTransferred,
-        receivedBytes,
-        blocks = result.Blocks,
-        retries = result.Retries,
-        durationMilliseconds = result.Duration.TotalMilliseconds,
-        error = result.Error,
-    };
-
+    var value = new TransferReceipt(path, result.Success, result.BytesTransferred, receivedBytes, result.Blocks,
+        result.Retries, result.Duration.TotalMilliseconds, result.Error, result.ErrorCode);
     WriteResult(output, command, value);
 }
 
@@ -491,7 +519,7 @@ static async Task<int> SendAsync(IHostRpc client, CommandArguments arguments, st
         }
 
         var result = await client.SendAsync(new SendRequest(connection.Id, data, "cli.send"), cancellationToken).ConfigureAwait(false);
-        WriteResult(output, "send", new { result.Success, bytes = data.Length, hex = Convert.ToHexString(data), result.Error });
+        WriteResult(output, "send", new SendReceipt(result.Success, data.Length, Convert.ToHexString(data), result.Error));
         return result.Success ? 0 : 3;
     }
     finally
@@ -502,6 +530,11 @@ static async Task<int> SendAsync(IHostRpc client, CommandArguments arguments, st
 
 static async Task<int> MonitorAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
 {
+    if (output == "json")
+    {
+        throw new ArgumentException("监视的结构化输出使用 --output jsonl。");
+    }
+
     var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
     var seconds = arguments.GetInt("--seconds", 10);
     var deadline = DateTime.UtcNow.AddSeconds(seconds);
@@ -510,6 +543,8 @@ static async Task<int> MonitorAsync(IHostRpc client, CommandArguments arguments,
     var streamId = status.EventStreamId;
     var direction = ParseDirection(arguments.Get("--direction"));
     var source = arguments.Get("--source");
+    long eventCount = 0;
+    long bytes = 0;
     try
     {
         while (DateTime.UtcNow < deadline)
@@ -519,15 +554,24 @@ static async Task<int> MonitorAsync(IHostRpc client, CommandArguments arguments,
                 Math.Min(remaining, 1000)), cancellationToken).ConfigureAwait(false);
             if (batch.Gap is not null || batch.ResetRequired)
             {
-                WriteResult(output, "monitor.gap", new { batch.StreamId, batch.Gap, batch.ResetRequired });
+                if (output == "jsonl")
+                {
+                    MachineOutput.Write(output, "monitor", new MonitorGap(batch.StreamId, batch.Gap, batch.ResetRequired), "event");
+                }
+                else
+                {
+                    ConsoleOutput.Write("monitor.gap", new MonitorGap(batch.StreamId, batch.Gap, batch.ResetRequired));
+                }
             }
 
             foreach (var item in batch.Events)
             {
                 sequence = Math.Max(sequence, item.Sequence);
+                eventCount++;
+                bytes += item.Data.Length;
                 if (output == "jsonl")
                 {
-                    Console.WriteLine(JsonSerializer.Serialize(new { schemaVersion = 1, command = "monitor", item }));
+                    MachineOutput.Write(output, "monitor", item, "event");
                 }
                 else
                 {
@@ -539,6 +583,7 @@ static async Task<int> MonitorAsync(IHostRpc client, CommandArguments arguments,
             streamId = batch.StreamId;
         }
 
+        WriteResult(output, "monitor", new MonitorReceipt(connection.Id, eventCount, bytes, sequence, streamId));
         return 0;
     }
     finally
@@ -649,9 +694,16 @@ static async Task<int> ModbusPollAsync(IHostRpc client, CommandArguments argumen
             arguments.GetInt("--interval", 1000), arguments.GetInt("--timeout", 2000));
         var updates = new ActionProgress<OperationProgress>(progress =>
         {
-            if (progress.ItemJson is { } json)
+            if (output != "json" && progress.ItemJson is { } json)
             {
-                WriteResult(output, "modbus.poll", OperationJson.Read<ModbusSample>(json));
+                if (output == "jsonl")
+                {
+                    MachineOutput.Write(output, "modbus.poll", OperationJson.Read<ModbusSample>(json), "progress");
+                }
+                else
+                {
+                    ConsoleOutput.Write("modbus.poll", OperationJson.Read<ModbusSample>(json));
+                }
             }
         });
         var result = await client.RunOperationAsync<ModbusBatchResult>(OperationJson.Create("modbus.poll", connection.Id, request),
@@ -683,21 +735,9 @@ static async Task<int> RunModbusAsync(
         function,
         arguments.GetInt("--timeout", 2000));
     var result = await client.RunModbusAsync(request, cancellationToken).ConfigureAwait(false);
-    var value = new
-    {
-        success = result.Success,
-        requestFrame = Convert.ToHexString(requestFrame),
-        responseFrame = Convert.ToHexString(result.ResponseFrame),
-        functionCode = result.FunctionCode,
-        registers = result.Registers,
-        bits = result.Bits,
-        address = result.Address,
-        registerValue = result.Value,
-        exceptionCode = result.ExceptionCode,
-        durationMilliseconds = result.Duration.TotalMilliseconds,
-        error = result.Error,
-    };
-
+    var value = new ModbusReceipt(result.Success, Convert.ToHexString(requestFrame), Convert.ToHexString(result.ResponseFrame),
+        result.FunctionCode, result.Registers, result.Bits, result.Address, result.Value, result.ExceptionCode,
+        result.Duration.TotalMilliseconds, result.Error, result.ErrorCode);
     WriteResult(output, command, value);
 
     return ModbusExitCode(result);
@@ -839,32 +879,23 @@ static void WriteResult(string output, string command, object value)
 {
     if (output is "json" or "jsonl")
     {
-        Console.WriteLine(JsonSerializer.Serialize(new { schemaVersion = 1, command, time = DateTimeOffset.UtcNow, result = value }, CliJson.Options));
+        MachineOutput.Write(output, command, value);
         return;
     }
 
     ConsoleOutput.Write(command, value);
 }
 
-static void WriteError(string output, string code, string message)
+static void WriteError(string output, string code, string message, string command = "cli")
 {
-    var value = new { schemaVersion = 1, code, message, time = DateTimeOffset.UtcNow };
     if (output is "json" or "jsonl")
     {
-        Console.Error.WriteLine(JsonSerializer.Serialize(value, CliJson.Options));
+        MachineOutput.WriteError(output, command, new WorkbenchError(code, message));
     }
     else
     {
         Console.Error.WriteLine($"{code}: {message}");
     }
-}
-
-file static class CliJson
-{
-    public static JsonSerializerOptions Options { get; } = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true,
-    };
 }
 
 file sealed class ActionProgress<T>(Action<T> report) : IProgress<T>

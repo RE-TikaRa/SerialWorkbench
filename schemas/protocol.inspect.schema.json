@@ -1,0 +1,357 @@
+{
+  "schemaVersion": 2,
+  "command": "protocol.inspect",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "--output": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "default": "text",
+        "enum": [
+          "text",
+          "json",
+          "jsonl"
+        ]
+      },
+      "--culture": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--app-root": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--agent": {
+        "type": "boolean",
+        "default": false
+      },
+      "--hex": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "--template": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "--hex"
+    ]
+  },
+  "output": {
+    "type": [
+      "object",
+      "null"
+    ],
+    "properties": {
+      "schemaVersion": {
+        "const": 2
+      },
+      "command": {
+        "const": "protocol.inspect"
+      },
+      "type": {
+        "const": "result"
+      },
+      "status": {
+        "enum": [
+          "success",
+          "running",
+          "error",
+          "cancelled"
+        ]
+      },
+      "time": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "result": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          },
+          "hex": {
+            "type": "string"
+          },
+          "modbus": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "isValid": {
+                "type": "boolean"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "address": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "functionCode": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "exceptionCode": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "frameLength": {
+                "type": [
+                  "string",
+                  "integer"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "expectedLength": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "byteCount": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "dataAddress": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "value": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "calculatedCrc": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "actualCrc": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "isValid",
+              "kind",
+              "address",
+              "functionCode",
+              "exceptionCode",
+              "frameLength",
+              "expectedLength",
+              "byteCount",
+              "dataAddress",
+              "value",
+              "calculatedCrc",
+              "actualCrc",
+              "error"
+            ]
+          },
+          "template": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "isValid": {
+                "type": "boolean"
+              },
+              "template": {
+                "type": "string"
+              },
+              "frameLength": {
+                "type": [
+                  "string",
+                  "integer"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "expectedLength": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "checksumValid": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "fields": {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string"
+                    },
+                    "hex": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "type",
+                    "value",
+                    "hex"
+                  ]
+                }
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "isValid",
+              "template",
+              "frameLength",
+              "expectedLength",
+              "checksumValid",
+              "fields",
+              "error"
+            ]
+          }
+        },
+        "required": [
+          "valid",
+          "hex",
+          "modbus",
+          "template"
+        ]
+      },
+      "error": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "connectionId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "operationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "operationId": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "format": "uuid",
+        "default": null
+      }
+    },
+    "required": [
+      "schemaVersion",
+      "command",
+      "type",
+      "status",
+      "time",
+      "result",
+      "error",
+      "operationId"
+    ],
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false
+  },
+  "events": null
+}
