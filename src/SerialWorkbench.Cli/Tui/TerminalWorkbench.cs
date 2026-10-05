@@ -55,8 +55,11 @@ public sealed partial class TerminalWorkbench : IDisposable
     private bool polling;
     private bool paused;
     private bool updatingConnections;
+    private bool updatingTraffic;
     private object? refreshToken;
     private Task pendingRefresh = Task.CompletedTask;
+    private readonly object actionsGate = new();
+    private readonly HashSet<Task> pendingActions = [];
     private bool disposed;
 
     public TerminalWorkbench(IApplication app, IHostRpc client)
@@ -69,6 +72,7 @@ public sealed partial class TerminalWorkbench : IDisposable
             if (!updatingConnections && args.NewValue is { } index && index >= 0 && index < snapshots.Count)
             {
                 connectionId = snapshots[index].Id;
+                ResumeLiveTraffic();
                 RefreshTraffic();
             }
         };
@@ -97,6 +101,7 @@ public sealed partial class TerminalWorkbench : IDisposable
             new Shortcut(Key.F4, "设置", () => tabs.Value = settingsView),
             new Shortcut(Key.F5, "刷新", () => _ = RunUiAsync(RefreshPortsAsync)),
             new Shortcut(Key.F6, "复制", CopySelected),
+            new Shortcut(Key.F7, "实时", ResumeLiveTraffic),
             new Shortcut(Key.Q.WithCtrl, "退出", () => app.RequestStop(window)),
         ]);
         window.Add(status, message, tabs, sending, shortcuts);
@@ -104,6 +109,13 @@ public sealed partial class TerminalWorkbench : IDisposable
         direction.ValueChanged += (_, _) => RefreshTraffic();
         filter.TextChanged += (_, _) => RefreshTraffic();
         timestamps.ValueChanged += (_, _) => RefreshTraffic();
+        traffic.ValueChanged += (_, _) =>
+        {
+            if (!updatingTraffic && traffic.HasFocus)
+            {
+                follow.Value = CheckState.UnChecked;
+            }
+        };
     }
 
     public Window Window => window;
@@ -137,6 +149,12 @@ public sealed partial class TerminalWorkbench : IDisposable
         workbench.replay?.Cancel();
         await workbench.pendingRefresh.ConfigureAwait(false);
         await workbench.replayTask.ConfigureAwait(false);
+        Task[] actions;
+        lock (workbench.actionsGate)
+        {
+            actions = [.. workbench.pendingActions];
+        }
+        await Task.WhenAll(actions).ConfigureAwait(false);
         return 0;
     }
 
@@ -156,6 +174,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         }
 
         window.Dispose();
+        sessionReadGate.Dispose();
         replay?.Dispose();
         lifetime.Dispose();
     }
@@ -249,7 +268,7 @@ public sealed partial class TerminalWorkbench : IDisposable
                     {
                         buffer.Append(group.ToArray());
                     }
-                    if (group.Key == connectionId)
+                    if (group.Key == connectionId && replayBuffer is null)
                     {
                         foreach (var item in group.Where(static item => item.Direction == SerialDirection.Receive))
                         {
@@ -268,7 +287,7 @@ public sealed partial class TerminalWorkbench : IDisposable
                 var current = snapshots.FirstOrDefault(item => item.Id == connectionId);
                 status.Text = current is null ? $"Host · {host.ClientCount} 客户端 · 未选择连接"
                     : $"{current.Options.PortName} · {current.State} · {current.Options.BaudRate} · RX {current.ReceivedBytes:N0} B / {current.ReceivedBytesPerSecond:N0} B/s · TX {current.TransmittedBytes:N0} B";
-                if (!paused && replay is null)
+                if (!paused && replayBuffer is null)
                 {
                     RefreshTraffic();
                 }
@@ -282,32 +301,89 @@ public sealed partial class TerminalWorkbench : IDisposable
 
     private void RefreshTraffic()
     {
-        if (connectionId is not { } id || !buffers.TryGetValue(id, out var buffer))
+        if (paused)
         {
-            visibleRows = [];
-            traffic.Table = null;
+            return;
+        }
+        var buffer = replayBuffer ?? (connectionId is { } id ? buffers.GetValueOrDefault(id) : null);
+        if (buffer is null)
+        {
+            SetTrafficRows([]);
             return;
         }
 
-        var current = snapshots.First(item => item.Id == id);
-        buffer.SetPresentation(Encoding.GetEncoding(current.Options.EncodingName), format.Text == "文本", timestamps.Value == CheckState.Checked, hexGap.Value);
-        visibleRows = buffer.Rows.Where(row => (direction.Text != "RX" || row.IsReceive) && (direction.Text != "TX" || row.IsTransmit)
-            && (filter.Text.Length == 0 || row.Display.Contains(filter.Text, StringComparison.OrdinalIgnoreCase) || row.Source.Contains(filter.Text, StringComparison.OrdinalIgnoreCase))).ToArray();
+        var current = snapshots.FirstOrDefault(item => item.Id == connectionId);
+        buffer.SetPresentation(Encoding.GetEncoding(replayBuffer is not null ? encoding.Text : current?.Options.EncodingName ?? encoding.Text),
+            format.Text == "文本", timestamps.Value == CheckState.Checked, hexGap.Value);
+        SetTrafficRows(buffer.Rows.Where(row => (direction.Text != "RX" || row.IsReceive) && (direction.Text != "TX" || row.IsTransmit)
+            && (filter.Text.Length == 0 || row.Display.Contains(filter.Text, StringComparison.OrdinalIgnoreCase) || row.Source.Contains(filter.Text, StringComparison.OrdinalIgnoreCase))).ToArray());
+    }
+
+    internal void SetTrafficRows(TrafficRow[] rows)
+    {
+        var selected = traffic.GetAllSelectedCells().Select(static cell => cell.Y).Where(index => index >= 0 && index < visibleRows.Length)
+            .Select(index => visibleRows[index].Identity).ToHashSet();
         var selection = traffic.Value;
-        traffic.Table = new EnumerableTableSource<TrafficRow>(visibleRows, new Dictionary<string, Func<TrafficRow, object>>
+        var extended = selection?.Regions.Where(static region => region.IsExtended)
+            .SelectMany(region => visibleRows.Skip(Math.Max(0, region.Rectangle.Top)).Take(region.Rectangle.Height)).Select(static row => row.Identity).ToHashSet() ?? [];
+        var cursorId = selection is not null && selection.SelectedCell.Y >= 0 && selection.SelectedCell.Y < visibleRows.Length
+            ? visibleRows[selection.SelectedCell.Y].Identity : (TrafficRowIdentity?)null;
+        var topId = traffic.RowOffset >= 0 && traffic.RowOffset < visibleRows.Length ? visibleRows[traffic.RowOffset].Identity : (TrafficRowIdentity?)null;
+        var rowOffset = traffic.RowOffset;
+        var columnOffset = traffic.ColumnOffset;
+        var unchanged = visibleRows.SequenceEqual(rows);
+        visibleRows = rows;
+        updatingTraffic = true;
+        try
         {
-            ["时间"] = row => row.ShowTimestamp ? row.Time : "",
-            ["方向"] = row => row.IsReceive ? "RX" : "TX",
-            ["来源"] = row => row.Source,
-            ["内容"] = row => row.Display,
-        });
-        if (follow.Value == CheckState.Checked && visibleRows.Length > 0)
-        {
-            traffic.MoveCursorToEndOfTable(false, null);
+            if (!unchanged)
+            {
+                traffic.Table = new EnumerableTableSource<TrafficRow>(visibleRows, new Dictionary<string, Func<TrafficRow, object>>
+                {
+                    ["时间"] = row => row.ShowTimestamp ? row.Time : "",
+                    ["方向"] = row => row.IsReceive ? "RX" : "TX",
+                    ["来源"] = row => row.Source,
+                    ["内容"] = row => row.Display,
+                });
+            }
+            else
+            {
+                traffic.RefreshContentSize();
+                traffic.SetNeedsDraw();
+            }
+            if (follow.Value == CheckState.Checked && !paused && visibleRows.Length > 0)
+            {
+                traffic.MoveCursorToEndOfTable(false, null);
+            }
+            else
+            {
+                var cursor = Array.FindIndex(rows, row => row.Identity == cursorId);
+                var regions = new List<TableSelectionRegion>();
+                for (var index = 0; index < rows.Length; index++)
+                {
+                    if (!selected.Contains(rows[index].Identity))
+                    {
+                        continue;
+                    }
+                    var first = index;
+                    var isExtended = extended.Contains(rows[index].Identity);
+                    while (index + 1 < rows.Length && selected.Contains(rows[index + 1].Identity) && extended.Contains(rows[index + 1].Identity) == isExtended)
+                    {
+                        index++;
+                    }
+                    var point = new System.Drawing.Point(0, first);
+                    regions.Add(new TableSelectionRegion(point, new System.Drawing.Rectangle(0, first, traffic.Table?.Columns ?? 4, index - first + 1)) { IsExtended = isExtended });
+                }
+                cursor = cursor >= 0 ? cursor : regions.FirstOrDefault()?.Origin.Y ?? -1;
+                traffic.Value = cursor >= 0 ? new TableSelection(new System.Drawing.Point(selection?.SelectedCell.X ?? 0, cursor), regions) : null;
+                var top = Array.FindIndex(rows, row => row.Identity == topId);
+                traffic.RowOffset = top >= 0 ? top : rowOffset;
+                traffic.ColumnOffset = columnOffset;
+            }
         }
-        else
+        finally
         {
-            traffic.Value = selection;
+            updatingTraffic = false;
         }
     }
 
@@ -362,14 +438,24 @@ public sealed partial class TerminalWorkbench : IDisposable
     private void TogglePause()
     {
         paused = !paused;
+        if (paused)
+        {
+            SetTrafficRows(visibleRows.Select(static row => row.Snapshot()).ToArray());
+        }
+        else
+        {
+            RefreshTraffic();
+        }
         message.Text = paused ? "显示已暂停，Host 继续采集" : "继续显示";
     }
 
     private void ClearTraffic()
     {
-        if (connectionId is { } id && buffers.TryGetValue(id, out var buffer))
+        var buffer = replayBuffer ?? (connectionId is { } id ? buffers.GetValueOrDefault(id) : null);
+        if (buffer is not null)
         {
             buffer.Clear();
+            paused = false;
             RefreshTraffic();
         }
     }
@@ -387,7 +473,24 @@ public sealed partial class TerminalWorkbench : IDisposable
         }
     }
 
-    private async Task RunUiAsync(Func<Task> action)
+    private Task RunUiAsync(Func<Task> action)
+    {
+        var task = ExecuteUiAsync(action);
+        lock (actionsGate)
+        {
+            pendingActions.Add(task);
+        }
+        _ = task.ContinueWith(completed =>
+        {
+            lock (actionsGate)
+            {
+                pendingActions.Remove(completed);
+            }
+        }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        return task;
+    }
+
+    private async Task ExecuteUiAsync(Func<Task> action)
     {
         try
         {
@@ -398,14 +501,47 @@ public sealed partial class TerminalWorkbench : IDisposable
         }
         catch (Exception ex)
         {
-            app.Invoke(() => message.Text = ex.Message);
+            if (!lifetime.IsCancellationRequested)
+            {
+                app.Invoke(() => message.Text = ex.Message);
+            }
         }
+    }
+
+    private Task InvokeUiAsync(Action action)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        app.Invoke(() =>
+        {
+            try
+            {
+                action();
+                completion.SetResult();
+            }
+            catch (Exception ex)
+            {
+                completion.SetException(ex);
+            }
+        });
+        return completion.Task.WaitAsync(lifetime.Token);
     }
 
     private static Button Button(string text, Func<Task> action)
     {
         var button = new Button { Text = text };
-        button.Accepting += (_, args) => { args.Handled = true; _ = action(); };
+        button.Accepting += async (_, args) =>
+        {
+            args.Handled = true;
+            button.Enabled = false;
+            try
+            {
+                await action();
+            }
+            finally
+            {
+                button.Enabled = true;
+            }
+        };
         return button;
     }
 }

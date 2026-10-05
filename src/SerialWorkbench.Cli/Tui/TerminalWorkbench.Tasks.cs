@@ -158,6 +158,9 @@ public sealed partial class TerminalWorkbench
         var listed = await client.ListOperationsAsync(lifetime.Token).ConfigureAwait(false);
         app.Invoke(() =>
         {
+            var selected = taskTable.Value is { } selection && selection.SelectedCell.Y >= 0 && selection.SelectedCell.Y < displayedTasks.Length
+                ? displayedTasks[selection.SelectedCell.Y].Id : (Guid?)null;
+            var viewport = taskTable.Viewport;
             displayedTasks = listed.ToArray();
             taskTable.Table = new EnumerableTableSource<OperationSnapshot>(displayedTasks, new Dictionary<string, Func<OperationSnapshot, object>>
             {
@@ -167,6 +170,12 @@ public sealed partial class TerminalWorkbench
                 ["进度"] = item => item.Progress?.Completed.ToString(CultureInfo.InvariantCulture) ?? "",
                 ["结果"] = item => item.Error?.Code ?? "",
             });
+            var index = Array.FindIndex(displayedTasks, item => item.Id == selected);
+            if (index >= 0)
+            {
+                taskTable.Value = new TableSelection(new System.Drawing.Point(0, index));
+                taskTable.Viewport = viewport;
+            }
             if (displayedTasks.FirstOrDefault(static item => item.State == OperationState.Running) is { } current)
             {
                 ShowProgress(current);

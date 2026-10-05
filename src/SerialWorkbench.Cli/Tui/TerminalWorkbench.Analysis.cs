@@ -22,7 +22,10 @@ public sealed partial class TerminalWorkbench
     private Guid? selectedSession;
     private long sessionSequence;
     private readonly List<SerialTrafficEvent> displayedSessionEvents = [];
+    private readonly SemaphoreSlim sessionReadGate = new(1, 1);
+    private long sessionRevision;
     private CancellationTokenSource? replay;
+    private SerialWorkbench.Application.TrafficBuffer? replayBuffer;
     private Task replayTask = Task.CompletedTask;
     private readonly GraphView graph = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Fill() };
     private readonly WaveformParser waveformParser = new();
@@ -56,6 +59,7 @@ public sealed partial class TerminalWorkbench
                 if (selectedSession != id)
                 {
                     selectedSession = id;
+                    sessionRevision++;
                     sessionSequence = 0;
                     displayedSessionEvents.Clear();
                     _ = RunUiAsync(ReadSessionAsync);
@@ -65,6 +69,7 @@ public sealed partial class TerminalWorkbench
         var applyFilter = Button("筛选", () => RunUiAsync(() =>
         {
             sessionSequence = 0;
+            sessionRevision++;
             displayedSessionEvents.Clear();
             return ReadSessionAsync();
         }));
@@ -98,28 +103,45 @@ public sealed partial class TerminalWorkbench
             return;
         }
 
+        var revision = sessionRevision;
         var query = new SessionEventQuery(id, 1000, sessionSequence, DataContainsHex: sessionFilter.Text.Length == 0 ? null : Convert.ToHexString(HexCodec.Parse(sessionFilter.Text)));
-        var events = await client.ReadSessionEventsAsync(query, lifetime.Token).ConfigureAwait(false);
-        app.Invoke(() =>
+        await sessionReadGate.WaitAsync(lifetime.Token).ConfigureAwait(false);
+        try
         {
-            if (selectedSession != id)
+            if (revision != sessionRevision || query.AfterSequence != sessionSequence)
             {
                 return;
             }
+            var events = await client.ReadSessionEventsAsync(query, lifetime.Token).ConfigureAwait(false);
+            await InvokeUiAsync(() =>
+            {
+                if (selectedSession != id || sessionRevision != revision)
+                {
+                    return;
+                }
 
-            displayedSessionEvents.AddRange(events);
-            if (events.Count > 0)
-            {
-                sessionSequence = events[^1].Sequence;
-            }
-            sessionEvents.Table = new EnumerableTableSource<SerialTrafficEvent>(displayedSessionEvents, new Dictionary<string, Func<SerialTrafficEvent, object>>
-            {
-                ["时间"] = item => item.Utc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
-                ["方向"] = item => item.Direction == SerialDirection.Receive ? "RX" : "TX",
-                ["来源"] = item => item.Source,
-                ["HEX"] = item => HexCodec.Format(item.Data),
-            });
-        });
+                displayedSessionEvents.AddRange(events);
+                if (events.Count > 0)
+                {
+                    sessionSequence = events[^1].Sequence;
+                }
+                var selection = sessionEvents.Value;
+                var viewport = sessionEvents.Viewport;
+                sessionEvents.Table = new EnumerableTableSource<SerialTrafficEvent>(displayedSessionEvents, new Dictionary<string, Func<SerialTrafficEvent, object>>
+                {
+                    ["时间"] = item => item.Utc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                    ["方向"] = item => item.Direction == SerialDirection.Receive ? "RX" : "TX",
+                    ["来源"] = item => item.Source,
+                    ["HEX"] = item => HexCodec.Format(item.Data),
+                });
+                sessionEvents.Value = selection;
+                sessionEvents.Viewport = viewport;
+            }).ConfigureAwait(false);
+        }
+        finally
+        {
+            sessionReadGate.Release();
+        }
     }
 
     private async Task ExportSessionAsync()
@@ -139,50 +161,85 @@ public sealed partial class TerminalWorkbench
     private async Task ReplaySessionAsync()
     {
         var id = selectedSession ?? throw new InvalidOperationException("请选择会话。");
-        replay?.Cancel();
-        await replayTask.ConfigureAwait(false);
-        replay?.Dispose();
-        replay = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
-        var cancellationToken = replay.Token;
-        var events = await client.ReadAllSessionEventsAsync(id, cancellationToken).ConfigureAwait(false);
-        app.Invoke(() => message.Text = "正在回放会话");
+        if (replay is not null)
+        {
+            return;
+        }
+
+        using var source = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        replay = source;
+        replayBuffer = new SerialWorkbench.Application.TrafficBuffer(Encoding.GetEncoding(encoding.Text));
+        paused = false;
+        ResetWaveform();
+        RefreshTraffic();
+        tabs.Value = workbenchView;
+        message.Text = "正在回放会话";
         replayTask = RunUiAsync(async () =>
         {
-            DateTimeOffset? previous = null;
-            foreach (var item in events)
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (previous is { } timestamp && item.Utc > timestamp)
+                var afterSequence = 0L;
+                DateTimeOffset? previous = null;
+                while (true)
                 {
-                    await Task.Delay(item.Utc - timestamp, cancellationToken).ConfigureAwait(false);
+                    var events = await client.ReadSessionEventsAsync(new SessionEventQuery(id, 1000, afterSequence), source.Token).ConfigureAwait(false);
+                    if (events.Count == 0)
+                    {
+                        break;
+                    }
+                    foreach (var item in events)
+                    {
+                        source.Token.ThrowIfCancellationRequested();
+                        if (previous is { } timestamp && item.Utc > timestamp)
+                        {
+                            await Task.Delay(item.Utc - timestamp, source.Token).ConfigureAwait(false);
+                        }
+                        previous = item.Utc;
+                        afterSequence = item.Sequence;
+                        await InvokeUiAsync(() =>
+                        {
+                            if (!source.IsCancellationRequested && replayBuffer is { } buffer)
+                            {
+                                buffer.Append([item]);
+                                RefreshTraffic();
+                                if (item.Direction == SerialDirection.Receive)
+                                {
+                                    FeedWaveform(item.Data);
+                                }
+                            }
+                        }).ConfigureAwait(false);
+                    }
                 }
-
-                previous = item.Utc;
-                app.Invoke(() =>
-                {
-                    if (!buffers.TryGetValue(item.ConnectionId, out var buffer))
-                    {
-                        buffer = new SerialWorkbench.Application.TrafficBuffer(Encoding.UTF8);
-                        buffers.Add(item.ConnectionId, buffer);
-                    }
-                    buffer.Append([item]);
-                    buffer.SetPresentation(Encoding.GetEncoding(encoding.Text), format.Text == "文本", true, hexGap.Value);
-                    traffic.Table = new EnumerableTableSource<SerialWorkbench.Application.TrafficRow>(buffer.Rows, new Dictionary<string, Func<SerialWorkbench.Application.TrafficRow, object>>
-                    {
-                        ["时间"] = row => row.Time,
-                        ["方向"] = row => row.IsReceive ? "RX" : "TX",
-                        ["来源"] = row => row.Source,
-                        ["内容"] = row => row.Display,
-                    });
-                    tabs.Value = workbenchView;
-                    if (item.Direction == SerialDirection.Receive)
-                    {
-                        FeedWaveform(item.Data);
-                    }
-                });
             }
-            app.Invoke(() => message.Text = "会话回放完成");
+            catch (OperationCanceledException) when (source.IsCancellationRequested)
+            {
+            }
+            finally
+            {
+                replay = null;
+                if (!lifetime.IsCancellationRequested)
+                {
+                    await InvokeUiAsync(() =>
+                    {
+                        if (replayBuffer is not null)
+                        {
+                            message.Text = source.IsCancellationRequested ? "回放已停止 · F7 返回实时" : "会话回放完成 · F7 返回实时";
+                        }
+                    }).ConfigureAwait(false);
+                }
+            }
         });
+        await replayTask.ConfigureAwait(false);
+    }
+
+    private void ResumeLiveTraffic()
+    {
+        replay?.Cancel();
+        replayBuffer = null;
+        paused = false;
+        ResetWaveform();
+        RefreshTraffic();
+        message.Text = "实时报文";
     }
 
     private View BuildProtocol()

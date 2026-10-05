@@ -4,6 +4,7 @@
     <AssemblyName>serial-workbench</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="SerialWorkbench.Tests" />
     <ProjectReference Include="../SerialWorkbench.Ipc/SerialWorkbench.Ipc.csproj" />
     <ProjectReference Include="../SerialWorkbench.Application/SerialWorkbench.Application.csproj" />
     <ProjectReference Include="../SerialWorkbench.Modbus/SerialWorkbench.Modbus.csproj" />
