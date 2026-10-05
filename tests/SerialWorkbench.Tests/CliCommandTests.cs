@@ -39,6 +39,8 @@ public sealed class CliCommandTests
     [InlineData("modbus", "read", "--port", "COM16", "--slave", "248")]
     [InlineData("modbus", "write", "--port", "COM16", "--function", "abc")]
     [InlineData("modbus", "write", "--port", "COM16", "--value", "abc")]
+    [InlineData("kill", "--timeout", "0")]
+    [InlineData("kill", "--timeout", "60001")]
     public void InvalidCommandsAreRejectedDuringParsing(params string[] arguments)
     {
         var parsed = CreateCatalog().Root.Parse(arguments);

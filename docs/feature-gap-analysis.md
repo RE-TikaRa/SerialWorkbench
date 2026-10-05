@@ -60,6 +60,7 @@ Host 持有串口句柄、写入租约、原始事件和 SQLite 会话。WinUI �
 - Agent 与 CLI 共享 Schema v2，提供离线能力发现、命令 Schema 和帮助；结构化错误写入 stdout，JSONL 保持逐条单行并输出最终结果。
 - CLI 管理共享连接配置，支持查看、保存、修改、重命名、删除与按配置打开连接；在线 DTR/RTS、缓冲清理和 BREAK 使用同一套 Host RPC。
 - CLI 支持发送校验追加、Host 循环发送、分页进度读取和等待已有任务完成，退出等待不取消其他客户端的任务。
+- CLI `kill` 关闭当前应用目录的共享连接、Host 和客户端进程，报告退出结果后结束自身；支持 JSON/JSONL 与关闭时限。
 - Terminal.Gui 终端工作台提供连接、报文、发送、历史、过滤、设置、暂停、范围选择和复制，复用 WinUI 的文本与 HEX 聚合实现。
 - TUI 与 CLI 提供独立入口 `SW_TUI.exe` 和 `SW_CLI.exe`；CLI 无参数显示帮助，Agent 使用相同命令契约。
 - TUI 常用工作区支持 Alt+1 至 Alt+5 导航，高级操作通过 F9 工具列表进入独立窗口。

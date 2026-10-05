@@ -1274,6 +1274,196 @@
           "const": 2
         },
         "command": {
+          "const": "kill"
+        },
+        "type": {
+          "const": "result"
+        },
+        "status": {
+          "enum": [
+            "success",
+            "running",
+            "error",
+            "cancelled"
+          ]
+        },
+        "time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "result": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "success": {
+              "type": "boolean"
+            },
+            "applicationRoot": {
+              "type": "string"
+            },
+            "callerProcessId": {
+              "type": [
+                "string",
+                "integer"
+              ],
+              "pattern": "^-?(?:0|[1-9]\\d*)$"
+            },
+            "closedConnectionIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "processes": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "processId": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ],
+                    "pattern": "^-?(?:0|[1-9]\\d*)$"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "stopped": {
+                    "type": "boolean"
+                  },
+                  "forced": {
+                    "type": "boolean"
+                  },
+                  "error": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "processId",
+                  "name",
+                  "stopped",
+                  "forced",
+                  "error"
+                ]
+              }
+            },
+            "hostStoppedGracefully": {
+              "type": "boolean"
+            },
+            "gracefulShutdownError": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "error": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "errorCode": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "success",
+            "applicationRoot",
+            "callerProcessId",
+            "closedConnectionIds",
+            "processes",
+            "hostStoppedGracefully",
+            "gracefulShutdownError",
+            "error",
+            "errorCode"
+          ]
+        },
+        "error": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            },
+            "connectionId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid",
+              "default": null
+            },
+            "operationId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid",
+              "default": null
+            },
+            "owner": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ]
+        },
+        "operationId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid",
+          "default": null
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "command",
+        "type",
+        "status",
+        "time",
+        "result",
+        "error",
+        "operationId"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    },
+    {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 2
+        },
+        "command": {
           "const": "workspace.show"
         },
         "type": {

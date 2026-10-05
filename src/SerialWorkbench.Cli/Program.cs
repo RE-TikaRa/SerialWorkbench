@@ -97,6 +97,10 @@ static async Task<int> ExecuteCommandAsync(CommandArguments arguments, Cancellat
             case "schemas.export":
                 WriteResult(output, "schemas.export", await AgentDiscovery.ExportAsync(arguments.Get("--path") ?? throw new ArgumentException("--path is required."), cancellationToken).ConfigureAwait(false));
                 return 0;
+            case "kill":
+                var killed = await KillCommand.ExecuteAsync(applicationRoot, arguments.GetInt("--timeout", 10000), cancellationToken).ConfigureAwait(false);
+                WriteResult(output, "kill", killed);
+                return killed.Success ? 0 : 3;
         }
 
         if (arguments.CommandId == "protocol.inspect")

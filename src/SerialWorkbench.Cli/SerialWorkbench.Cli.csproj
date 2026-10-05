@@ -3,6 +3,7 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>SerialWorkbench.Cli</AssemblyName>
     <AppHostName>SW_CLI</AppHostName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="SerialWorkbench.Tests" />

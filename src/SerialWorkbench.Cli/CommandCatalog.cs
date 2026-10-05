@@ -34,6 +34,8 @@ public sealed class CommandCatalog
         Add("ports.list", "枚举串口");
         Add("host.status", "查询 Host 状态");
         Add("host.stop", "停止 Host");
+        var kill = Add("kill", "关闭所有连接、Host 与当前应用目录的客户端进程");
+        Integer(kill, "--timeout", "正常关闭 Host 的时限 ms", 10000, 1, 60000);
         Add("workspace.show", "查询工作区");
         Text(Add("workspace.set", "选择工作区"), "--path", "工作区路径", required: true);
         Add("workspace.clear", "使用全局工作区");

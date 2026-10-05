@@ -373,6 +373,15 @@ utc,direction,source,hex,byte_count
 .\SW_CLI.exe host stop
 ```
 
+关闭当前应用目录的全部连接、Host 和客户端进程：
+
+```powershell
+.\SW_CLI.exe kill
+.\SW_CLI.exe --agent kill
+```
+
+`kill` 按可执行文件的完整路径识别本目录的 `SW.exe`、`SW_TUI.exe`、其他 `SW_CLI.exe` 和 `SW_HOST.exe`。先退出客户端，再通过 RPC 取消连接任务、关闭串口并请求 Host 正常退出；RPC 不可用或超过 `--timeout` 时结束 Host 进程。默认时限 10000 ms，不会启动新 Host。结果列出关闭的连接、退出的进程和是否强制结束；权限不足时返回失败与非零退出码。执行命令的 CLI 在输出结果后退出。`--app-root` 可指定另一应用目录。
+
 ### 工作区
 
 ```powershell

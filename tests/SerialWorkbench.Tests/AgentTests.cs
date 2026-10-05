@@ -41,6 +41,20 @@ public sealed class AgentTests
     }
 
     [Fact]
+    public void KillFailuresRemainStructuredAndPreserveProcessDetails()
+    {
+        using var writer = new StringWriter(System.Globalization.CultureInfo.InvariantCulture);
+        var receipt = new KillReceipt(false, "C:/app", 123, [], [new ProcessStopResult(456, "SW_HOST", false, false, "Access denied")],
+            false, "Access denied", "Unable to stop SW_HOST", "PROCESS_TERMINATION_FAILED");
+        MachineOutput.Write("json", "kill", receipt, writer: writer);
+
+        using var document = JsonDocument.Parse(writer.ToString());
+        Assert.Equal("error", document.RootElement.GetProperty("status").GetString());
+        Assert.Equal("PROCESS_TERMINATION_FAILED", document.RootElement.GetProperty("error").GetProperty("code").GetString());
+        Assert.Equal(456, document.RootElement.GetProperty("result").GetProperty("processes")[0].GetProperty("processId").GetInt32());
+    }
+
+    [Fact]
     public void CommandSchemasDescribeConcretePayloadsAndMatchTheCommandTree()
     {
         var catalog = new CommandCatalog();

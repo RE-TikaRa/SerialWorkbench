@@ -219,4 +219,27 @@ public sealed class ApplicationTests
             }
         }
     }
+
+    [Fact]
+    public async Task KillStopsTheHostNormallyAndDoesNotRestartIt()
+    {
+        var started = await EntryPointTests.InvokeAsync("SW_CLI", "--agent", "host", "status", "--app-root", AppContext.BaseDirectory);
+        Assert.Equal(0, started.ExitCode);
+        var result = await EntryPointTests.InvokeAsync("SW_CLI", "--agent", "kill", "--app-root", AppContext.BaseDirectory);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.Error);
+        using var document = System.Text.Json.JsonDocument.Parse(result.Output);
+        var receipt = document.RootElement.GetProperty("result");
+        Assert.True(receipt.GetProperty("hostStoppedGracefully").GetBoolean());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, receipt.GetProperty("gracefulShutdownError").ValueKind);
+        var host = Assert.Single(receipt.GetProperty("processes").EnumerateArray());
+        Assert.Equal("SW_HOST", host.GetProperty("name").GetString());
+        Assert.True(host.GetProperty("stopped").GetBoolean());
+        Assert.False(host.GetProperty("forced").GetBoolean());
+        var repeated = await EntryPointTests.InvokeAsync("SW_CLI", "--agent", "kill", "--app-root", AppContext.BaseDirectory);
+        Assert.Equal(0, repeated.ExitCode);
+        using var repeatedDocument = System.Text.Json.JsonDocument.Parse(repeated.Output);
+        Assert.Equal(0, repeatedDocument.RootElement.GetProperty("result").GetProperty("processes").GetArrayLength());
+    }
 }

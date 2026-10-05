@@ -26,3 +26,8 @@ public sealed record MonitorReceipt(Guid ConnectionId, long Events, long Bytes, 
 public sealed record MonitorGap(Guid StreamId, EventGap? Gap, bool ResetRequired);
 
 public sealed record VersionInfo(string Version, int RpcMajorVersion, int RpcMinorVersion);
+
+public sealed record ProcessStopResult(int ProcessId, string Name, bool Stopped, bool Forced, string? Error);
+
+public sealed record KillReceipt(bool Success, string ApplicationRoot, int CallerProcessId, IReadOnlyList<Guid> ClosedConnectionIds,
+    IReadOnlyList<ProcessStopResult> Processes, bool HostStoppedGracefully, string? GracefulShutdownError, string? Error, string? ErrorCode);

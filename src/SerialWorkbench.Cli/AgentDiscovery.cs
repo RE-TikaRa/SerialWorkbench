@@ -35,7 +35,7 @@ public static class AgentDiscovery
             {
                 ["command"] = definition.Id,
                 ["description"] = definition.Command.Description,
-                ["requiresHost"] = definition.Id is not ("capabilities" or "version" or "schema" or "help" or "schemas.export" or "protocol.inspect"),
+                ["requiresHost"] = definition.Id is not ("capabilities" or "version" or "schema" or "help" or "schemas.export" or "protocol.inspect" or "kill"),
                 ["streaming"] = definition.Id is "monitor" or "modbus.poll",
                 ["options"] = options,
             });
@@ -194,6 +194,7 @@ public static class AgentDiscovery
         "capabilities" or "schema" or "help" => typeof(JsonObject),
         "schemas.export" => typeof(string),
         "version" => typeof(VersionInfo),
+        "kill" => typeof(KillReceipt),
         "ports.list" => typeof(SerialPortDescriptor[]),
         "profiles.list" => typeof(SerialProfile[]),
         "profiles.show" => typeof(SerialProfile),
