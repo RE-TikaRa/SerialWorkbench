@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using SerialWorkbench.Cli;
+using SerialWorkbench.Cli.Tui;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Ipc;
 using SerialWorkbench.Modbus;
@@ -14,7 +15,7 @@ Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 Console.OutputEncoding = new UTF8Encoding(false);
 
 var catalog = new CommandCatalog();
-catalog.Root.SetAction(result =>
+catalog.Root.SetAction(async (result, token) =>
 {
     if (result.GetValue<bool>("--agent"))
     {
@@ -22,7 +23,8 @@ catalog.Root.SetAction(result =>
         return 0;
     }
 
-    return catalog.Root.Parse(["--help"]).Invoke();
+    return await TerminalWorkbench.RunAsync(result.GetValue<string>("--app-root") ?? AppContext.BaseDirectory,
+        result.GetValue<string>("--culture") ?? CultureInfo.CurrentUICulture.Name, token).ConfigureAwait(false);
 });
 foreach (var definition in catalog.Commands)
 {

@@ -10,6 +10,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
+using SerialWorkbench.Application;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Ipc;
 using SerialWorkbench.WinUI.Pages;
@@ -643,7 +644,7 @@ public sealed partial class MainWindow : Window
         PageHeader.Margin = new Thickness(horizontal, compactHeight ? 8 : horizontal, horizontal, 0);
         PageHeader.Orientation = inlineHeader ? Orientation.Horizontal : Orientation.Vertical;
         PageHeader.Spacing = inlineHeader ? 12 : compactHeight ? 4 : 6;
-        PageTitleText.Style = (Style)Application.Current.Resources[compactHeight ? "SubtitleTextBlockStyle" : "TitleTextBlockStyle"];
+        PageTitleText.Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources[compactHeight ? "SubtitleTextBlockStyle" : "TitleTextBlockStyle"];
         ErrorInfoBar.Margin = new Thickness(horizontal, compact ? 12 : 18, horizontal, 0);
     }
 
@@ -2090,13 +2091,4 @@ internal sealed class ConnectionContext(ConnectionSnapshot snapshot)
     public long PauseBaselineBytes { get; set; }
 
     public long CurrentTrafficBytes { get; set; }
-}
-
-public sealed partial class TrafficRow
-{
-    public Visibility ReceiveVisibility => IsReceive ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility TransmitVisibility => IsTransmit ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility TimeVisibility => ShowTimestamp ? Visibility.Visible : Visibility.Collapsed;
-
-    partial void OnRefreshed() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TimeVisibility)));
 }

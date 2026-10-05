@@ -36,11 +36,11 @@
                   <ColumnDefinition Width="48" />
                   <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <TextBlock FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding Time}" Visibility="{Binding TimeVisibility}" />
-                <Border Grid.Column="1" Padding="7,2" HorizontalAlignment="Left" Background="{ThemeResource TrafficReceiveBackgroundBrush}" CornerRadius="4" Visibility="{Binding ReceiveVisibility}">
+                <TextBlock FontFamily="{StaticResource MonospaceFontFamily}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{Binding Time}" Visibility="{Binding ShowTimestamp, Converter={StaticResource VisibilityConverter}}" />
+                <Border Grid.Column="1" Padding="7,2" HorizontalAlignment="Left" Background="{ThemeResource TrafficReceiveBackgroundBrush}" CornerRadius="4" Visibility="{Binding IsReceive, Converter={StaticResource VisibilityConverter}}">
                   <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TrafficReceiveBrush}" Text="RX" />
                 </Border>
-                <Border Grid.Column="1" Padding="7,2" HorizontalAlignment="Left" Background="{ThemeResource TrafficTransmitBackgroundBrush}" CornerRadius="4" Visibility="{Binding TransmitVisibility}">
+                <Border Grid.Column="1" Padding="7,2" HorizontalAlignment="Left" Background="{ThemeResource TrafficTransmitBackgroundBrush}" CornerRadius="4" Visibility="{Binding IsTransmit, Converter={StaticResource VisibilityConverter}}">
                   <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TrafficTransmitBrush}" Text="TX" />
                 </Border>
                 <TextBlock Grid.Column="2" FontFamily="{StaticResource MonospaceFontFamily}" Text="{Binding Display}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTipService.ToolTip="{Binding Display}" />

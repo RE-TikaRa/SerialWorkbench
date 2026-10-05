@@ -277,7 +277,7 @@ public sealed partial class SessionsPage : Page
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Style = (Style)Application.Current.Resources["DefaultContentDialogStyle"],
+            Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources["DefaultContentDialogStyle"],
             RequestedTheme = ActualTheme,
             Title = "删除会话",
             Content = $"将永久删除 {Path.GetFileName(session.Path)}。",

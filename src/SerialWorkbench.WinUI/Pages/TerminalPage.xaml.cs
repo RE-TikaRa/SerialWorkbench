@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using SerialWorkbench.Application;
 using SerialWorkbench.WinUI;
 
 namespace SerialWorkbench.WinUI.Pages;

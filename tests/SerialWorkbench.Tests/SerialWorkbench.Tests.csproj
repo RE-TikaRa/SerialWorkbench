@@ -6,10 +6,8 @@
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../../src/SerialWorkbench.WinUI/TrafficBuffer.cs" Link="TrafficBuffer.cs" />
     <Compile Include="../../src/SerialWorkbench.WinUI/SerialPreference.cs" Link="SerialPreference.cs" />
     <Compile Include="../../src/SerialWorkbench.WinUI/TrafficSelection.cs" Link="TrafficSelection.cs" />
-    <Compile Include="../../src/SerialWorkbench.WinUI/TrafficCopyFormatter.cs" Link="TrafficCopyFormatter.cs" />
     <PackageReference Include="xunit.v3.mtp-v2" />
     <ProjectReference Include="../../src/SerialWorkbench.Application/SerialWorkbench.Application.csproj" />
     <ProjectReference Include="../../src/SerialWorkbench.Cli/SerialWorkbench.Cli.csproj" />

@@ -33,13 +33,21 @@ SerialWorkbench 是面向 Windows 11 的串口调试工作台。它把串口连�
 
 所有功能共享 Host 的串口连接和写入租约。原始字节先写入事件和会话，再派生为文本、HEX、波形或协议结果。
 
+## 终端工作台
+
+在 Windows Terminal 中运行 `serial-workbench.exe` 进入 Terminal.Gui 工作台。连接列表、报文表格、输入区、状态栏和标签页使用库控件，支持鼠标、键盘焦点、滚动和窗口尺寸变化。
+
+设置页选择端口、波特率、数据位、校验、停止位、编码、HEX 分行间隔和行尾，打开连接后切回工作台。输入区使用 Enter 发送，发送历史可选择后重新载入。报文支持方向和内容过滤，文本与 HEX 使用和 WinUI 相同的跨读取块处理。
+
+F2 暂停显示，F3 清空，F4 设置，F5 刷新端口，F6 复制所选报文，Ctrl+Q 退出。表格支持范围选择；取消“跟随”可浏览历史。退出终端工作台保留 Host 共享连接。
+
 ## 运行结构
 
 发布目录中有三个入口：
 
 ```text
 SerialWorkbench.exe       WinUI 3 桌面程序
-serial-workbench.exe      命令行程序
+serial-workbench.exe      终端工作台；带命令时运行 CLI
 SerialWorkbench.Host.exe  串口和会话服务
 ```
 

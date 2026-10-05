@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="../SerialWorkbench.Domain/SerialWorkbench.Domain.csproj" />
+    <ProjectReference Include="../SerialWorkbench.Protocols/SerialWorkbench.Protocols.csproj" />
   </ItemGroup>
 </Project>

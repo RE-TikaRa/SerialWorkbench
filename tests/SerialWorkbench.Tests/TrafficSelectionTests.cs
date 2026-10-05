@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Text;
+using SerialWorkbench.Application;
 using SerialWorkbench.Domain;
 using SerialWorkbench.WinUI;
 

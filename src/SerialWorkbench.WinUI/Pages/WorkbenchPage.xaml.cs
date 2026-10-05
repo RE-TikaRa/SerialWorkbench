@@ -5,7 +5,9 @@ using Microsoft.UI.System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using ScottPlot;
+using SerialWorkbench.Application;
 using SerialWorkbench.Domain;
+using SerialWorkbench.Protocols;
 
 namespace SerialWorkbench.WinUI.Pages;
 
@@ -667,7 +669,7 @@ public sealed partial class WorkbenchPage : Page
 
     private static ScottPlot.Color GetSystemColor(string key)
     {
-        var color = (Windows.UI.Color)Application.Current.Resources[key];
+        var color = (Windows.UI.Color)Microsoft.UI.Xaml.Application.Current.Resources[key];
         return new ScottPlot.Color(color.R, color.G, color.B, color.A);
     }
 

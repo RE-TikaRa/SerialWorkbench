@@ -5,11 +5,13 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../SerialWorkbench.Ipc/SerialWorkbench.Ipc.csproj" />
+    <ProjectReference Include="../SerialWorkbench.Application/SerialWorkbench.Application.csproj" />
     <ProjectReference Include="../SerialWorkbench.Modbus/SerialWorkbench.Modbus.csproj" />
     <ProjectReference Include="../SerialWorkbench.Protocols/SerialWorkbench.Protocols.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Spectre.Console" />
     <PackageReference Include="System.CommandLine" />
+    <PackageReference Include="Terminal.Gui" />
   </ItemGroup>
 </Project>

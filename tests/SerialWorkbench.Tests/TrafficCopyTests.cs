@@ -1,4 +1,5 @@
 using System.Text;
+using SerialWorkbench.Application;
 using SerialWorkbench.Domain;
 using SerialWorkbench.WinUI;
 
@@ -35,7 +36,7 @@ public sealed class TrafficCopyTests
         buffer.Append(bytes.Select((value, index) => CreateEvent(index + 1, [value])).ToArray());
 
         Assert.Equal(text, TrafficCopyFormatter.Format(buffer.Rows, TrafficCopyFormat.Text));
-        Assert.Equal(bytes, buffer.Rows.SelectMany(static row => row.Data.ToArray()));
+        Assert.Equal(bytes, buffer.Rows.SelectMany(static row => row.GetData().ToArray()));
     }
 
     [Fact]

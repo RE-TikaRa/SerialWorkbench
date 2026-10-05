@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using SerialWorkbench.Application;
 using SerialWorkbench.Domain;
 using SerialWorkbench.WinUI;
 
@@ -46,7 +47,7 @@ public sealed class HexAggregationTests
         Assert.Equal([false, true, false, true, false, true], buffer.Rows.Select(static row => row.IsReceive));
         Assert.Equal([1, 2, 4, 5, 7, 8], buffer.Rows.Select(static row => row.Identity.Sequence));
         Assert.Equal("测试", TrafficCopyFormatter.Format([buffer.Rows[1]], TrafficCopyFormat.Text));
-        Assert.Equal(events.SelectMany(static item => item.Data), buffer.Rows.SelectMany(static row => row.Data.ToArray()));
+        Assert.Equal(events.SelectMany(static item => item.Data), buffer.Rows.SelectMany(static row => row.GetData().ToArray()));
     }
 
     [Fact]

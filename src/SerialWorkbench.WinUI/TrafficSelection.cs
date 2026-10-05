@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using SerialWorkbench.Application;
 
 namespace SerialWorkbench.WinUI;
 

@@ -25,10 +25,10 @@ Application / Protocols / Sessions
   ↑
 Serial.Windows / Storage / IPC / Host
   ↑
-WinUI / CLI
+WinUI / TUI / CLI / Agent
 ```
 
-`SerialWorkbench.Domain` 定义串口、会话和数据通道模型。`Application` 管理写入租约和事件日志；`Sessions` 管理 SQLite 会话；`Serial.Windows` 访问 Windows 串口；`Host` 组合运行时服务；`IPC` 提供客户端与 Host 的本机 RPC 契约。
+`SerialWorkbench.Domain` 定义串口、会话和数据通道模型。`Application` 管理写入租约、事件日志和共享报文视图；`Protocols` 提供协议及波形解析；`Sessions` 管理 SQLite 会话；`Serial.Windows` 访问 Windows 串口；`Host` 组合运行时服务；`IPC` 提供客户端与 Host 的本机 RPC 契约。
 
 ## IPC
 
@@ -45,6 +45,8 @@ CLI 结构化输出使用带 `schemaVersion` 的 JSON 文档，其契约位于 `
 工作区切换由 Host 执行。客户端提交工作区路径，并使用 Host 返回的数据目录和会话状态更新界面。
 
 ## 界面
+
+终端工作台通过 Terminal.Gui 的 Window、Tabs、TableView、ListView、TextField、选择器和状态栏实现。控件负责焦点、输入、滚动、选择和绘制。WinUI 与 TUI 共享文本、HEX 聚合、复制和波形解析实现，通过同一套 RPC 访问 Host。
 
 WinUI 使用 Windows App SDK 原生控件构成功能界面。NavigationView 负责页面选择和窗格状态，MainWindow 持有页面标题、说明和错误提示，Frame 缓存页面主体并呈现导航动画。SelectorBar 切换报文与波形，SettingsCard 呈现设置项，VisualState 根据内容宽度调整布局。
 

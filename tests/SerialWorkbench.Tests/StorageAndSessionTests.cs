@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.Data.Sqlite;
+using SerialWorkbench.Application;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Host;
 using SerialWorkbench.Sessions;

@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using SerialWorkbench.Protocols;
 
-namespace SerialWorkbench.WinUI;
+namespace SerialWorkbench.Application;
 
 public enum TrafficCopyFormat
 {
@@ -19,7 +19,7 @@ public static class TrafficCopyFormatter
     {
         TrafficCopyFormat.CurrentDisplay => string.Join(Environment.NewLine, rows.Select(static row => row.Display)),
         TrafficCopyFormat.Text => FormatText(rows),
-        TrafficCopyFormat.Hex => string.Join(Environment.NewLine, rows.Select(static row => HexCodec.Format(row.Data))),
+        TrafficCopyFormat.Hex => string.Join(Environment.NewLine, rows.Select(static row => HexCodec.Format(row.GetData()))),
         TrafficCopyFormat.CompactHex => string.Concat(rows.Select(static row => row.Hex)),
         TrafficCopyFormat.Log => string.Join(Environment.NewLine, rows.Select(static row => $"{row.Time} {(row.IsReceive ? "RX" : "TX")} [{row.Source}] {row.Display}")),
         _ => throw new ArgumentOutOfRangeException(nameof(format), format, "Unsupported traffic copy format."),
@@ -38,7 +38,7 @@ public static class TrafficCopyFormatter
                 AppendText(output, bytes, previous.Encoding);
             }
 
-            foreach (var value in row.Data)
+            foreach (var value in row.GetData())
             {
                 bytes.Add(value);
             }

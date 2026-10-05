@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 
 namespace SerialWorkbench.WinUI;
 
-public partial class App : Application
+public partial class App : Microsoft.UI.Xaml.Application
 {
     private Window? window;
 

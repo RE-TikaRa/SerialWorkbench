@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using SerialWorkbench.Application;
 using SerialWorkbench.Domain;
 using SerialWorkbench.WinUI;
 

@@ -6,7 +6,7 @@ using System.Text;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Protocols;
 
-namespace SerialWorkbench.WinUI;
+namespace SerialWorkbench.Application;
 
 public sealed class TrafficBuffer(Encoding encoding, int capacity = 20_000)
 {
@@ -212,7 +212,7 @@ public sealed class TrafficBuffer(Encoding encoding, int capacity = 20_000)
 
 public readonly record struct TrafficRowIdentity(Guid ConnectionId, long Sequence, int ByteOffset);
 
-public sealed partial class TrafficRow : INotifyPropertyChanged
+public sealed class TrafficRow : INotifyPropertyChanged
 {
     private readonly List<byte> data = [];
     private readonly StringBuilder content = new();
@@ -251,8 +251,8 @@ public sealed partial class TrafficRow : INotifyPropertyChanged
     public bool IsTransmit => !IsReceive;
     public bool ShowTimestamp { get; private set; }
 
-    internal Encoding Encoding { get; }
-    internal ReadOnlySpan<byte> Data => CollectionsMarshal.AsSpan(data);
+    public Encoding Encoding { get; }
+    public ReadOnlySpan<byte> GetData() => CollectionsMarshal.AsSpan(data);
 
     public TrafficRow Snapshot() => new(this);
 
@@ -268,8 +268,5 @@ public sealed partial class TrafficRow : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Display)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Hex)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowTimestamp)));
-        OnRefreshed();
     }
-
-    partial void OnRefreshed();
 }

@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 using System.Globalization;
 using System.Text;
 
-namespace SerialWorkbench.WinUI;
+namespace SerialWorkbench.Protocols;
 
 public enum WaveformMode
 {
