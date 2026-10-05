@@ -15,7 +15,7 @@ public sealed class OperationManager(HostRuntime runtime) : IAsyncDisposable
     private readonly Dictionary<Guid, OperationSnapshot> operations = [];
     private readonly Dictionary<Guid, CancellationTokenSource> cancellations = [];
     private readonly Dictionary<Guid, Task> tasks = [];
-    private readonly Dictionary<Guid, List<OperationProgressEvent>> updates = [];
+    private readonly Dictionary<Guid, Queue<OperationProgressEvent>> updates = [];
     private TaskCompletionSource changed = NewSignal();
     private bool initialized;
 
@@ -96,7 +96,7 @@ public sealed class OperationManager(HostRuntime runtime) : IAsyncDisposable
             {
                 operations.Add(id, snapshot);
                 cancellations.Add(id, cancellation);
-                updates.Add(id, []);
+                updates.Add(id, new Queue<OperationProgressEvent>());
                 tasks.Add(id, Task.Run(() => ExecuteAsync(snapshot, lease, cancellation), CancellationToken.None));
                 SignalChanged();
             }
@@ -478,7 +478,12 @@ public sealed class OperationManager(HostRuntime runtime) : IAsyncDisposable
             var current = Get(id);
             var now = DateTimeOffset.UtcNow;
             operations[id] = current with { Progress = progress, UpdatedUtc = now, Revision = current.Revision + 1 };
-            updates[id].Add(new OperationProgressEvent(current.Revision + 1, now, progress));
+            var history = updates[id];
+            history.Enqueue(new OperationProgressEvent(current.Revision + 1, now, progress));
+            if (history.Count > 10_000)
+            {
+                history.Dequeue();
+            }
             SignalChanged();
         }
     }
