@@ -14,6 +14,31 @@ namespace SerialWorkbench.Tests;
 public sealed class TuiTests
 {
     [Fact]
+    public async Task WorkbenchControlsUseTextIndicators()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-indicators-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create().Init();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var driver = Assert.IsAssignableFrom<Terminal.Gui.Drivers.IDriver>(app.Driver);
+        driver.SetScreenSize(120, 40);
+        var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        foreach (var page in tabs.TabCollection)
+        {
+            tabs.Value = page;
+            app.LayoutAndDraw(true);
+            var screen = driver.ToString();
+            Assert.Contains("[ 发送 ]", screen, StringComparison.Ordinal);
+            Assert.All(screen.EnumerateRunes(), rune => Assert.True(
+                System.Text.Rune.GetUnicodeCategory(rune) != System.Globalization.UnicodeCategory.OtherSymbol
+                || rune.Value is >= 0x2500 and <= 0x257F, $"{page.Title}: U+{rune.Value:X}"));
+        }
+        app.End(token);
+    }
+
+    [Fact]
     public async Task ScrollingFormsKeepsAllPageTitlesVisible()
     {
         var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-titles-{Guid.NewGuid():N}"));

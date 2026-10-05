@@ -6,6 +6,7 @@ using SerialWorkbench.Domain;
 using SerialWorkbench.Ipc;
 using SerialWorkbench.Protocols;
 using Terminal.Gui.App;
+using Terminal.Gui.Configuration;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -16,6 +17,51 @@ namespace SerialWorkbench.Cli.Tui;
 
 public sealed partial class TerminalWorkbench : IDisposable
 {
+    static TerminalWorkbench()
+    {
+        GlyphSettings.Current = GlyphSettings.Current with
+        {
+            File = new Rune('f'),
+            Folder = new Rune('d'),
+            CheckStateChecked = new Rune('x'),
+            CheckStateUnChecked = new Rune('o'),
+            CheckStateNone = new Rune('-'),
+            Selected = new Rune('*'),
+            UnSelected = new Rune('o'),
+            LeftArrow = new Rune('<'),
+            RightArrow = new Rune('>'),
+            UpArrow = new Rune('^'),
+            DownArrow = new Rune('v'),
+            LeftDefaultIndicator = new Rune('>'),
+            RightDefaultIndicator = new Rune('<'),
+            LeftBracket = new Rune('['),
+            RightBracket = new Rune(']'),
+            BlocksMeterSegment = new Rune('#'),
+            ContinuousMeterSegment = new Rune('#'),
+            Stipple = new Rune('.'),
+            Diamond = new Rune('*'),
+            Close = new Rune('x'),
+            Minimize = new Rune('-'),
+            Maximize = new Rune('+'),
+            Dot = new Rune('.'),
+            DottedSquare = new Rune('.'),
+            BlackCircle = new Rune('*'),
+            IdenticalTo = new Rune('='),
+            Move = new Rune('+'),
+            SizeHorizontal = new Rune('-'),
+            SizeVertical = new Rune('|'),
+            SizeTopLeft = new Rune('+'),
+            SizeTopRight = new Rune('+'),
+            SizeBottomRight = new Rune('+'),
+            SizeBottomLeft = new Rune('+'),
+            Apple = new Rune('*'),
+            AppleBMP = new Rune('*'),
+            Copy = new Rune('c'),
+        };
+        NerdFontsSettings.Current = NerdFontsSettings.Current with { Enable = false };
+        FileDialogStyle.DefaultUseUnicodeCharacters = false;
+    }
+
     private readonly IApplication app;
     private readonly IHostRpc client;
     private readonly CancellationTokenSource lifetime = new();
