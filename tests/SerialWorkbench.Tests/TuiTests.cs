@@ -13,6 +13,27 @@ namespace SerialWorkbench.Tests;
 public sealed class TuiTests
 {
     [Fact]
+    public async Task AutomationEditorKeepsStepDataAndResponseConditions()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-automation-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var original = new SerialSequenceDefinition("读取温度", [new SerialSequenceStep([0x01, 0x03], "hex", 100, 2, 50, "01 03", 2000, 3)]);
+        workbench.ApplySequence(original);
+        var edited = workbench.ReadSequenceStep();
+        Assert.Equal(original.Steps[0].Data, edited.Data);
+        Assert.Equal(original.Steps[0].ResponseHex, edited.ResponseHex);
+        Assert.Equal(3, edited.RetryCount);
+        Assert.Equal(2, edited.RepeatCount);
+        Assert.Equal("读取温度", workbench.ReadSequence().Name);
+        var reloaded = SerialSequenceCodec.Deserialize(SerialSequenceCodec.Serialize(workbench.ReadSequence()));
+        Assert.Equal(original.Steps[0].Data, reloaded.Steps[0].Data);
+        Assert.Equal(2000, reloaded.Steps[0].ResponseTimeoutMilliseconds);
+    }
+
+    [Fact]
     public async Task SendingUsesItsOwnFormatAndAppendsTheSelectedChecksum()
     {
         var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-sending-{Guid.NewGuid():N}"));

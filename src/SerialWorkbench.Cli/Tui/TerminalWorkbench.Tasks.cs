@@ -86,7 +86,7 @@ public sealed partial class TerminalWorkbench
 
     private View BuildTransfers()
     {
-        var view = new View { Title = "文件与自动化", Width = Dim.Fill(), Height = Dim.Fill() };
+        var view = new View { Title = "文件与回环", Width = Dim.Fill(), Height = Dim.Fill(), ViewportSettings = ViewportSettingsFlags.HasScrollBars };
         var path = Field(view, "文件路径", 0, "");
         var browse = Button("选择文件", () =>
         {
@@ -115,23 +115,20 @@ public sealed partial class TerminalWorkbench
         }));
         receive.Y = 4;
         receive.X = Pos.Right(send) + 1;
-        var sequence = Button("运行序列 JSON", () => RunUiAsync(async () =>
-        {
-            var id = RequiredConnection();
-            var definition = SerialSequenceCodec.Deserialize(await File.ReadAllTextAsync(path.Text, lifetime.Token).ConfigureAwait(false));
-            await StartTaskAsync(OperationJson.Create("sequence.run", id, definition)).ConfigureAwait(false);
-        }));
-        sequence.Y = 6;
         var length = Number(view, "回环长度", 9, 4096);
         var iterations = Number(view, "回环次数", 11, 1);
         var timeout = Number(view, "回环超时 ms", 13, 5000);
+        var pattern = new OptionSelector<LoopbackPattern> { X = 20, Y = 15, Orientation = Orientation.Horizontal };
+        var seed = Number(view, "随机种子", 17, 0x534257);
         var loopback = Button("运行回环", () => RunUiAsync(() =>
         {
             var id = RequiredConnection();
-            return StartTaskAsync(OperationJson.Create("loopback.run", id, new LoopbackRequest(id, length.Value, iterations.Value, timeout.Value)));
+            return StartTaskAsync(OperationJson.Create("loopback.run", id, new LoopbackRequest(id, length.Value, iterations.Value, timeout.Value,
+                pattern.Value ?? LoopbackPattern.Incrementing, seed.Value)));
         }));
-        loopback.Y = 15;
-        view.Add(browse, send, receive, sequence, loopback);
+        loopback.Y = 19;
+        view.Add(browse, send, receive, new Label { Text = "回环模式", Y = 15 }, pattern, loopback);
+        view.SetContentSize(new System.Drawing.Size(80, 21));
         return view;
     }
 

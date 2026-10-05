@@ -103,7 +103,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         workbenchView = workbench;
         settingsView = BuildSettings();
         workbench.Add(connectionsFrame, trafficFrame);
-        tabs.Add(workbench, settingsView, BuildHistory(), BuildModbus(), BuildTransfers(), BuildTasks(), BuildSessions(), BuildProtocol(), BuildWaveform());
+        tabs.Add(workbench, settingsView, BuildHistory(), BuildModbus(), BuildTransfers(), BuildAutomation(), BuildTasks(), BuildSessions(), BuildProtocol(), BuildWaveform());
         var send = Button("发送", () => RunUiAsync(SendAsync));
         send.X = Pos.AnchorEnd();
         send.Y = 1;
