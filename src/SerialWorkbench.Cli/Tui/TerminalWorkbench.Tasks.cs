@@ -115,7 +115,8 @@ public sealed partial class TerminalWorkbench
 
     private View BuildTransfers()
     {
-        var view = new View { Title = "文件与回环", Width = Dim.Fill(), Height = Dim.Fill(), ViewportSettings = ViewportSettingsFlags.HasScrollBars };
+        var page = new View { Title = "文件与回环", Width = Dim.Fill(), Height = Dim.Fill() };
+        var view = new View { CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill(), ViewportSettings = ViewportSettingsFlags.HasScrollBars };
         var path = Field(view, "文件路径", 0, "");
         var browse = Button("选择文件", () =>
         {
@@ -159,7 +160,8 @@ public sealed partial class TerminalWorkbench
         view.Add(browse, send, receive, new Label { Text = "回环模式", Y = 15 }, pattern, loopback);
         view.SetContentHeight(21);
         EnableFormScrolling(view);
-        return view;
+        page.Add(view);
+        return page;
     }
 
     private async Task StartTaskAsync(OperationRequest request, Action<OperationSnapshot>? accepted = null)

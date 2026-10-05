@@ -134,10 +134,11 @@ public sealed class TuiTests
         workbench.Window.Layout(new System.Drawing.Size(80, 24));
         var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
         tabs.Value = tabs.TabCollection.Single(page => page.Title == pageName);
-        var panel = panelTitle.Length == 0 ? tabs.Value : tabs.Value.SubViews.OfType<FrameView>().Single(frame => frame.Title == panelTitle);
+        var panel = panelTitle.Length == 0 ? Assert.Single(tabs.Value.SubViews) : tabs.Value.SubViews.OfType<FrameView>().Single(frame => frame.Title == panelTitle);
         var last = panel.SubViews.Where(static view => view.CanFocus).OrderBy(static view => view.Frame.Bottom).Last();
         last.SetFocus();
         Assert.True(panel.Viewport.Contains(last.Frame), $"Focused {last.Frame}, viewport {panel.Viewport}");
+        Assert.Equal(0, tabs.Value.Viewport.Y);
         var first = panel.SubViews.Where(static view => view.CanFocus).OrderBy(static view => view.Frame.Top).First();
         first.SetFocus();
         Assert.True(panel.Viewport.Contains(first.Frame));
