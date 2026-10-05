@@ -14,7 +14,6 @@ public sealed partial class TerminalWorkbench
     private readonly TableView taskTable = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Fill(4), FullRowSelect = true };
     private readonly ProgressBar progress = new() { Y = Pos.AnchorEnd(3), Width = Dim.Fill() };
     private readonly Label progressText = new() { Y = Pos.AnchorEnd(2), Width = Dim.Fill() };
-    private readonly ListView taskResult = new() { Width = Dim.Fill(), Height = Dim.Fill() };
     private OperationSnapshot[] displayedTasks = [];
 
     private View BuildTasks()
@@ -214,14 +213,9 @@ public sealed partial class TerminalWorkbench
             var operation = await client.ReadOperationAsync(new OperationQuery(displayedTasks[selection.SelectedCell.Y].Id), lifetime.Token).ConfigureAwait(false);
             app.Invoke(() =>
             {
-                using var dialog = new Dialog { Title = "任务结果", Width = Dim.Percent(90), Height = Dim.Percent(85) };
                 var text = operation.ResultJson is { } json ? JsonSerializer.Serialize(OperationJson.Read<JsonElement>(json), MachineOutput.DocumentOptions)
                     : operation.Error?.Message ?? operation.State.ToString();
-                taskResult.SetSource(new System.Collections.ObjectModel.ObservableCollection<string>(text.Split('\n')));
-                dialog.Add(taskResult);
-                dialog.AddButton(new Button { Text = "关闭" });
-                app.Run(dialog);
-                dialog.Remove(taskResult);
+                ShowText("任务结果", text);
             });
         }
     }
@@ -237,7 +231,7 @@ public sealed partial class TerminalWorkbench
             return dialog.Canceled ? null : dialog.Path;
         }
 
-        using var open = new OpenDialog { Title = "选择文件", Path = Environment.CurrentDirectory, AllowsMultipleSelection = false };
+        using var open = new OpenDialog { Title = "选择文件", Path = Environment.CurrentDirectory, AllowsMultipleSelection = false, OpenMode = OpenMode.File };
         app.Run(open);
         return open.Canceled ? null : open.Path;
     }

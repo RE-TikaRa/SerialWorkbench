@@ -24,13 +24,15 @@ public sealed partial class TerminalWorkbench : IDisposable
     private readonly Label status = new() { Y = 0, Width = Dim.Fill(16), Text = "正在连接 Host" };
     private readonly CheckBox backgroundTasks = new() { X = Pos.AnchorEnd(15), Y = 0, Text = "后台任务" };
     private readonly Label message = new() { Y = 1, Width = Dim.Fill() };
-    private readonly ListView connections = new() { Width = Dim.Fill(), Height = Dim.Fill(1) };
+    private readonly ListView connections = new() { Width = Dim.Fill(), Height = Dim.Fill(2) };
     private readonly ObservableCollection<string> connectionItems = [];
-    private readonly TableView traffic = new() { Width = Dim.Fill(), Height = Dim.Fill(2), FullRowSelect = true };
+    private readonly TableView traffic = new() { Width = Dim.Fill(), Height = Dim.Fill(3), FullRowSelect = true };
     private readonly TextField input = new() { Id = "send-input", Y = 1, Width = Dim.Fill(12) };
     private readonly DropDownList format = new() { X = 0, Y = 0, Width = 12, ReadOnly = true, Text = "HEX", Source = new ListWrapper<string>(new ObservableCollection<string>(["HEX", "文本"])) };
     private readonly DropDownList direction = new() { X = 14, Width = 12, ReadOnly = true, Text = "全部", Source = new ListWrapper<string>(new ObservableCollection<string>(["全部", "RX", "TX"])) };
     private readonly TextField filter = new() { X = 28, Width = Dim.Fill(1) };
+    private readonly TextField sourceFilter = new() { Id = "traffic-source", X = 9, Y = 1, Width = Dim.Fill() };
+    private PopoverMenu? trafficMenu;
     private readonly CheckBox follow = new() { X = 0, Y = Pos.AnchorEnd(), Text = "跟随", Value = CheckState.Checked };
     private readonly CheckBox timestamps = new() { X = 12, Y = Pos.AnchorEnd(), Text = "时间", Value = CheckState.Checked };
     private readonly OptionSelector<TrafficCopyFormat> copyFormat = new() { X = 24, Y = Pos.AnchorEnd(), Orientation = Orientation.Horizontal };
@@ -92,12 +94,21 @@ public sealed partial class TerminalWorkbench : IDisposable
         };
         var connectionsFrame = new FrameView { Title = "连接", Width = 24, Height = Dim.Fill() };
         var close = Button("关闭", () => RunUiAsync(CloseConnectionAsync));
-        close.Y = Pos.AnchorEnd();
-        connectionsFrame.Add(connections, close);
+        close.Y = Pos.AnchorEnd(2);
+        var details = Button("详情", () => RunUiAsync(ShowConnectionAsync));
+        details.X = Pos.Right(close) + 1;
+        details.Y = Pos.AnchorEnd(2);
+        var reconnect = Button("重连", () => RunUiAsync(async () =>
+        {
+            await client.ReconnectConnectionAsync(RequiredConnection(), lifetime.Token).ConfigureAwait(false);
+            app.Invoke(() => message.Text = "连接已重连");
+        }));
+        reconnect.Y = Pos.AnchorEnd();
+        connectionsFrame.Add(connections, close, details, reconnect);
         var trafficFrame = new FrameView { Title = "报文", X = Pos.Right(connectionsFrame), Width = Dim.Fill(), Height = Dim.Fill() };
-        var filters = new View { Height = 1, Width = Dim.Fill() };
-        filters.Add(format, direction, filter);
-        traffic.Y = 1;
+        var filters = new View { Height = 2, Width = Dim.Fill() };
+        filters.Add(format, direction, filter, new Label { Text = "来源", Y = 1 }, sourceFilter);
+        traffic.Y = 2;
         trafficFrame.Add(filters, traffic, follow, timestamps, copyFormat);
         var workbench = new View { Title = "工作台", Width = Dim.Fill(), Height = Dim.Fill() };
         workbenchView = workbench;
@@ -124,6 +135,38 @@ public sealed partial class TerminalWorkbench : IDisposable
         direction.ValueChanged += (_, _) => RefreshTraffic();
         filter.TextChanged += (_, _) => RefreshTraffic();
         timestamps.ValueChanged += (_, _) => RefreshTraffic();
+        sourceFilter.TextChanged += (_, _) => RefreshTraffic();
+        window.Initialized += (_, _) => RegisterTrafficMenu();
+        traffic.KeyBindings.Add(Key.C.WithCtrl, Command.Copy);
+        traffic.KeyBindings.Add(Key.Space.WithCtrl, Command.Context);
+        traffic.MouseBindings.Add(MouseFlags.RightButtonClicked, Command.Context);
+        traffic.CommandNotBound += (_, args) =>
+        {
+            if (args.Context?.Command == Command.Copy)
+            {
+                CopySelected();
+                args.Handled = true;
+            }
+            else if (args.Context?.Command == Command.Context)
+            {
+                if (args.Context.Binding is MouseBinding { MouseEvent: { } mouse })
+                {
+                    var point = traffic.ScreenToViewport(mouse.ScreenPosition);
+                    if (traffic.ScreenToCell(point.X, point.Y) is { } cell
+                        && !traffic.GetAllSelectedCells().Any(selected => selected.Y == cell.Y))
+                    {
+                        traffic.SetSelection(0, cell.Y, false);
+                    }
+                    trafficMenu?.MakeVisible(mouse.ScreenPosition);
+                }
+                else
+                {
+                    trafficMenu?.MakeVisible();
+                }
+                args.Handled = true;
+            }
+        };
+        traffic.Accepting += (_, args) => { args.Handled = true; ShowTrafficDetails(); };
         port.ValueChanged += (_, _) => configuredDeviceId = null;
         traffic.ValueChanged += (_, _) =>
         {
@@ -190,6 +233,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         }
 
         window.Dispose();
+        trafficMenu?.Dispose();
         sessionReadGate.Dispose();
         replay?.Dispose();
         lifetime.Dispose();
@@ -218,6 +262,14 @@ public sealed partial class TerminalWorkbench : IDisposable
             new SerialControlLines(dtr.Value == CheckState.Checked, rts.Value == CheckState.Checked), lifetime.Token)));
         controlLines.X = Pos.Right(open) + 1;
         controlLines.Y = 36;
+        var clearReceive = Button("清空 RX", () => RunUiAsync(() => client.ClearBuffersAsync(RequiredConnection(), true, false, lifetime.Token)));
+        clearReceive.Y = 37;
+        var clearTransmit = Button("清空 TX", () => RunUiAsync(() => client.ClearBuffersAsync(RequiredConnection(), false, true, lifetime.Token)));
+        clearTransmit.X = Pos.Right(clearReceive) + 1;
+        clearTransmit.Y = 37;
+        var sendBreak = Button("BREAK 100 ms", () => RunUiAsync(() => client.SendBreakAsync(RequiredConnection(), 100, lifetime.Token)));
+        sendBreak.X = Pos.Right(clearTransmit) + 1;
+        sendBreak.Y = 37;
         var loadProfile = Button("应用配置", () =>
         {
             var selected = profiles.FirstOrDefault(item => item.Name == profileSelector.Text);
@@ -266,7 +318,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         clearWorkspace.Y = 47;
         clearWorkspace.X = Pos.Right(chooseWorkspace) + 1;
         view.SetContentSize(new System.Drawing.Size(100, 50));
-        view.Add(open, controlLines, loadProfile, saveProfile, deleteProfile, workspace, chooseWorkspace, clearWorkspace);
+        view.Add(open, controlLines, clearReceive, clearTransmit, sendBreak, loadProfile, saveProfile, deleteProfile, workspace, chooseWorkspace, clearWorkspace);
         return view;
     }
 
@@ -396,6 +448,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         buffer.SetPresentation(Encoding.GetEncoding(replayBuffer is not null ? encoding.Text : current?.Options.EncodingName ?? encoding.Text),
             format.Text == "文本", timestamps.Value == CheckState.Checked, hexGap.Value);
         SetTrafficRows(buffer.Rows.Where(row => (direction.Text != "RX" || row.IsReceive) && (direction.Text != "TX" || row.IsTransmit)
+            && (sourceFilter.Text.Length == 0 || row.Source.Contains(sourceFilter.Text, StringComparison.OrdinalIgnoreCase))
             && (filter.Text.Length == 0 || row.Display.Contains(filter.Text, StringComparison.OrdinalIgnoreCase) || row.Source.Contains(filter.Text, StringComparison.OrdinalIgnoreCase))).ToArray());
     }
 
