@@ -67,6 +67,11 @@ public static class AgentDiscovery
         }
 
         var input = new JsonObject { ["type"] = "object", ["additionalProperties"] = false, ["properties"] = properties, ["required"] = required };
+        if (command == "connections.open")
+        {
+            input["oneOf"] = new JsonArray(new JsonObject { ["required"] = new JsonArray("--port") },
+                new JsonObject { ["required"] = new JsonArray("--profile") });
+        }
         foreach (var argument in definition.Command.Arguments)
         {
             properties.Add(argument.Name, schemaOptions.GetJsonSchemaAsNode(argument.ValueType));
@@ -191,9 +196,11 @@ public static class AgentDiscovery
         "version" => typeof(VersionInfo),
         "ports.list" => typeof(SerialPortDescriptor[]),
         "profiles.list" => typeof(SerialProfile[]),
+        "profiles.show" => typeof(SerialProfile),
+        "profiles.save" or "profiles.rename" or "profiles.delete" => typeof(ConfigurationSnapshot),
         "history.list" => typeof(string[]),
         "host.status" or "workspace.show" or "workspace.set" or "workspace.clear" => typeof(HostStatusDto),
-        "host.stop" or "connections.close" => typeof(RpcResult),
+        "host.stop" or "connections.close" or "connections.control-lines" or "connections.clear-buffers" or "connections.break" => typeof(RpcResult),
         "connections.list" => typeof(ConnectionSnapshot[]),
         "connections.open" or "connections.reconnect" => typeof(ConnectionSnapshot),
         "operations.list" => typeof(OperationSnapshot[]),

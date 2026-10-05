@@ -162,8 +162,19 @@ static async Task<int> RunAsync(IHostRpc client, CommandArguments arguments, str
             WriteResult(output, "connections.list", (await client.GetStatusAsync(cancellationToken).ConfigureAwait(false)).Connections);
             return 0;
         case "connections open":
-            WriteResult(output, "connections.open", await client.OpenConnectionAsync(new OpenConnectionRequest(ReadSerialOptions(arguments)), cancellationToken).ConfigureAwait(false));
+            var connectionOptions = await ConnectionCommands.ReadOptionsAsync(client, arguments, cancellationToken).ConfigureAwait(false);
+            WriteResult(output, "connections.open", await client.OpenConnectionAsync(new OpenConnectionRequest(connectionOptions), cancellationToken).ConfigureAwait(false));
             return 0;
+        case "connections control-lines":
+        case "connections clear-buffers":
+        case "connections break":
+        case "profiles show":
+        case "profiles save":
+        case "profiles rename":
+        case "profiles delete":
+            var connectionResult = await ConnectionCommands.ExecuteAsync(client, arguments, cancellationToken).ConfigureAwait(false);
+            WriteResult(output, arguments.CommandId, connectionResult);
+            return connectionResult is RpcResult { Success: false } ? 3 : 0;
         case "connections close":
             WriteResult(output, "connections.close", await client.CloseConnectionAsync(ParseGuid(arguments.Get("--id"), "--id"), cancellationToken).ConfigureAwait(false));
             return 0;
@@ -287,7 +298,7 @@ static async Task<int> RunDeviceCommandAsync(IHostRpc client, CommandArguments a
     }
 
     var persistent = arguments.Has("--background") || arguments.Get("--request-id") is not null;
-    var options = connectionId == Guid.Empty && persistent ? ReadSerialOptions(arguments) : null;
+    var options = connectionId == Guid.Empty && persistent ? arguments.ReadSerialOptions() : null;
     Guid? temporaryConnection = null;
     if (connectionId == Guid.Empty && options is null)
     {
@@ -633,32 +644,11 @@ static async Task<ConnectionSnapshot> OpenAsync(IHostRpc client, CommandArgument
             ?? throw new KeyNotFoundException($"Connection {connectionId} was not found.");
     }
 
-    return await client.OpenConnectionAsync(new OpenConnectionRequest(ReadSerialOptions(arguments), false), cancellationToken).ConfigureAwait(false);
+    return await client.OpenConnectionAsync(new OpenConnectionRequest(arguments.ReadSerialOptions(), false), cancellationToken).ConfigureAwait(false);
 }
 
 static Task CloseTemporaryConnectionAsync(IHostRpc client, CommandArguments arguments, Guid connectionId) =>
     arguments.Has("--connection") ? Task.CompletedTask : client.CloseConnectionAsync(connectionId, CancellationToken.None);
-
-static SerialConnectionOptions ReadSerialOptions(CommandArguments arguments)
-{
-    var port = arguments.Get("--port") ?? throw new ArgumentException("--port is required.");
-    return new SerialConnectionOptions(
-        port,
-        arguments.GetInt("--baud", 115200),
-        arguments.GetInt("--data-bits", 8),
-        Enum.Parse<SerialParity>(arguments.Get("--parity") ?? "None", true),
-        Enum.Parse<SerialStopBits>(arguments.Get("--stop-bits") ?? "One", true),
-        Enum.Parse<SerialHandshake>(arguments.Get("--handshake") ?? "None", true),
-        arguments.Has("--dtr"),
-        arguments.Has("--rts"),
-        arguments.Get("--encoding") ?? "utf-8",
-        Enum.Parse<SerialConnectionRole>(arguments.Get("--role") ?? "Dut", true),
-        arguments.Get("--device-id"),
-        arguments.Has("--rs485"),
-        arguments.GetInt("--rts-before", 0),
-        arguments.GetInt("--rts-after", 0),
-        !arguments.Has("--no-reconnect"));
-}
 
 static string ParseLineEnding(string? value) => value?.ToLowerInvariant() switch
 {

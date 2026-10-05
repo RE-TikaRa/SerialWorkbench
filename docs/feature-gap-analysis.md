@@ -58,6 +58,7 @@ Host 持有串口句柄、写入租约、原始事件和 SQLite 会话。WinUI �
 - 实时事件提供流标识、最早和最新序号、过滤后的连续游标及缺失区间；CLI 监视通过长轮询获取数据。
 - CLI 使用 System.CommandLine 处理带类型的参数、Help、补全建议和 Response File，使用 Spectre.Console 呈现文本结果，并提供自动化序列入口。
 - Agent 与 CLI 共享 Schema v2，提供离线能力发现、命令 Schema 和帮助；结构化错误写入 stdout，JSONL 保持逐条单行并输出最终结果。
+- CLI 管理共享连接配置，支持查看、保存、修改、重命名、删除与按配置打开连接；在线 DTR/RTS、缓冲清理和 BREAK 使用同一套 Host RPC。
 - Terminal.Gui 终端工作台提供连接、报文、发送、历史、过滤、设置、暂停、范围选择和复制，复用 WinUI 的文本与 HEX 聚合实现。
 - TUI 支持 Modbus 事务、扫描、轮询、XMODEM 收发、自动化序列、回环，以及 Host 任务进度、取消和结果查询。
 - TUI 设置流控、设备角色、DTR/RTS、RS-485 方向延时和自动重连，使用 Host 共享配置及发送历史。

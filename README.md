@@ -80,6 +80,19 @@ Host 在存在客户端、连接或写入任务时保持运行；全部结束后
 
 命名连接配置和最近 20 条发送历史由 Host 保存并共享。WinUI 与 TUI 可应用、创建、修改或删除配置，按设备实例标识寻找当前串口。`profiles list` 与 `history list` 提供相同数据的 CLI 和 Agent 查询入口。
 
+CLI 通过 `profiles show/save/rename/delete` 管理相同配置，`profiles save --original-name` 修改现有记录。使用配置打开连接时，Host 按设备实例标识寻找当前端口：
+
+```powershell
+serial-workbench --agent profiles save --name debug --port COM20 --baud 115200
+serial-workbench --agent profiles show --name debug
+serial-workbench --agent connections open --profile debug
+serial-workbench --agent connections control-lines --id CONNECTION_ID --dtr true --rts false
+serial-workbench --agent connections clear-buffers --id CONNECTION_ID --rx
+serial-workbench --agent connections break --id CONNECTION_ID --duration 100
+```
+
+在线控制线命令只修改指定的 DTR/RTS，其他控制线保持当前状态。RTS 流控或 RS-485 方向控制启用时不能手动修改 RTS。清空缓冲需要明确选择 `--rx`、`--tx` 或同时选择两项。
+
 设备断开后由 Host 每两秒检查恢复条件，WinUI、TUI 和 Agent 共用同一个 `connectionId`。重连更换 `segmentId`，原始事件和会话保留分段，文本与 HEX 不跨分段拼接。周期读取等待设备恢复；写入、自动化和文件传输停止，不自动重放。`connections reconnect --id CONNECTION_ID` 明确重连，`connections open --no-reconnect` 关闭自动恢复。
 
 ## Host 任务

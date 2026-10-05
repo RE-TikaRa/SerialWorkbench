@@ -37,11 +37,64 @@ public sealed class CommandCatalog
         Text(Add("workspace.set", "选择工作区"), "--path", "工作区路径", required: true);
         Add("workspace.clear", "使用全局工作区");
         Add("profiles.list", "查询共享连接配置");
+        Text(Add("profiles.show", "查看连接配置"), "--name", "配置名称", required: true);
+        var profileSave = Add("profiles.save", "保存连接配置");
+        Text(profileSave, "--name", "配置名称", required: true);
+        Text(profileSave, "--original-name", "修改的原配置名称");
+        SerialOptions(profileSave, true);
+        var profileRename = Add("profiles.rename", "重命名连接配置");
+        Text(profileRename, "--name", "原配置名称", required: true);
+        Text(profileRename, "--new-name", "新配置名称", required: true);
+        Text(Add("profiles.delete", "删除连接配置"), "--name", "配置名称", required: true);
         Add("history.list", "查询共享发送历史");
         Add("connections.list", "查询共享连接");
-        SerialOptions(Add("connections.open", "打开持久连接"), true);
+        var open = Add("connections.open", "打开持久连接");
+        SerialOptions(open, true);
+        open.Options["--port"].Required = false;
+        Text(open, "--profile", "使用的连接配置名称");
+        open.Command.Validators.Add(result =>
+        {
+            var hasPort = result.GetResult("--port") is OptionResult { Implicit: false };
+            var hasProfile = result.GetResult("--profile") is OptionResult { Implicit: false };
+            if (hasPort == hasProfile)
+            {
+                result.AddError("打开连接需要指定 --port 或 --profile 中的一项。");
+            }
+            else if (hasProfile
+                && open.Command.Options.Any(option => option.Name != "--profile" && result.GetResult(option) is { Implicit: false }))
+            {
+                result.AddError("不能同时指定 --profile 和串口参数。");
+            }
+        });
         Id(Add("connections.close", "关闭共享连接"));
         Id(Add("connections.reconnect", "按设备身份恢复连接"));
+        var lines = Add("connections.control-lines", "在线更新 DTR/RTS");
+        Id(lines);
+        foreach (var name in new[] { "--dtr", "--rts" })
+        {
+            lines.Add(new Option<bool?>(name) { Description = name == "--dtr" ? "DTR 状态，true 或 false" : "RTS 状态，true 或 false", Arity = ArgumentArity.ExactlyOne });
+        }
+        lines.Command.Validators.Add(result =>
+        {
+            if (result.GetResult("--dtr") is not OptionResult { Implicit: false } && result.GetResult("--rts") is not OptionResult { Implicit: false })
+            {
+                result.AddError("至少指定 --dtr 或 --rts。");
+            }
+        });
+        var clearBuffers = Add("connections.clear-buffers", "清空串口缓冲");
+        Id(clearBuffers);
+        clearBuffers.Add(new Option<bool>("--rx") { Description = "清空接收缓冲" }, false);
+        clearBuffers.Add(new Option<bool>("--tx") { Description = "清空发送缓冲" }, false);
+        clearBuffers.Command.Validators.Add(result =>
+        {
+            if (!result.GetValue<bool>("--rx") && !result.GetValue<bool>("--tx"))
+            {
+                result.AddError("至少选择 --rx 或 --tx。");
+            }
+        });
+        var sendBreak = Add("connections.break", "发送 BREAK 信号");
+        Id(sendBreak);
+        Integer(sendBreak, "--duration", "持续时间，单位毫秒", 100, 1, 10_000);
         Add("operations.list", "查询任务");
         Id(Add("operations.show", "查询任务状态"));
         Id(Add("operations.result", "查询任务结果"));

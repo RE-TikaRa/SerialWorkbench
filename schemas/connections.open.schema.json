@@ -143,10 +143,26 @@
       "--no-reconnect": {
         "type": "boolean",
         "default": false
+      },
+      "--profile": {
+        "type": [
+          "string",
+          "null"
+        ]
       }
     },
-    "required": [
-      "--port"
+    "required": [],
+    "oneOf": [
+      {
+        "required": [
+          "--port"
+        ]
+      },
+      {
+        "required": [
+          "--profile"
+        ]
+      }
     ]
   },
   "output": {
