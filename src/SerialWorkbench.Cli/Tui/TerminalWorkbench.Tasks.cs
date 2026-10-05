@@ -116,7 +116,7 @@ public sealed partial class TerminalWorkbench
     private View BuildTransfers()
     {
         var page = new View { Title = "文件与回环", Width = Dim.Fill(), Height = Dim.Fill() };
-        var view = new View { CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill(), ViewportSettings = ViewportSettingsFlags.HasScrollBars };
+        var view = new FrameView { Title = "传输与回环参数", Width = Dim.Fill(), Height = Dim.Fill(), ViewportSettings = ViewportSettingsFlags.HasScrollBars };
         var path = Field(view, "文件路径", 0, "");
         var browse = Button("选择文件", () =>
         {

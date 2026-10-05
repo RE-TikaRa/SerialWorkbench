@@ -14,6 +14,41 @@ namespace SerialWorkbench.Tests;
 public sealed class TuiTests
 {
     [Fact]
+    public async Task ScrollingFormsKeepsAllPageTitlesVisible()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-titles-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create().Init();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var driver = Assert.IsAssignableFrom<Terminal.Gui.Drivers.IDriver>(app.Driver);
+        driver.SetScreenSize(80, 24);
+        var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
+        workbench.Window.Layout(new System.Drawing.Size(80, 24));
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        var page = tabs.TabCollection.Single(static page => page.Title == "文件与回环");
+        tabs.Value = page;
+        app.LayoutAndDraw(true);
+        foreach (var tab in tabs.TabCollection)
+        {
+            Assert.Contains(tab.Title, driver.ToString(), StringComparison.Ordinal);
+        }
+        var panel = Assert.Single(page.SubViews);
+        var field = Assert.Single(panel.SubViews.OfType<TextField>());
+        field.SetFocus();
+        workbench.Window.NewKeyDownEvent(Key.PageDown);
+        workbench.Window.NewKeyDownEvent(Key.PageDown);
+        workbench.Window.NewKeyDownEvent(Key.PageDown);
+        Assert.True(panel.Viewport.Y > 0);
+        app.LayoutAndDraw();
+        foreach (var tab in tabs.TabCollection)
+        {
+            Assert.Contains(tab.Title, driver.ToString(), StringComparison.Ordinal);
+        }
+        app.End(token);
+    }
+
+    [Fact]
     public async Task AutomationDialogKeepsCanceledEditsOutOfSavedSteps()
     {
         var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-dialog-{Guid.NewGuid():N}"));
