@@ -51,7 +51,7 @@ public sealed partial class TerminalWorkbench
         }));
         stop.X = Pos.Right(repeat) + 1;
         stop.Y = 2;
-        view.Add(sendFormat, lineEnding, checksum, new Label { Text = "间隔 ms", Y = 2 }, sendInterval,
+        view.Add(sendFormat, lineEnding, checksum, backgroundTasks, new Label { Text = "间隔 ms", Y = 2 }, sendInterval,
             new Label { Text = "次数", X = 22, Y = 2 }, sendCount, repeat, stop);
         return view;
     }

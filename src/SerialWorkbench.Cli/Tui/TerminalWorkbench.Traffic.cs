@@ -80,7 +80,7 @@ public sealed partial class TerminalWorkbench
         Enter 查看完整报文或会话事件
         发送框：Enter 发送，格式与报文显示独立
         循环发送：次数 0 持续发送，停止按钮结束任务
-        顶部后台任务：勾选后退出保留任务；前台任务退出时取消
+        后台任务：勾选后退出保留任务；前台任务退出时取消
         Modbus 和回环参数支持滚轮、PageUp / PageDown，Tab 自动显示焦点
         步骤参数在独立对话框中编辑，波形方向键浏览历史
         回放结束后 F7 返回实时，Host 持续记录原始数据

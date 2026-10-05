@@ -253,6 +253,32 @@ public sealed class TuiTests
     [Theory]
     [InlineData(80, 24)]
     [InlineData(120, 40)]
+    public async Task ConnectionToolbarRemainsAccessibleAcrossPages(int width, int height)
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-connect-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
+        var bar = Assert.Single(workbench.Window.SubViews, static view => view.Id == "connection-bar");
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        foreach (var page in tabs.TabCollection)
+        {
+            tabs.Value = page;
+            workbench.Window.Layout(new System.Drawing.Size(width, height));
+            Assert.Equal(0, bar.Frame.Y);
+            Assert.All(bar.SubViews, view => Assert.True(bar.Viewport.Contains(view.Frame), $"{page.Title}: {view}"));
+            var port = Assert.Single(bar.SubViews.OfType<DropDownList>());
+            port.SetFocus();
+            Assert.Same(port, workbench.Window.MostFocused);
+        }
+        app.End(token);
+    }
+
+    [Theory]
+    [InlineData(80, 24)]
+    [InlineData(120, 40)]
     public async Task WorkbenchLayoutKeepsSendingAndTrafficUsable(int width, int height)
     {
         var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-layout-{Guid.NewGuid():N}"));

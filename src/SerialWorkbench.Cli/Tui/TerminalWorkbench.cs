@@ -67,9 +67,9 @@ public sealed partial class TerminalWorkbench : IDisposable
     private readonly CancellationTokenSource lifetime = new();
     private readonly Window window = new() { Title = "SerialWorkbench", Width = Dim.Fill(), Height = Dim.Fill() };
     private readonly Tabs tabs = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Fill(6) };
-    private readonly Label status = new() { Y = 0, Width = Dim.Fill(16), Text = "正在连接 Host" };
-    private readonly CheckBox backgroundTasks = new() { X = Pos.AnchorEnd(15), Y = 0, Text = "后台任务" };
-    private readonly Label message = new() { Y = 1, Width = Dim.Fill() };
+    private readonly Label status = new() { Y = 1, Width = Dim.Percent(50), Height = 1, Text = "正在连接 Host" };
+    private readonly CheckBox backgroundTasks = new() { X = 48, Y = 0, Text = "后台任务" };
+    private readonly Label message = new() { Y = 1, Width = Dim.Fill(), Height = 1 };
     private readonly ListView connections = new() { Width = Dim.Fill(), Height = Dim.Fill(2) };
     private readonly ObservableCollection<string> connectionItems = [];
     private readonly TableView traffic = new() { Width = Dim.Fill(), Height = Dim.Fill(1), FullRowSelect = true };
@@ -90,8 +90,8 @@ public sealed partial class TerminalWorkbench : IDisposable
         Text = "当前显示",
         Source = new ListWrapper<string>(new ObservableCollection<string>(["当前显示", "文本", "HEX", "连续 HEX", "日志"]))
     };
-    private readonly DropDownList port = new() { X = 16, Y = 0, Width = Dim.Fill(1), ReadOnly = true };
-    private readonly NumericUpDown<int> baud = new() { CanEdit = true, X = 16, Y = 2, Value = 115200, Width = 20 };
+    private readonly DropDownList port = new() { Id = "connection-port", X = 5, Width = 12, ReadOnly = true };
+    private readonly NumericUpDown<int> baud = new() { Id = "connection-baud", CanEdit = true, X = 26, Value = 115200, Width = 14 };
     private readonly NumericUpDown<int> dataBits = new() { CanEdit = true, X = 16, Y = 4, Value = 8, Width = 20 };
     private readonly DropDownList parity = EnumSelector(SerialParity.None);
     private readonly DropDownList stopBits = EnumSelector(SerialStopBits.One);
@@ -136,6 +136,16 @@ public sealed partial class TerminalWorkbench : IDisposable
     {
         this.app = app;
         this.client = client;
+        message.X = Pos.Right(status) + 1;
+        var connectionBar = new View { Id = "connection-bar", CanFocus = true, Width = Dim.Fill(), Height = 1 };
+        var connect = Button("连接", () => RunUiAsync(OpenConnectionAsync));
+        connect.Id = "connection-open";
+        connect.X = 42;
+        var refreshPorts = Button("刷新", () => RunUiAsync(RefreshPortsAsync));
+        refreshPorts.X = Pos.Right(connect) + 1;
+        var settings = Button("设置", () => { tabs.Value = settingsView; return Task.CompletedTask; });
+        settings.X = Pos.Right(refreshPorts) + 1;
+        connectionBar.Add(new Label { Text = "端口" }, port, new Label { Text = "波特率", X = 19 }, baud, connect, refreshPorts, settings);
         connections.SetSource(connectionItems);
         connections.ValueChanged += (_, args) =>
         {
@@ -185,7 +195,7 @@ public sealed partial class TerminalWorkbench : IDisposable
             new Shortcut(Key.F7, "实时", ResumeLiveTraffic),
             new Shortcut(Key.Q.WithCtrl, "退出", () => app.RequestStop(window)),
         ]);
-        window.Add(status, backgroundTasks, message, tabs, sending, shortcuts);
+        window.Add(status, connectionBar, message, tabs, sending, shortcuts);
         format.ValueChanged += (_, _) => RefreshTraffic();
         direction.ValueChanged += (_, _) => RefreshTraffic();
         filter.TextChanged += (_, _) => RefreshTraffic();
@@ -319,25 +329,20 @@ public sealed partial class TerminalWorkbench : IDisposable
     private View BuildSettings()
     {
         var view = new View { Title = "设置", Width = Dim.Fill(), Height = Dim.Fill() };
-        AddSetting(view, "端口", port, 0);
-        AddSetting(view, "波特率", baud, 2);
-        AddSetting(view, "文本编码", encoding, 4);
-        AddSetting(view, "HEX 间隔 ms", hexGap, 6);
-        var open = Button("打开连接", () => RunUiAsync(OpenConnectionAsync));
-        open.Y = 8;
+        AddSetting(view, "文本编码", encoding, 0);
+        AddSetting(view, "HEX 间隔 ms", hexGap, 2);
         var advanced = Button("串口参数", () => { ShowSettingsDialog("串口参数", serialSettings, 16); return Task.CompletedTask; });
-        advanced.X = Pos.Right(open) + 1;
-        advanced.Y = 8;
+        advanced.Y = 4;
         var controls = Button("控制线", () => { ShowSettingsDialog("控制线与 RS-485", controlSettings, 17); return Task.CompletedTask; });
         controls.X = Pos.Right(advanced) + 1;
-        controls.Y = 8;
+        controls.Y = 4;
         var profiles = Button("配置与工作区", () => { ShowSettingsDialog("配置与工作区", profileSettings, 14); return Task.CompletedTask; });
         profiles.X = Pos.Right(controls) + 1;
-        profiles.Y = 8;
+        profiles.Y = 4;
         BuildSerialSettings();
         BuildControlSettings();
         BuildProfileSettings();
-        view.Add(open, advanced, controls, profiles);
+        view.Add(advanced, controls, profiles);
         return view;
     }
     private View BuildHistory()
@@ -435,8 +440,8 @@ public sealed partial class TerminalWorkbench : IDisposable
                 sequence = batch.NextSequence;
                 streamId = batch.StreamId;
                 var current = snapshots.FirstOrDefault(item => item.Id == connectionId);
-                var statusText = current is null ? $"Host · {host.ClientCount} 客户端 · 未选择连接"
-                    : $"{current.Options.PortName} · {current.State} · {current.Options.BaudRate} · RX {current.ReceivedBytes:N0} B / {current.ReceivedBytesPerSecond:N0} B/s · TX {current.TransmittedBytes:N0} B";
+                var statusText = current is null ? "未连接"
+                    : $"{current.Options.PortName} {ConnectionStateText(current.State)} RX {current.ReceivedBytes:N0} B TX {current.TransmittedBytes:N0} B";
                 if (status.Text != statusText)
                 {
                     status.Text = statusText;
@@ -561,7 +566,13 @@ public sealed partial class TerminalWorkbench : IDisposable
     {
         var options = ReadConnectionOptions();
         var snapshot = await client.OpenConnectionAsync(new OpenConnectionRequest(options), lifetime.Token).ConfigureAwait(false);
-        app.Invoke(() => { connectionId = snapshot.Id; tabs.Value = workbenchView; });
+        app.Invoke(() =>
+        {
+            connectionId = snapshot.Id;
+            tabs.Value = workbenchView;
+            message.Text = $"已连接 {snapshot.Options.PortName}，{snapshot.Options.BaudRate} baud";
+            input.SetFocus();
+        });
     }
 
     private async Task CloseConnectionAsync()
@@ -571,6 +582,16 @@ public sealed partial class TerminalWorkbench : IDisposable
             await client.CloseConnectionAsync(id, lifetime.Token).ConfigureAwait(false);
         }
     }
+
+    private static string ConnectionStateText(ConnectionState state) => state switch
+    {
+        ConnectionState.Closed => "已断开",
+        ConnectionState.Opening => "连接中",
+        ConnectionState.Open => "已连接",
+        ConnectionState.Reconnecting => "重连中",
+        ConnectionState.Faulted => "连接失败",
+        _ => throw new ArgumentOutOfRangeException(nameof(state)),
+    };
 
     private async Task SendAsync()
     {
