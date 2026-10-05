@@ -94,7 +94,6 @@ public sealed class SerialConnection : IAsyncDisposable
             State = ConnectionState.Reconnecting;
             await PublishStateAsync("reconnecting", cancellationToken).ConfigureAwait(false);
             lifetime.Cancel();
-            port.Close();
             if (readerTask is not null)
             {
                 try
@@ -105,6 +104,8 @@ public sealed class SerialConnection : IAsyncDisposable
                 {
                 }
             }
+
+            port.Close();
 
             lifetime.Dispose();
             lifetime = new CancellationTokenSource();
@@ -282,10 +283,6 @@ public sealed class SerialConnection : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         lifetime.Cancel();
-        if (port.IsOpen)
-        {
-            port.Close();
-        }
 
         if (readerTask is not null)
         {
@@ -304,6 +301,7 @@ public sealed class SerialConnection : IAsyncDisposable
         }
 
         subscriptions.Clear();
+        port.Close();
         writeGate.Dispose();
         lifetime.Dispose();
         port.Dispose();
