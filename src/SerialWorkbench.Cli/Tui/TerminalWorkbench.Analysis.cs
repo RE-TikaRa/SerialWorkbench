@@ -475,6 +475,15 @@ public sealed partial class TerminalWorkbench
     private View BuildWaveform()
     {
         var view = new View { Title = "波形", Width = Dim.Fill(), Height = Dim.Fill() };
+        waveformType.X = Pos.Right(waveformMode) + 2;
+        waveformType.Width = Dim.Fill();
+        var lengthLabel = new Label { Text = "帧长", Y = Pos.Bottom(waveformMode) + 1 };
+        waveformLength.X = Pos.Right(lengthLabel) + 1;
+        waveformLength.Y = Pos.Top(lengthLabel);
+        waveformPaused.X = Pos.Right(waveformLength) + 2;
+        waveformPaused.Y = Pos.Top(lengthLabel);
+        waveformFollow.X = Pos.Right(waveformPaused) + 2;
+        waveformFollow.Y = Pos.Top(lengthLabel);
         graph.MarginLeft = 6;
         graph.MarginBottom = 2;
         waveformMode.ValueChanged += (_, _) => ResetWaveform();
@@ -482,8 +491,7 @@ public sealed partial class TerminalWorkbench
         waveformLength.ValueChanged += (_, _) => ResetWaveform();
         waveformPaused.ValueChanged += (_, _) => waveformParser.Reset();
         var clear = Button("清空", () => { ResetWaveform(); return Task.CompletedTask; });
-        clear.X = 34;
-        clear.Y = 2;
+        clear.Y = Pos.Bottom(waveformPaused) + 1;
         var export = Button("导出 CSV", () => RunUiAsync(async () =>
         {
             var path = ChooseFile(true);
@@ -502,9 +510,10 @@ public sealed partial class TerminalWorkbench
             app.Invoke(() => message.Text = $"已导出波形：{path}");
         }));
         export.X = Pos.Right(clear) + 1;
-        export.Y = 2;
-        graph.Y = 4;
-        view.Add(waveformMode, waveformType, new Label { Text = "帧长", X = 52 }, waveformLength, waveformPaused, waveformFollow, clear, export, waveformStatus, graph);
+        export.Y = Pos.Top(clear);
+        waveformStatus.Y = Pos.Bottom(clear);
+        graph.Y = Pos.Bottom(waveformStatus) + 1;
+        view.Add(waveformMode, waveformType, lengthLabel, waveformLength, waveformPaused, waveformFollow, clear, export, waveformStatus, graph);
         return view;
     }
 

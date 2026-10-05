@@ -320,7 +320,8 @@ public sealed class TuiTests
         dialog.Add(page);
         var token = Assert.IsType<SessionToken>(app.Begin(dialog));
         dialog.Layout(new System.Drawing.Size(80, 24));
-        var panel = panelTitle.Length == 0 ? Assert.Single(page.SubViews) : page.SubViews.OfType<FrameView>().Single(frame => frame.Title == panelTitle);
+        var panel = panelTitle.Length == 0 ? Assert.Single(page.SubViews)
+            : Assert.Single(page.SubViews.OfType<Tabs>()).TabCollection.Single(section => section.Title == panelTitle);
         var last = panel.SubViews.Where(static view => view.CanFocus).OrderBy(static view => view.Frame.Bottom).Last();
         last.SetFocus();
         Assert.True(panel.Viewport.Contains(last.Frame), $"Focused {last.Frame}, viewport {panel.Viewport}");
@@ -331,6 +332,46 @@ public sealed class TuiTests
         Assert.Equal(0, panel.Viewport.X);
         app.End(token);
         dialog.Remove(page);
+    }
+
+    [Theory]
+    [InlineData(60, 20)]
+    [InlineData(80, 24)]
+    [InlineData(120, 40)]
+    public async Task ToolsKeepTheirControlsAccessibleAtTheMinimumTerminalSize(int width, int height)
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-tool-layout-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create().Init();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var driver = Assert.IsAssignableFrom<Terminal.Gui.Drivers.IDriver>(app.Driver);
+        driver.SetScreenSize(width, height);
+        foreach (var title in new[] { "Modbus", "文件与回环", "自动化", "协议分析", "波形" })
+        {
+            RunDialog(app, workbench, () => workbench.ShowTool(title), dialog =>
+            {
+                Assert.Equal(title, dialog.Title);
+                var tool = workbench.GetTool(title);
+                var sections = tool.SubViews.OfType<Tabs>().SingleOrDefault();
+                foreach (var page in sections?.TabCollection ?? [tool])
+                {
+                    if (sections is not null)
+                    {
+                        sections.Value = page;
+                    }
+                    app.LayoutAndDraw(true);
+                    foreach (var container in page.SubViews.Where(static view => view.SubViews.Count > 0).Prepend(page))
+                    {
+                        foreach (var control in container.SubViews.Where(static view => view.CanFocus))
+                        {
+                            control.SetFocus();
+                            Assert.True(container.Viewport.Contains(control.Frame), $"{title}: {control}, {control.Frame}, {container.Viewport}");
+                        }
+                    }
+                }
+            });
+        }
     }
 
     [Fact]

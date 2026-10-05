@@ -36,7 +36,7 @@ public sealed partial class TerminalWorkbench
     private View BuildModbus()
     {
         var view = new View { Title = "Modbus", Width = Dim.Fill(), Height = Dim.Fill() };
-        var parameters = new FrameView { Title = "事务参数", Width = 43, Height = Dim.Fill(), ViewportSettings = ViewportSettingsFlags.HasScrollBars };
+        var parameters = new View { Title = "事务参数", Width = Dim.Fill(), Height = Dim.Fill(), ViewportSettings = ViewportSettingsFlags.HasScrollBars };
         var slave = Number(parameters, "从站", 0, 1);
         var function = Number(parameters, "功能码", 2, 3);
         var address = Number(parameters, "地址", 4, 0);
@@ -86,9 +86,9 @@ public sealed partial class TerminalWorkbench
         scan.X = Pos.Right(poll) + 1;
         scan.Y = 24;
         parameters.Add(execute, poll, scan);
-        parameters.SetContentSize(new System.Drawing.Size(40, 26));
+        parameters.SetContentHeight(26);
         EnableFormScrolling(parameters);
-        var results = new FrameView { Title = "结果 · Enter 查看详情", X = Pos.Right(parameters), Width = Dim.Fill(), Height = Dim.Fill() };
+        var results = new View { Title = "结果", Width = Dim.Fill(), Height = Dim.Fill() };
         var copy = Button("复制结果", () => { app.Clipboard?.TrySetClipboardData(JsonSerializer.Serialize(modbusSamples, MachineOutput.DocumentOptions)); return Task.CompletedTask; });
         copy.Y = 1;
         var stop = Button("停止", () => RunUiAsync(async () =>
@@ -109,7 +109,10 @@ public sealed partial class TerminalWorkbench
             }
         };
         results.Add(modbusSummary, copy, stop, modbusResults);
-        view.Add(parameters, results);
+        var sections = new Tabs { Width = Dim.Fill(), Height = Dim.Fill() };
+        sections.Add(parameters, results);
+        sections.Value = parameters;
+        view.Add(sections);
         return view;
     }
 
@@ -350,7 +353,7 @@ public sealed partial class TerminalWorkbench
 
     private static NumericUpDown<int> Number(View view, string label, int row, int value)
     {
-        var input = new NumericUpDown<int> { CanEdit = true, X = 20, Y = row, Value = value, Width = 20 };
+        var input = new NumericUpDown<int> { CanEdit = true, X = 20, Y = row, Value = value, Width = Dim.Fill(1) };
         view.Add(new Label { Text = label, Y = row }, input);
         return input;
     }
