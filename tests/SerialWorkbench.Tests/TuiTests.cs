@@ -26,6 +26,8 @@ public sealed class TuiTests
         var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
         workbench.Window.NewKeyDownEvent(Key.F4);
         Assert.Equal("设置", tabs.Value?.Title);
+        var settings = Assert.IsAssignableFrom<View>(tabs.Value);
+        Assert.All(settings.SubViews.Where(static view => view.CanFocus), view => Assert.True(view.Frame.Bottom <= settings.Viewport.Height, view.ToString()));
         var sending = workbench.Window.SubViews.OfType<FrameView>().Single();
         var format = sending.SubViews.OfType<DropDownList>().Single(static field => field.Id == "send-format");
         format.SetFocus();

@@ -47,10 +47,10 @@ public sealed partial class TerminalWorkbench : IDisposable
     private readonly DropDownList port = new() { X = 16, Y = 0, Width = Dim.Fill(1), ReadOnly = true };
     private readonly NumericUpDown<int> baud = new() { CanEdit = true, X = 16, Y = 2, Value = 115200, Width = 20 };
     private readonly NumericUpDown<int> dataBits = new() { CanEdit = true, X = 16, Y = 4, Value = 8, Width = 20 };
-    private readonly OptionSelector<SerialParity> parity = new() { X = 16, Y = 6, Orientation = Orientation.Horizontal };
-    private readonly OptionSelector<SerialStopBits> stopBits = new() { X = 16, Y = 9, Orientation = Orientation.Horizontal };
-    private readonly OptionSelector<SerialHandshake> handshake = new() { X = 16, Y = 20, Orientation = Orientation.Horizontal };
-    private readonly OptionSelector<SerialConnectionRole> role = new() { X = 16, Y = 23, Orientation = Orientation.Horizontal };
+    private readonly DropDownList parity = EnumSelector(SerialParity.None);
+    private readonly DropDownList stopBits = EnumSelector(SerialStopBits.One);
+    private readonly DropDownList handshake = EnumSelector(SerialHandshake.None);
+    private readonly DropDownList role = EnumSelector(SerialConnectionRole.Dut);
     private readonly CheckBox dtr = new() { X = 16, Y = 26, Text = "DTR" };
     private readonly CheckBox rts = new() { X = 32, Y = 26, Text = "RTS" };
     private readonly CheckBox rs485 = new() { X = 16, Y = 28, Text = "RS-485 RTS 方向控制" };
@@ -256,6 +256,9 @@ public sealed partial class TerminalWorkbench : IDisposable
         }
 
         window.Dispose();
+        serialSettings.Dispose();
+        controlSettings.Dispose();
+        profileSettings.Dispose();
         if (trafficMenu is not null)
         {
             app.Popovers?.DeRegister(trafficMenu);
@@ -268,95 +271,28 @@ public sealed partial class TerminalWorkbench : IDisposable
 
     private View BuildSettings()
     {
-        var view = new View { Title = "设置", Width = Dim.Fill(), Height = Dim.Fill(), ViewportSettings = ViewportSettingsFlags.HasScrollBars };
-        view.Add(new Label { Text = "端口", Y = 0 }, port,
-            new Label { Text = "波特率", Y = 2 }, baud,
-            new Label { Text = "数据位", Y = 4 }, dataBits,
-            new Label { Text = "校验", Y = 6 }, parity,
-            new Label { Text = "停止位", Y = 9 }, stopBits,
-            new Label { Text = "HEX 间隔 ms", Y = 13 }, hexGap,
-            new Label { Text = "文本编码", Y = 15 }, encoding,
-            new Label { Text = "流控", Y = 20 }, handshake,
-            new Label { Text = "设备角色", Y = 23 }, role,
-            dtr, rts, rs485, autoReconnect,
-            new Label { Text = "发送前延时 ms", Y = 32 }, rtsBefore,
-            new Label { Text = "发送后延时 ms", Y = 34 }, rtsAfter,
-            new Label { Text = "连接配置", Y = 38 }, profileSelector,
-            new Label { Text = "配置名称", Y = 40 }, profileName);
+        var view = new View { Title = "设置", Width = Dim.Fill(), Height = Dim.Fill() };
+        AddSetting(view, "端口", port, 0);
+        AddSetting(view, "波特率", baud, 2);
+        AddSetting(view, "文本编码", encoding, 4);
+        AddSetting(view, "HEX 间隔 ms", hexGap, 6);
         var open = Button("打开连接", () => RunUiAsync(OpenConnectionAsync));
-        open.Y = 36;
-        var controlLines = Button("更新 DTR/RTS", () => RunUiAsync(() => client.SetControlLinesAsync(RequiredConnection(),
-            new SerialControlLines(dtr.Value == CheckState.Checked, rts.Value == CheckState.Checked), lifetime.Token)));
-        controlLines.X = Pos.Right(open) + 1;
-        controlLines.Y = 36;
-        var clearReceive = Button("清空 RX", () => RunUiAsync(() => client.ClearBuffersAsync(RequiredConnection(), true, false, lifetime.Token)));
-        clearReceive.Y = 37;
-        var clearTransmit = Button("清空 TX", () => RunUiAsync(() => client.ClearBuffersAsync(RequiredConnection(), false, true, lifetime.Token)));
-        clearTransmit.X = Pos.Right(clearReceive) + 1;
-        clearTransmit.Y = 37;
-        var sendBreak = Button("BREAK 100 ms", () => RunUiAsync(() => client.SendBreakAsync(RequiredConnection(), 100, lifetime.Token)));
-        sendBreak.X = Pos.Right(clearTransmit) + 1;
-        sendBreak.Y = 37;
-        var loadProfile = Button("应用配置", () =>
-        {
-            var selected = profiles.FirstOrDefault(item => item.Name == profileSelector.Text);
-            if (selected is not null)
-            {
-                ApplySerialProfile(selected);
-            }
-            return Task.CompletedTask;
-        });
-        loadProfile.Y = 42;
-        var saveProfile = Button("保存配置", () => RunUiAsync(async () =>
-        {
-            var options = ReadConnectionOptions();
-            var profile = new SerialProfile(profileName.Text, options.PortName, options.BaudRate, options.DataBits, options.Parity, options.StopBits,
-                options.Handshake, options.EncodingName, options.DtrEnable, options.RtsEnable, options.Role, options.DeviceInstanceId, options.Rs485Mode,
-                options.RtsBeforeSendMilliseconds, options.RtsAfterSendMilliseconds, options.AutoReconnect);
-            var original = profiles.Any(item => item.Name == profileName.Text) ? profileName.Text : null;
-            var saved = await client.SaveSerialProfileAsync(new SaveSerialProfileRequest(profile, original), lifetime.Token).ConfigureAwait(false);
-            await InvokeUiAsync(() => ApplyConfiguration(saved)).ConfigureAwait(false);
-        }));
-        saveProfile.Y = 42;
-        saveProfile.X = Pos.Right(loadProfile) + 1;
-        var deleteProfile = Button("删除配置", () => RunUiAsync(async () =>
-        {
-            var saved = await client.DeleteSerialProfileAsync(profileSelector.Text, lifetime.Token).ConfigureAwait(false);
-            await InvokeUiAsync(() => ApplyConfiguration(saved)).ConfigureAwait(false);
-        }));
-        deleteProfile.Y = 42;
-        deleteProfile.X = Pos.Right(saveProfile) + 1;
-        var renameProfile = Button("重命名", () => RunUiAsync(async () =>
-        {
-            var profile = profiles.FirstOrDefault(item => item.Name == profileSelector.Text) ?? throw new InvalidOperationException("请选择配置。");
-            var saved = await client.SaveSerialProfileAsync(new SaveSerialProfileRequest(profile with { Name = profileName.Text }, profile.Name), lifetime.Token).ConfigureAwait(false);
-            await InvokeUiAsync(() => { ApplyConfiguration(saved); profileSelector.Text = profileName.Text; }).ConfigureAwait(false);
-        }));
-        renameProfile.X = Pos.Right(deleteProfile) + 1;
-        renameProfile.Y = 42;
-        var chooseWorkspace = Button("选择工作区", () => RunUiAsync(async () =>
-        {
-            using var dialog = new OpenDialog { Title = "选择工作区", OpenMode = OpenMode.Directory, Path = Environment.CurrentDirectory, AllowsMultipleSelection = false };
-            app.Run(dialog);
-            if (!dialog.Canceled)
-            {
-                await client.SetWorkspaceAsync(new SetWorkspaceRequest(dialog.Path), lifetime.Token).ConfigureAwait(false);
-                await RefreshSessionsAsync().ConfigureAwait(false);
-            }
-        }));
-        chooseWorkspace.Y = 47;
-        var clearWorkspace = Button("全局工作区", () => RunUiAsync(async () =>
-        {
-            await client.SetWorkspaceAsync(new SetWorkspaceRequest(null), lifetime.Token).ConfigureAwait(false);
-            await RefreshSessionsAsync().ConfigureAwait(false);
-        }));
-        clearWorkspace.Y = 47;
-        clearWorkspace.X = Pos.Right(chooseWorkspace) + 1;
-        view.SetContentSize(new System.Drawing.Size(100, 50));
-        view.Add(open, controlLines, clearReceive, clearTransmit, sendBreak, loadProfile, saveProfile, deleteProfile, renameProfile, workspace, chooseWorkspace, clearWorkspace);
+        open.Y = 8;
+        var advanced = Button("串口参数", () => { ShowSettingsDialog("串口参数", serialSettings, 16); return Task.CompletedTask; });
+        advanced.X = Pos.Right(open) + 1;
+        advanced.Y = 8;
+        var controls = Button("控制线", () => { ShowSettingsDialog("控制线与 RS-485", controlSettings, 17); return Task.CompletedTask; });
+        controls.X = Pos.Right(advanced) + 1;
+        controls.Y = 8;
+        var profiles = Button("配置与工作区", () => { ShowSettingsDialog("配置与工作区", profileSettings, 14); return Task.CompletedTask; });
+        profiles.X = Pos.Right(controls) + 1;
+        profiles.Y = 8;
+        BuildSerialSettings();
+        BuildControlSettings();
+        BuildProfileSettings();
+        view.Add(open, advanced, controls, profiles);
         return view;
     }
-
     private View BuildHistory()
     {
         history.SetSource(historyItems);
