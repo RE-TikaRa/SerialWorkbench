@@ -74,7 +74,9 @@ public sealed partial class TerminalWorkbench
     private void ShowHelp() => ShowText("快捷键与操作", """
         Tab / Shift+Tab 切换控件焦点
         F1 帮助    F2 暂停报文    F3 清空报文    F4 展开下拉选项
-        F5 刷新端口    F6 复制    F7 返回实时    F8 设置    Ctrl+Q 退出
+        F5 刷新端口    F6 复制    F7 返回实时    F8 设置    F9 工具    Ctrl+Q 退出
+        Alt+1 工作台    Alt+2 历史    Alt+3 任务    Alt+4 会话    Alt+5 设置
+        工具：Modbus、文件与回环、自动化、协议分析、波形；Esc 返回
         报文：Shift+方向键选择范围，Ctrl+单击选择多条
         Ctrl+C 复制所选内容，Ctrl+Space 或右键打开复制菜单
         Enter 查看完整报文或会话事件

@@ -119,6 +119,7 @@ public sealed partial class TerminalWorkbench : IDisposable
     private TrafficRow[] visibleRows = [];
     private readonly View workbenchView;
     private readonly View settingsView;
+    private readonly View[] tools;
     private Guid? connectionId;
     private Guid? streamId;
     private long sequence;
@@ -179,7 +180,18 @@ public sealed partial class TerminalWorkbench : IDisposable
         workbenchView = workbench;
         settingsView = BuildSettings();
         workbench.Add(connectionsFrame, trafficFrame);
-        tabs.Add(workbench, settingsView, BuildHistory(), BuildModbus(), BuildTransfers(), BuildAutomation(), BuildTasks(), BuildSessions(), BuildProtocol(), BuildWaveform());
+        tabs.Add(workbench, BuildHistory(), BuildTasks(), BuildSessions(), settingsView);
+        var workspaceNumber = '1';
+        foreach (var page in tabs.TabCollection)
+        {
+            page.Title = $"{workspaceNumber} {page.Title}";
+            page.HotKey = new Key(workspaceNumber++);
+        }
+        tools = [BuildModbus(), BuildTransfers(), BuildAutomation(), BuildProtocol(), BuildWaveform()];
+        foreach (var tool in tools)
+        {
+            tool.CanFocus = true;
+        }
         var send = Button("发送", () => RunUiAsync(SendAsync));
         send.X = Pos.AnchorEnd();
         send.Y = 1;
@@ -194,6 +206,7 @@ public sealed partial class TerminalWorkbench : IDisposable
             new Shortcut(Key.F5, "刷新", () => _ = RunUiAsync(RefreshPortsAsync)),
             new Shortcut(Key.F6, "复制", CopySelected),
             new Shortcut(Key.F7, "实时", ResumeLiveTraffic),
+            new Shortcut(Key.F9, "工具", ShowTools),
             new Shortcut(Key.Q.WithCtrl, "退出", () => app.RequestStop(window)),
         ]);
         window.Add(status, connectionBar, message, tabs, sending, shortcuts);
@@ -317,6 +330,10 @@ public sealed partial class TerminalWorkbench : IDisposable
         controlSettings.Dispose();
         profileSettings.Dispose();
         sequenceEditor.Dispose();
+        foreach (var tool in tools)
+        {
+            tool.Dispose();
+        }
         if (trafficMenu is not null)
         {
             app.Popovers?.DeRegister(trafficMenu);
@@ -355,6 +372,7 @@ public sealed partial class TerminalWorkbench : IDisposable
             if (history.Value is { } index && index >= 0 && index < historyItems.Count)
             {
                 input.Text = historyItems[index];
+                tabs.Value = workbenchView;
                 input.SetFocus();
             }
         };

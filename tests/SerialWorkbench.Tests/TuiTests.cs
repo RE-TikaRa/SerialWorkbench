@@ -76,7 +76,7 @@ public sealed class TuiTests
     }
 
     [Fact]
-    public async Task ScrollingFormsKeepsAllPageTitlesVisible()
+    public async Task WorkspaceShortcutsKeepAllPageTitlesVisible()
     {
         var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-titles-{Guid.NewGuid():N}"));
         paths.EnsureWritable();
@@ -88,42 +88,38 @@ public sealed class TuiTests
         var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
         workbench.Window.Layout(new System.Drawing.Size(80, 24));
         var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
-        var page = tabs.TabCollection.Single(static page => page.Title == "文件与回环");
-        tabs.Value = page;
-        app.LayoutAndDraw(true);
+        Assert.Equal(["1 工作台", "2 发送历史", "3 任务", "4 会话", "5 设置"], tabs.TabCollection.Select(static page => page.Title));
         foreach (var tab in tabs.TabCollection)
         {
-            Assert.Contains(tab.Title, driver.ToString(), StringComparison.Ordinal);
-        }
-        var panel = Assert.Single(page.SubViews);
-        var field = Assert.Single(panel.SubViews.OfType<TextField>());
-        field.SetFocus();
-        workbench.Window.NewKeyDownEvent(Key.PageDown);
-        workbench.Window.NewKeyDownEvent(Key.PageDown);
-        workbench.Window.NewKeyDownEvent(Key.PageDown);
-        Assert.True(panel.Viewport.Y > 0);
-        app.LayoutAndDraw();
-        foreach (var tab in tabs.TabCollection)
-        {
-            Assert.Contains(tab.Title, driver.ToString(), StringComparison.Ordinal);
+            workbench.Window.NewKeyDownEvent(tab.HotKey.WithAlt);
+            Assert.Same(tab, tabs.Value);
+            app.LayoutAndDraw(true);
+            foreach (var title in tabs.TabCollection.Select(static page => page.Title))
+            {
+                Assert.Contains(title, driver.ToString(), StringComparison.Ordinal);
+            }
         }
         app.End(token);
     }
 
-    [Fact]
-    public async Task AutomationDialogKeepsCanceledEditsOutOfSavedSteps()
+    [Theory]
+    [InlineData(0, "Modbus")]
+    [InlineData(1, "文件与回环")]
+    [InlineData(2, "自动化")]
+    [InlineData(3, "协议分析")]
+    [InlineData(4, "波形")]
+    public async Task ToolsOpenFromTheKeyboardAndReturnToTheSelectedWorkspace(int index, string title)
     {
-        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-dialog-{Guid.NewGuid():N}"));
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-tools-{Guid.NewGuid():N}"));
         paths.EnsureWritable();
         await using var runtime = new HostRuntime(paths);
         using var app = Terminal.Gui.App.Application.Create().Init();
         using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
-        workbench.ApplySequence(new SerialSequenceDefinition("测试序列", [new SerialSequenceStep([0x01], "hex", 0, 1, 0, null, 2000, 0)]));
+        var driver = Assert.IsAssignableFrom<Terminal.Gui.Drivers.IDriver>(app.Driver);
+        driver.SetScreenSize(80, 24);
         var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
-        var automation = tabs.TabCollection.Single(static page => page.Title == "自动化");
-        var table = Assert.Single(automation.SubViews.OfType<TableView>());
-        View? editor = null;
-        var edits = 0;
+        var page = tabs.TabCollection.ElementAt(1);
+        var stage = 0;
         var timedOut = false;
         Exception? failure = null;
         app.AddTimeout(TimeSpan.FromSeconds(5), () =>
@@ -141,7 +137,90 @@ public sealed class TuiTests
             }
             try
             {
-                if (app.TopRunnableView is Dialog dialog)
+                if (app.TopRunnableView is Dialog dialog && dialog.Title == "工具")
+                {
+                    var list = Assert.Single(dialog.SubViews.OfType<ListView>());
+                    list.Value = index;
+                    stage = 2;
+                    list.NewKeyDownEvent(Key.Enter);
+                }
+                else if (app.TopRunnableView is Dialog tool)
+                {
+                    Assert.Equal(title, tool.Title);
+                    Assert.Same(workbench.GetTool(title), Assert.Single(tool.SubViews, static view => view is not Button));
+                    stage = 3;
+                    app.Keyboard.RaiseKeyDownEvent(Key.Esc);
+                }
+                else if (stage == 0)
+                {
+                    tabs.Value = page;
+                    stage = 1;
+                    workbench.Window.NewKeyDownEvent(Key.F9);
+                }
+                else if (stage == 3)
+                {
+                    Assert.Same(page, tabs.Value);
+                    Assert.Null(workbench.GetTool(title).SuperView);
+                    app.RequestStop(workbench.Window);
+                }
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+                app.RequestStop();
+            }
+        };
+        app.Run(workbench.Window);
+        Assert.Null(failure);
+        Assert.Equal(3, stage);
+        Assert.False(timedOut);
+    }
+
+    [Fact]
+    public async Task AutomationDialogKeepsCanceledEditsOutOfSavedSteps()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-dialog-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create().Init();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        workbench.ApplySequence(new SerialSequenceDefinition("测试序列", [new SerialSequenceStep([0x01], "hex", 0, 1, 0, null, 2000, 0)]));
+        var automation = workbench.GetTool("自动化");
+        var table = Assert.Single(automation.SubViews.OfType<TableView>());
+        View? editor = null;
+        var edits = 0;
+        var opened = false;
+        var timedOut = false;
+        Exception? failure = null;
+        app.AddTimeout(TimeSpan.FromSeconds(5), () =>
+        {
+            timedOut = true;
+            app.RequestStop();
+            return false;
+        });
+        app.Iteration += (_, _) =>
+        {
+            if (timedOut || failure is not null)
+            {
+                app.RequestStop();
+                return;
+            }
+            try
+            {
+                if (app.TopRunnableView is Dialog tool && tool.Title == "自动化")
+                {
+                    if (edits == 2)
+                    {
+                        app.RequestStop(tool);
+                    }
+                    else
+                    {
+                        Assert.Equal(new byte[] { 0x01 }, Assert.Single(workbench.ReadSequence().Steps).Data);
+                        table.SetFocus();
+                        table.NewKeyDownEvent(Key.Enter);
+                    }
+                }
+                else if (app.TopRunnableView is Dialog dialog)
                 {
                     dialog.Layout(new System.Drawing.Size(80, 24));
                     var content = dialog.SubViews.Single(static view => view.SubViews.OfType<TextField>().Any(static field => field.Id == "sequence-data"));
@@ -172,12 +251,10 @@ public sealed class TuiTests
                 {
                     app.RequestStop(workbench.Window);
                 }
-                else
+                else if (!opened)
                 {
-                    Assert.Equal(new byte[] { 0x01 }, Assert.Single(workbench.ReadSequence().Steps).Data);
-                    tabs.Value = automation;
-                    table.SetFocus();
-                    table.NewKeyDownEvent(Key.Enter);
+                    opened = true;
+                    workbench.ShowTool("自动化");
                 }
             }
             catch (Exception ex)
@@ -227,20 +304,22 @@ public sealed class TuiTests
         await using var runtime = new HostRuntime(paths);
         using var app = Terminal.Gui.App.Application.Create();
         using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
-        var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
-        workbench.Window.Layout(new System.Drawing.Size(80, 24));
-        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
-        tabs.Value = tabs.TabCollection.Single(page => page.Title == pageName);
-        var panel = panelTitle.Length == 0 ? Assert.Single(tabs.Value.SubViews) : tabs.Value.SubViews.OfType<FrameView>().Single(frame => frame.Title == panelTitle);
+        var page = workbench.GetTool(pageName);
+        using var dialog = new Dialog { Width = Dim.Fill(), Height = Dim.Fill() };
+        dialog.Add(page);
+        var token = Assert.IsType<SessionToken>(app.Begin(dialog));
+        dialog.Layout(new System.Drawing.Size(80, 24));
+        var panel = panelTitle.Length == 0 ? Assert.Single(page.SubViews) : page.SubViews.OfType<FrameView>().Single(frame => frame.Title == panelTitle);
         var last = panel.SubViews.Where(static view => view.CanFocus).OrderBy(static view => view.Frame.Bottom).Last();
         last.SetFocus();
         Assert.True(panel.Viewport.Contains(last.Frame), $"Focused {last.Frame}, viewport {panel.Viewport}");
-        Assert.Equal(0, tabs.Value.Viewport.Y);
+        Assert.Equal(0, page.Viewport.Y);
         var first = panel.SubViews.Where(static view => view.CanFocus).OrderBy(static view => view.Frame.Top).First();
         first.SetFocus();
         Assert.True(panel.Viewport.Contains(first.Frame));
         Assert.Equal(0, panel.Viewport.X);
         app.End(token);
+        dialog.Remove(page);
     }
 
     [Fact]
@@ -255,7 +334,7 @@ public sealed class TuiTests
         workbench.Window.Layout(new System.Drawing.Size(80, 24));
         var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
         workbench.Window.NewKeyDownEvent(Key.F8);
-        Assert.Equal("设置", tabs.Value?.Title);
+        Assert.Equal("5 设置", tabs.Value?.Title);
         var settings = Assert.IsAssignableFrom<View>(tabs.Value);
         Assert.All(settings.SubViews.Where(static view => view.CanFocus), view => Assert.True(view.Frame.Bottom <= settings.Viewport.Height, view.ToString()));
         var sending = workbench.Window.SubViews.OfType<FrameView>().Single();
@@ -343,7 +422,7 @@ public sealed class TuiTests
         Assert.True(input.Frame.Right <= sending.Viewport.Width);
         var frame = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<FrameView>().Single(static frame => frame.Title == "报文");
         Assert.True(Assert.Single(frame.SubViews.OfType<TableView>()).Frame.Height >= 3);
-        var sessionPage = tabs.TabCollection.Single(static page => page.Title == "会话");
+        var sessionPage = tabs.TabCollection.Single(static page => page.Title == "4 会话");
         Assert.All(sessionPage.SubViews.OfType<TableView>(), table => Assert.True(table.Frame.Height >= 3));
     }
 
@@ -355,8 +434,7 @@ public sealed class TuiTests
         await using var runtime = new HostRuntime(paths);
         using var app = Terminal.Gui.App.Application.Create();
         using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
-        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
-        var graph = tabs.SubViews.SelectMany(static view => view.SubViews).OfType<GraphView>().Single();
+        var graph = Assert.Single(workbench.GetTool("波形").SubViews.OfType<GraphView>());
         var id = Guid.NewGuid();
         workbench.FeedWaveform(new SerialTrafficEvent(1, DateTimeOffset.UtcNow, 1, id, SerialDirection.Receive, "12"u8.ToArray(), "serial", SegmentId: Guid.NewGuid()));
         workbench.FeedWaveform(new SerialTrafficEvent(2, DateTimeOffset.UtcNow, 2, id, SerialDirection.Receive, "3\n"u8.ToArray(), "serial", SegmentId: Guid.NewGuid()));
