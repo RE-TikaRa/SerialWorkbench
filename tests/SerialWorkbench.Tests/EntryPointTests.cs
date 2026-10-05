@@ -53,7 +53,7 @@ public sealed class EntryPointTests
         Assert.Contains("TUI 需要交互式终端", result.Error, StringComparison.Ordinal);
     }
 
-    private static async Task<(int ExitCode, string Output, string Error)> InvokeAsync(string application, params string[] arguments)
+    internal static async Task<(int ExitCode, string Output, string Error)> InvokeAsync(string application, params string[] arguments)
     {
         var token = TestContext.Current.CancellationToken;
         using var process = new Process

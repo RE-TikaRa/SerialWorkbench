@@ -32,10 +32,10 @@ public static class HostEndpoint
 
     private static async Task EnsureHostStartedAsync(string applicationRoot, string pipeName, CancellationToken cancellationToken)
     {
-        var hostPath = Path.Combine(applicationRoot, "SerialWorkbench.Host.exe");
+        var hostPath = Path.Combine(applicationRoot, "SW_HOST.exe");
         if (!File.Exists(hostPath))
         {
-            throw new FileNotFoundException("SerialWorkbench.Host.exe was not found beside the client executable.", hostPath);
+            throw new FileNotFoundException("SW_HOST.exe was not found beside the client executable.", hostPath);
         }
 
         using var startupSemaphore = new Semaphore(1, 1, $"Local\\{pipeName}-startup");

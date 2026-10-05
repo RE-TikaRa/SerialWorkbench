@@ -3,14 +3,14 @@
 ## 进程
 
 ```text
-SerialWorkbench.exe ─┐
-                     ├─ Windows 命名管道 ─ SerialWorkbench.Host.exe ─ 串口
-serial-workbench.exe ┘                              ├─ 写入租约
-                                                    └─ SQLite 会话
+SW.exe     ─┐
+SW_TUI.exe ─┼─ Windows 命名管道 ─ SW_HOST.exe ─ 串口
+SW_CLI.exe ─┘                            ├─ 写入租约
+                                         └─ SQLite 会话
 
 ```
 
-`SerialWorkbench.Host.exe` 独占串口连接、写入租约、实时事件、会话写入和工作区状态。WinUI 与 CLI 通过版本化本机 RPC 共享 Host 状态。同一应用目录对应一个 Host 实例。有客户端、连接或写入任务时保持运行；全部结束后等待 30 秒退出。客户端退出释放 RPC 通道，共享连接由明确的关闭操作结束。
+`SW_HOST.exe` 独占串口连接、写入租约、实时事件、会话写入和工作区状态。WinUI、TUI 与 CLI 通过版本化本机 RPC 共享 Host 状态。同一应用目录对应一个 Host 实例。有客户端、连接或写入任务时保持运行；全部结束后等待 30 秒退出。客户端退出释放 RPC 通道，共享连接由明确的关闭操作结束。
 
 Host 任务管理器在接受请求前取得写入租约并保存任务身份。设备操作使用 Host 的取消令牌，客户端等待与任务执行具有独立生命周期。显式取消结束任务；进度通过版本号和长轮询读取，结果写入 SQLite。Modbus 扫描和轮询由 Host 编排，客户端呈现采样结果。
 
@@ -36,7 +36,7 @@ RPC 契约位于 `src/SerialWorkbench.Ipc/RpcContracts.cs`。握手使用主版�
 
 ## 数据
 
-应用根目录为 `SerialWorkbench.exe` 所在目录。界面设置、日志和全局会话位于 `data/`。工作区保存会话。
+应用根目录为 `SW.exe` 所在目录。界面设置、日志和全局会话位于 `data/`。工作区保存会话。
 
 每个会话对应一个 `.swbsession` SQLite 文件。事件记录 UTC、单调时钟、递增序号、连接标识、方向、来源和原始字节。会话结束时执行 WAL checkpoint，单个文件可独立迁移和读取。
 
@@ -56,3 +56,5 @@ ScottPlot 承载波形图。Light、Dark 和 HighContrast 样式分别使用内�
 ## 构建
 
 `eng/build.ps1` 格式化并构建 Release，`eng/test.ps1` 运行完整构建与 xUnit v3 测试，`eng/publish.ps1` 生成 self-contained `win-x64` 便携版。项目启用 nullable、.NET analyzers、代码风格检查和 warnings-as-errors，依赖版本集中在 `Directory.Packages.props`。
+
+GUI 通过程序集名称生成 `SW.exe` 与 `SW.pri`。CLI、TUI 和 Host 的 `AppHostName` 指定原生启动程序名称，`Directory.Build.targets` 设置 SDK 构建项的目标路径；托管程序集保持各自项目名称。发布脚本合并四个项目的产物。

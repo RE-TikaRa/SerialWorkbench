@@ -190,8 +190,17 @@ public sealed class ApplicationTests
 
         try
         {
-            await Task.WhenAll(clients);
+            var connectedClients = await Task.WhenAll(clients);
             Assert.All(clients, static client => Assert.True(client.IsCompletedSuccessfully));
+            var handshake = await connectedClients[0].HandshakeAsync(
+                new HandshakeRequest(RpcProtocol.MajorVersion, RpcProtocol.MinorVersion, "test", "zh-CN"), TestContext.Current.CancellationToken);
+            Assert.True(handshake.Accepted);
+            var result = await EntryPointTests.InvokeAsync("SW_CLI", "--agent", "host", "status", "--app-root", AppContext.BaseDirectory);
+            Assert.Equal(0, result.ExitCode);
+            Assert.Empty(result.Error);
+            using var document = System.Text.Json.JsonDocument.Parse(result.Output);
+            Assert.Equal("success", document.RootElement.GetProperty("status").GetString());
+            Assert.Equal(0, document.RootElement.GetProperty("result").GetProperty("connections").GetArrayLength());
         }
         finally
         {

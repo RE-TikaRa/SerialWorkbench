@@ -50,11 +50,11 @@ try {
     Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot "schemas") -Force | Copy-Item -Destination $schemaDirectory -Recurse -Force
 
     $requiredFiles = @(
-        "SerialWorkbench.exe",
-        "SerialWorkbench.Host.exe",
+        "SW.exe",
+        "SW_HOST.exe",
         "SW_CLI.exe",
         "SW_TUI.exe",
-        "SerialWorkbench.pri",
+        "SW.pri",
         "App.xbf",
         "MainWindow.xbf",
         "Microsoft.ui.xaml.dll",

@@ -87,7 +87,7 @@ SerialConnection.ReadLoopAsync
 - 便携发布：`./eng/publish.ps1`，输出目录为 `publish/win-x64/`。
 - 发布目录包含 WinUI、Host、CLI 及 PRI/XBF 和 Windows App SDK 文件。
 - 实机前必须重新枚举端口：
-  `./publish/win-x64/serial-workbench.exe ports list --output json`
+  `./publish/win-x64/SW_CLI.exe ports list --output json`
 - 历史端口包括 COM15、COM18、COM19，历史设备为 USB-SERIAL CH340、VID 1A86、PID 7523。端口号不能视为当前状态。
 - COM18/COM19 曾完成双 CH340 TX/RX 交叉通信和 XMODEM-CRC 传输。
 - WinUI 已通过 Release/XAML 编译；桌面启动、resize、按钮视觉和当前 COM 实机验收仍需执行。

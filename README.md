@@ -73,10 +73,10 @@ Modbus 页实时呈现每次响应的从站、功能码、数值、耗时和状�
 发布目录提供三个使用入口，并包含后台 Host 服务：
 
 ```text
-SerialWorkbench.exe       WinUI 3 桌面程序
-SW_TUI.exe                终端工作台
-SW_CLI.exe                命令行与 Agent 接口
-SerialWorkbench.Host.exe  串口和会话服务
+SW.exe       WinUI 3 桌面程序
+SW_TUI.exe   终端工作台
+SW_CLI.exe   命令行与 Agent 接口
+SW_HOST.exe  串口和会话服务
 ```
 
 桌面程序、TUI 和 CLI 通过 Windows 命名管道连接 Host。一个应用目录对应一个 Host 实例，连接由 Host 持有。相同参数打开同一串口时复用 `connectionId`；关闭桌面窗口保留共享连接。发送、回环、Modbus、自动化和 XMODEM 操作通过连接写入租约协调，连接占用时新的写入立即失败。
@@ -151,7 +151,7 @@ publish/win-x64/
 从该目录运行：
 
 ```powershell
-.\publish\win-x64\SerialWorkbench.exe
+.\publish\win-x64\SW.exe
 ```
 
 便携版不需要安装 .NET 运行时。目录必须具有写入权限，因为 Host 会在程序目录旁创建 `data/`。

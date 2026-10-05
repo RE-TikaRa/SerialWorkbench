@@ -33,7 +33,7 @@ internal static unsafe partial class HostProcessLauncher
                 ref startupInfo,
                 out processInformation) == 0)
             {
-                throw new Win32Exception(Marshal.GetLastPInvokeError(), "Unable to start SerialWorkbench.Host.exe.");
+                throw new Win32Exception(Marshal.GetLastPInvokeError(), "Unable to start SW_HOST.exe.");
             }
         }
 
