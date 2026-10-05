@@ -29,9 +29,9 @@ public static class MachineOutput
         var status = "success";
         if (value is StartOperationResult start)
         {
-            error = start.Error;
+            error = start.Error ?? start.Operation?.Error;
             operationId = start.Operation?.Id;
-            status = start.Operation?.State == OperationState.Running ? "running" : "success";
+            status = start.Operation?.State == OperationState.Running ? "running" : start.Operation?.State == OperationState.Cancelled ? "cancelled" : "success";
         }
         else if (value is OperationSnapshot operation)
         {

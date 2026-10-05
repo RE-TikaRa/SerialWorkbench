@@ -206,43 +206,161 @@ static async Task<int> RunAsync(IHostRpc client, CommandArguments arguments, str
         case "sessions delete":
             return await DeleteSessionAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "send":
-        case "send ":
-            return await SendAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
-        case "monitor":
-        case "monitor ":
-            return await MonitorAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "loopback run":
-            return await LoopbackAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "modbus read":
-            return await ModbusReadAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "modbus write":
-            return await ModbusWriteAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "modbus scan":
-            return await ModbusScanAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "modbus poll":
-            return await ModbusPollAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "xmodem send":
-            return await XmodemSendAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "xmodem receive":
-            return await XmodemReceiveAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "sequence run":
-            var sequencePath = arguments.Get("--file") ?? throw new ArgumentException("--file is required.");
-            var sequenceDefinition = SerialSequenceCodec.Deserialize(await File.ReadAllTextAsync(sequencePath, cancellationToken).ConfigureAwait(false));
-            var sequenceConnection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
-            try
-            {
-                WriteResult(output, "sequence.run", await client.RunSequenceAsync(sequenceConnection.Id, sequenceDefinition, cancellationToken).ConfigureAwait(false));
-                return 0;
-            }
-            finally
-            {
-                await CloseTemporaryConnectionAsync(client, arguments, sequenceConnection.Id).ConfigureAwait(false);
-            }
+            return await RunDeviceCommandAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
+        case "monitor":
+            return await MonitorAsync(client, arguments, output, cancellationToken).ConfigureAwait(false);
         case "protocol inspect":
             return InspectProtocol(arguments, output);
         default:
             WriteError(output, "INVALID_ARGUMENT", $"Unknown command: {arguments.CommandId}");
             return 2;
+    }
+}
+
+static async Task<int> RunDeviceCommandAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
+{
+    var command = arguments.CommandId;
+    var connectionId = arguments.Get("--connection") is { } shared ? ParseGuid(shared, "--connection") : Guid.Empty;
+    var path = arguments.Get("--file") is { } file ? Path.GetFullPath(file) : null;
+    object parameters;
+    switch (command)
+    {
+        case "send":
+            var data = arguments.Get("--hex") is { } hex ? HexCodec.Parse(hex)
+                : Encoding.GetEncoding(arguments.Get("--encoding") ?? "utf-8").GetBytes(arguments.Get("--text") + ParseLineEnding(arguments.Get("--line-ending")));
+            parameters = new SendRequest(connectionId, data, "cli.send");
+            break;
+        case "loopback.run":
+            parameters = new LoopbackRequest(connectionId, arguments.GetInt("--length", 4096), arguments.GetInt("--iterations", 1),
+                arguments.GetInt("--timeout", 5000), Enum.Parse<LoopbackPattern>(arguments.Get("--pattern") ?? "Incrementing", true), arguments.GetInt("--seed", 0x534257));
+            break;
+        case "modbus.read":
+        case "modbus.write":
+            var slave = GetByte(arguments, "--slave", 1);
+            var function = GetByte(arguments, "--function", command == "modbus.read" ? 3 : 6);
+            var frame = function switch
+            {
+                1 or 2 or 3 or 4 => ModbusRtuCodec.BuildReadRequest(slave, function, GetUShort(arguments, "--address"), ValidateReadQuantity(GetUShort(arguments, "--quantity"), function)),
+                17 => ModbusRtuCodec.BuildReportServerIdRequest(slave),
+                5 => ModbusRtuCodec.BuildWriteSingleCoil(slave, GetUShort(arguments, "--address"), GetCoilValue(arguments)),
+                6 => ModbusRtuCodec.BuildWriteSingleRegister(slave, GetUShort(arguments, "--address"), GetUShort(arguments, "--value")),
+                15 => ModbusRtuCodec.BuildWriteMultipleCoils(slave, GetUShort(arguments, "--address"), ParseCoilValues(arguments.Get("--values"))),
+                16 => ModbusRtuCodec.BuildWriteMultipleRegisters(slave, GetUShort(arguments, "--address"), ParseRegisterValues(arguments.Get("--values"))),
+                _ => throw new ArgumentException("Unsupported Modbus function."),
+            };
+            parameters = new ModbusTransactionRequest(connectionId, frame, slave, function, arguments.GetInt("--timeout", 2000));
+            break;
+        case "modbus.scan":
+            parameters = new ModbusScanRequest(connectionId, GetByte(arguments, "--from", 1), GetByte(arguments, "--to", 247),
+                GetUShort(arguments, "--address"), arguments.GetInt("--timeout", 200), arguments.GetInt("--interval", 0));
+            break;
+        case "modbus.poll":
+            parameters = new ModbusPollRequest(connectionId, GetByte(arguments, "--slave", 1), GetByte(arguments, "--function", 3),
+                GetUShort(arguments, "--address"), GetUShort(arguments, "--quantity"), arguments.GetInt("--count", 10),
+                arguments.GetInt("--interval", 1000), arguments.GetInt("--timeout", 2000));
+            break;
+        case "xmodem.send":
+            parameters = await File.ReadAllBytesAsync(path ?? throw new ArgumentException("--file is required."), cancellationToken).ConfigureAwait(false);
+            break;
+        case "xmodem.receive":
+            parameters = new XmodemReceiveRequest(path);
+            break;
+        case "sequence.run":
+            parameters = SerialSequenceCodec.Deserialize(await File.ReadAllTextAsync(path ?? throw new ArgumentException("--file is required."), cancellationToken).ConfigureAwait(false));
+            break;
+        default:
+            throw new ArgumentException($"Unsupported operation: {command}");
+    }
+
+    var persistent = arguments.Has("--background") || arguments.Get("--request-id") is not null;
+    var options = connectionId == Guid.Empty && persistent ? ReadSerialOptions(arguments) : null;
+    Guid? temporaryConnection = null;
+    if (connectionId == Guid.Empty && options is null)
+    {
+        var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
+        connectionId = connection.Id;
+        temporaryConnection = connectionId;
+    }
+
+    try
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var request = new OperationRequest(command, connectionId, JsonSerializer.Serialize(parameters, OperationJson.Options), arguments.Get("--request-id"), options);
+        var started = await client.StartOperationAsync(request, CancellationToken.None).ConfigureAwait(false);
+        var operation = started.Operation ?? throw new HostOperationException(started.Error ?? new WorkbenchError("OPERATION_FAILED", "The Host did not accept the operation."));
+        if (arguments.Has("--background"))
+        {
+            WriteResult(output, command, started);
+            return operation.Error is null ? 0 : 3;
+        }
+
+        var updates = new ActionProgress<OperationProgress>(progress =>
+        {
+            if (command == "modbus.poll" && output != "json" && progress.ItemJson is { } json)
+            {
+                var sample = OperationJson.Read<ModbusSample>(json);
+                if (output == "jsonl")
+                {
+                    MachineOutput.Write(output, command, sample, "progress");
+                }
+                else
+                {
+                    ConsoleOutput.Write(command, sample);
+                }
+            }
+        });
+        var result = await client.WaitOperationAsync<JsonElement>(operation, cancellationToken, updates: updates).ConfigureAwait(false);
+        var resultJson = result.GetRawText();
+        switch (command)
+        {
+            case "send":
+                var sent = OperationJson.Read<RpcResult>(resultJson);
+                var payload = ((SendRequest)parameters).Data;
+                WriteResult(output, command, new SendReceipt(sent.Success, payload.Length, Convert.ToHexString(payload), sent.Error));
+                return sent.Success ? 0 : 3;
+            case "loopback.run":
+                var loopback = OperationJson.Read<LoopbackResult>(resultJson);
+                WriteResult(output, command, loopback);
+                return loopback.Passed ? 0 : 1;
+            case "modbus.read":
+            case "modbus.write":
+                var modbus = OperationJson.Read<ModbusTransactionResult>(resultJson);
+                WriteResult(output, command, new ModbusReceipt(modbus.Success, Convert.ToHexString(((ModbusTransactionRequest)parameters).Frame),
+                    Convert.ToHexString(modbus.ResponseFrame), modbus.FunctionCode, modbus.Registers, modbus.Bits, modbus.Address, modbus.Value,
+                    modbus.ExceptionCode, modbus.Duration.TotalMilliseconds, modbus.Error, modbus.ErrorCode));
+                return ModbusExitCode(modbus);
+            case "modbus.scan":
+            case "modbus.poll":
+                var batch = OperationJson.Read<ModbusBatchResult>(resultJson);
+                WriteResult(output, command, batch);
+                return command == "modbus.poll" && batch.Failed > 0 ? 1 : 0;
+            case "xmodem.send":
+                var transfer = OperationJson.Read<XmodemTransferResult>(resultJson);
+                WriteTransferResult(output, command, path ?? "", transfer);
+                return TransferExitCode(transfer);
+            case "xmodem.receive":
+                var received = OperationJson.Read<XmodemReceiveResult>(resultJson);
+                WriteTransferResult(output, command, path ?? "", received.Result, received.Data.Length);
+                return TransferExitCode(received.Result);
+            default:
+                WriteResult(output, command, OperationJson.Read<SerialSequenceProgress>(resultJson));
+                return 0;
+        }
+    }
+    finally
+    {
+        if (temporaryConnection is { } id)
+        {
+            await client.CloseConnectionAsync(id, CancellationToken.None).ConfigureAwait(false);
+        }
     }
 }
 
@@ -442,43 +560,7 @@ static async Task<int> DeleteSessionAsync(IHostRpc client, CommandArguments argu
     return result.Success ? 0 : 3;
 }
 
-static async Task<int> XmodemSendAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
-{
-    var path = arguments.Get("--file") ?? throw new ArgumentException("xmodem send requires --file.");
-    var data = await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
-    var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
-    try
-    {
-        var result = await client.SendXmodemAsync(connection.Id, data, cancellationToken).ConfigureAwait(false);
-        WriteTransferResult(output, "xmodem.send", path, result);
-        return TransferExitCode(result);
-    }
-    finally
-    {
-        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
-    }
-}
 
-static async Task<int> XmodemReceiveAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
-{
-    var path = arguments.Get("--file") ?? throw new ArgumentException("xmodem receive requires --file.");
-    var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
-    try
-    {
-        var result = await client.ReceiveXmodemAsync(connection.Id, cancellationToken).ConfigureAwait(false);
-        if (result.Result.Success)
-        {
-            await File.WriteAllBytesAsync(path, result.Data, cancellationToken).ConfigureAwait(false);
-        }
-
-        WriteTransferResult(output, "xmodem.receive", path, result.Result, result.Data.Length);
-        return TransferExitCode(result.Result);
-    }
-    finally
-    {
-        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
-    }
-}
 
 static int InspectProtocol(CommandArguments arguments, string output)
 {
@@ -505,33 +587,6 @@ static Guid ParseGuid(string? value, string name) => Guid.TryParse(value, out va
     ? result
     : throw new ArgumentException($"{name} is required and must be a valid GUID.");
 
-static async Task<int> SendAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
-{
-    var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
-    try
-    {
-        byte[] data;
-        var hex = arguments.Get("--hex");
-        if (hex is not null)
-        {
-            data = HexCodec.Parse(hex);
-        }
-        else
-        {
-            var text = arguments.Get("--text") ?? throw new ArgumentException("send requires --text or --hex.");
-            var encoding = Encoding.GetEncoding(arguments.Get("--encoding") ?? "utf-8");
-            data = encoding.GetBytes(text + ParseLineEnding(arguments.Get("--line-ending")));
-        }
-
-        var result = await client.SendAsync(new SendRequest(connection.Id, data, "cli.send"), cancellationToken).ConfigureAwait(false);
-        WriteResult(output, "send", new SendReceipt(result.Success, data.Length, Convert.ToHexString(data), result.Error));
-        return result.Success ? 0 : 3;
-    }
-    finally
-    {
-        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
-    }
-}
 
 static async Task<int> MonitorAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
 {
@@ -597,156 +652,11 @@ static async Task<int> MonitorAsync(IHostRpc client, CommandArguments arguments,
     }
 }
 
-static async Task<int> LoopbackAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
-{
-    var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
-    try
-    {
-        var pattern = Enum.Parse<LoopbackPattern>(arguments.Get("--pattern") ?? "Incrementing", true);
-        var request = new LoopbackRequest(
-            connection.Id,
-            arguments.GetInt("--length", 4096),
-            arguments.GetInt("--iterations", 1),
-            arguments.GetInt("--timeout", 5000),
-            pattern,
-            arguments.GetInt("--seed", 0x534257));
-        var result = await client.RunLoopbackAsync(request, cancellationToken).ConfigureAwait(false);
-        WriteResult(output, "loopback.run", result);
-        return result.Passed ? 0 : 1;
-    }
-    finally
-    {
-        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
-    }
-}
 
-static async Task<int> ModbusReadAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
-{
-    var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
-    try
-    {
-        var slave = GetByte(arguments, "--slave", 1);
-        var function = GetByte(arguments, "--function", 3);
-        if (function is not (1 or 2 or 3 or 4 or 17))
-        {
-            throw new ArgumentException("--function must be 1, 2, 3, 4, or 17.");
-        }
 
-        var frame = function == 17
-            ? ModbusRtuCodec.BuildReportServerIdRequest(slave)
-            : ModbusRtuCodec.BuildReadRequest(slave, function, GetUShort(arguments, "--address"), ValidateReadQuantity(GetUShort(arguments, "--quantity"), function));
-        return await RunModbusAsync(client, connection, arguments, output, cancellationToken, "modbus.read", frame, slave, function).ConfigureAwait(false);
-    }
-    finally
-    {
-        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
-    }
-}
 
-static async Task<int> ModbusWriteAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
-{
-    var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
-    try
-    {
-        var slave = GetByte(arguments, "--slave", 1);
-        var function = GetByte(arguments, "--function", 6);
-        if (function is not (5 or 6 or 15 or 16))
-        {
-            throw new ArgumentException("--function must be 5, 6, 15, or 16.");
-        }
 
-        var address = GetUShort(arguments, "--address");
-        var frame = function switch
-        {
-            5 => ModbusRtuCodec.BuildWriteSingleCoil(slave, address, GetCoilValue(arguments)),
-            6 => ModbusRtuCodec.BuildWriteSingleRegister(slave, address, GetUShort(arguments, "--value")),
-            15 => ModbusRtuCodec.BuildWriteMultipleCoils(slave, address, ParseCoilValues(arguments.Get("--values"))),
-            16 => ModbusRtuCodec.BuildWriteMultipleRegisters(slave, address, ParseRegisterValues(arguments.Get("--values"))),
-            _ => throw new InvalidOperationException("Unsupported Modbus write function."),
-        };
-        return await RunModbusAsync(client, connection, arguments, output, cancellationToken, "modbus.write", frame, slave, function).ConfigureAwait(false);
-    }
-    finally
-    {
-        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
-    }
-}
 
-static async Task<int> ModbusScanAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
-{
-    var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
-    try
-    {
-        var request = new ModbusScanRequest(connection.Id, GetByte(arguments, "--from", 1), GetByte(arguments, "--to", 247),
-            GetUShort(arguments, "--address"), arguments.GetInt("--timeout", 200), arguments.GetInt("--interval", 0));
-        var result = await client.RunOperationAsync<ModbusBatchResult>(OperationJson.Create("modbus.scan", connection.Id, request), cancellationToken).ConfigureAwait(false);
-        WriteResult(output, "modbus.scan", result);
-        return 0;
-    }
-    finally
-    {
-        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
-    }
-}
-
-static async Task<int> ModbusPollAsync(IHostRpc client, CommandArguments arguments, string output, CancellationToken cancellationToken)
-{
-    var connection = await OpenAsync(client, arguments, cancellationToken).ConfigureAwait(false);
-    try
-    {
-        var request = new ModbusPollRequest(connection.Id, GetByte(arguments, "--slave", 1), GetByte(arguments, "--function", 3),
-            GetUShort(arguments, "--address"), GetUShort(arguments, "--quantity"), arguments.GetInt("--count", 10),
-            arguments.GetInt("--interval", 1000), arguments.GetInt("--timeout", 2000));
-        var updates = new ActionProgress<OperationProgress>(progress =>
-        {
-            if (output != "json" && progress.ItemJson is { } json)
-            {
-                if (output == "jsonl")
-                {
-                    MachineOutput.Write(output, "modbus.poll", OperationJson.Read<ModbusSample>(json), "progress");
-                }
-                else
-                {
-                    ConsoleOutput.Write("modbus.poll", OperationJson.Read<ModbusSample>(json));
-                }
-            }
-        });
-        var result = await client.RunOperationAsync<ModbusBatchResult>(OperationJson.Create("modbus.poll", connection.Id, request),
-            cancellationToken, updates: updates).ConfigureAwait(false);
-        WriteResult(output, "modbus.poll", result);
-        return result.Failed == 0 ? 0 : 1;
-    }
-    finally
-    {
-        await CloseTemporaryConnectionAsync(client, arguments, connection.Id).ConfigureAwait(false);
-    }
-}
-
-static async Task<int> RunModbusAsync(
-    IHostRpc client,
-    ConnectionSnapshot connection,
-    CommandArguments arguments,
-    string output,
-    CancellationToken cancellationToken,
-    string command,
-    byte[] requestFrame,
-    byte slave,
-    byte function)
-{
-    var request = new ModbusTransactionRequest(
-        connection.Id,
-        requestFrame,
-        slave,
-        function,
-        arguments.GetInt("--timeout", 2000));
-    var result = await client.RunModbusAsync(request, cancellationToken).ConfigureAwait(false);
-    var value = new ModbusReceipt(result.Success, Convert.ToHexString(requestFrame), Convert.ToHexString(result.ResponseFrame),
-        result.FunctionCode, result.Registers, result.Bits, result.Address, result.Value, result.ExceptionCode,
-        result.Duration.TotalMilliseconds, result.Error, result.ErrorCode);
-    WriteResult(output, command, value);
-
-    return ModbusExitCode(result);
-}
 
 static int ModbusExitCode(ModbusTransactionResult result)
 {

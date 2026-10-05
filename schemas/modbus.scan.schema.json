@@ -197,6 +197,16 @@
         "default": 0,
         "minimum": 0,
         "maximum": 600000
+      },
+      "--background": {
+        "type": "boolean",
+        "default": false
+      },
+      "--request-id": {
+        "type": [
+          "string",
+          "null"
+        ]
       }
     },
     "required": []
@@ -229,156 +239,498 @@
         "format": "date-time"
       },
       "result": {
-        "type": [
-          "object",
-          "null"
-        ],
-        "properties": {
-          "samples": {
-            "type": "array",
-            "items": {
-              "type": [
-                "object",
-                "null"
-              ],
-              "properties": {
-                "index": {
+        "anyOf": [
+          {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "samples": {
+                "type": "array",
+                "items": {
                   "type": [
-                    "string",
-                    "integer"
+                    "object",
+                    "null"
                   ],
-                  "pattern": "^-?(?:0|[1-9]\\d*)$"
-                },
-                "slaveAddress": {
-                  "type": [
-                    "string",
-                    "integer"
-                  ],
-                  "pattern": "^-?(?:0|[1-9]\\d*)$"
-                },
-                "utc": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "result": {
-                  "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "responseFrame": {
-                      "type": "string"
-                    },
-                    "functionCode": {
+                    "index": {
                       "type": [
                         "string",
                         "integer"
                       ],
                       "pattern": "^-?(?:0|[1-9]\\d*)$"
                     },
-                    "registers": {
-                      "type": "array",
-                      "items": {
+                    "slaveAddress": {
+                      "type": [
+                        "string",
+                        "integer"
+                      ],
+                      "pattern": "^-?(?:0|[1-9]\\d*)$"
+                    },
+                    "utc": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "success": {
+                          "type": "boolean"
+                        },
+                        "responseFrame": {
+                          "type": "string"
+                        },
+                        "functionCode": {
+                          "type": [
+                            "string",
+                            "integer"
+                          ],
+                          "pattern": "^-?(?:0|[1-9]\\d*)$"
+                        },
+                        "registers": {
+                          "type": "array",
+                          "items": {
+                            "type": [
+                              "string",
+                              "integer"
+                            ],
+                            "pattern": "^-?(?:0|[1-9]\\d*)$"
+                          }
+                        },
+                        "address": {
+                          "type": [
+                            "string",
+                            "integer",
+                            "null"
+                          ],
+                          "pattern": "^-?(?:0|[1-9]\\d*)$"
+                        },
+                        "value": {
+                          "type": [
+                            "string",
+                            "integer",
+                            "null"
+                          ],
+                          "pattern": "^-?(?:0|[1-9]\\d*)$"
+                        },
+                        "exceptionCode": {
+                          "type": [
+                            "string",
+                            "integer",
+                            "null"
+                          ],
+                          "pattern": "^-?(?:0|[1-9]\\d*)$"
+                        },
+                        "duration": {
+                          "$comment": "Represents a System.TimeSpan value.",
+                          "type": "string",
+                          "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$"
+                        },
+                        "error": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "bits": {
+                          "type": [
+                            "array",
+                            "null"
+                          ],
+                          "items": {
+                            "type": "boolean"
+                          },
+                          "default": null
+                        },
+                        "errorCode": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "default": null
+                        }
+                      },
+                      "required": [
+                        "success",
+                        "responseFrame",
+                        "functionCode",
+                        "registers",
+                        "address",
+                        "value",
+                        "exceptionCode",
+                        "duration",
+                        "error"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "slaveAddress",
+                    "utc",
+                    "result"
+                  ]
+                }
+              },
+              "successful": {
+                "type": [
+                  "string",
+                  "integer"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              },
+              "failed": {
+                "type": [
+                  "string",
+                  "integer"
+                ],
+                "pattern": "^-?(?:0|[1-9]\\d*)$"
+              }
+            },
+            "required": [
+              "samples",
+              "successful",
+              "failed"
+            ]
+          },
+          {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "operation": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "request": {
+                    "type": "object",
+                    "properties": {
+                      "command": {
+                        "type": "string"
+                      },
+                      "connectionId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "parametersJson": {
+                        "type": "string"
+                      },
+                      "requestId": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "default": null
+                      },
+                      "connectionOptions": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "portName": {
+                            "type": "string"
+                          },
+                          "baudRate": {
+                            "type": [
+                              "string",
+                              "integer"
+                            ],
+                            "pattern": "^-?(?:0|[1-9]\\d*)$",
+                            "default": 115200
+                          },
+                          "dataBits": {
+                            "type": [
+                              "string",
+                              "integer"
+                            ],
+                            "pattern": "^-?(?:0|[1-9]\\d*)$",
+                            "default": 8
+                          },
+                          "parity": {
+                            "enum": [
+                              "None",
+                              "Odd",
+                              "Even",
+                              "Mark",
+                              "Space"
+                            ],
+                            "default": "None"
+                          },
+                          "stopBits": {
+                            "enum": [
+                              "One",
+                              "OnePointFive",
+                              "Two"
+                            ],
+                            "default": "One"
+                          },
+                          "handshake": {
+                            "enum": [
+                              "None",
+                              "XOnXOff",
+                              "RequestToSend",
+                              "RequestToSendXOnXOff"
+                            ],
+                            "default": "None"
+                          },
+                          "dtrEnable": {
+                            "type": "boolean",
+                            "default": false
+                          },
+                          "rtsEnable": {
+                            "type": "boolean",
+                            "default": false
+                          },
+                          "encodingName": {
+                            "type": "string",
+                            "default": "utf-8"
+                          },
+                          "role": {
+                            "enum": [
+                              "Dut",
+                              "Debug",
+                              "Controller",
+                              "Loopback"
+                            ],
+                            "default": "Dut"
+                          },
+                          "deviceInstanceId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "default": null
+                          },
+                          "rs485Mode": {
+                            "type": "boolean",
+                            "default": false
+                          },
+                          "rtsBeforeSendMilliseconds": {
+                            "type": [
+                              "string",
+                              "integer"
+                            ],
+                            "pattern": "^-?(?:0|[1-9]\\d*)$",
+                            "default": 0
+                          },
+                          "rtsAfterSendMilliseconds": {
+                            "type": [
+                              "string",
+                              "integer"
+                            ],
+                            "pattern": "^-?(?:0|[1-9]\\d*)$",
+                            "default": 0
+                          },
+                          "autoReconnect": {
+                            "type": "boolean",
+                            "default": true
+                          }
+                        },
+                        "required": [
+                          "portName"
+                        ],
+                        "default": null
+                      }
+                    },
+                    "required": [
+                      "command",
+                      "connectionId",
+                      "parametersJson"
+                    ]
+                  },
+                  "state": {
+                    "enum": [
+                      "Running",
+                      "Succeeded",
+                      "Failed",
+                      "Cancelled",
+                      "Interrupted"
+                    ]
+                  },
+                  "outcome": {
+                    "enum": [
+                      "Pending",
+                      "Confirmed",
+                      "Unknown",
+                      "NotExecuted"
+                    ]
+                  },
+                  "createdUtc": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "updatedUtc": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "revision": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ],
+                    "pattern": "^-?(?:0|[1-9]\\d*)$",
+                    "default": 1
+                  },
+                  "progress": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "completed": {
                         "type": [
                           "string",
                           "integer"
                         ],
                         "pattern": "^-?(?:0|[1-9]\\d*)$"
+                      },
+                      "total": {
+                        "type": [
+                          "string",
+                          "integer",
+                          "null"
+                        ],
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "default": null
+                      },
+                      "unit": {
+                        "type": "string",
+                        "default": "steps"
+                      },
+                      "message": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "default": null
+                      },
+                      "itemJson": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "default": null
                       }
                     },
-                    "address": {
-                      "type": [
-                        "string",
-                        "integer",
-                        "null"
-                      ],
-                      "pattern": "^-?(?:0|[1-9]\\d*)$"
-                    },
-                    "value": {
-                      "type": [
-                        "string",
-                        "integer",
-                        "null"
-                      ],
-                      "pattern": "^-?(?:0|[1-9]\\d*)$"
-                    },
-                    "exceptionCode": {
-                      "type": [
-                        "string",
-                        "integer",
-                        "null"
-                      ],
-                      "pattern": "^-?(?:0|[1-9]\\d*)$"
-                    },
-                    "duration": {
-                      "$comment": "Represents a System.TimeSpan value.",
-                      "type": "string",
-                      "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$"
-                    },
-                    "error": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "bits": {
-                      "type": [
-                        "array",
-                        "null"
-                      ],
-                      "items": {
-                        "type": "boolean"
-                      },
-                      "default": null
-                    },
-                    "errorCode": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "default": null
-                    }
+                    "required": [
+                      "completed"
+                    ],
+                    "default": null
                   },
-                  "required": [
-                    "success",
-                    "responseFrame",
-                    "functionCode",
-                    "registers",
-                    "address",
-                    "value",
-                    "exceptionCode",
-                    "duration",
-                    "error"
-                  ]
-                }
+                  "resultJson": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "default": null
+                  },
+                  "error": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "message": {
+                        "type": "string"
+                      },
+                      "connectionId": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "uuid",
+                        "default": null
+                      },
+                      "operationId": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "uuid",
+                        "default": null
+                      },
+                      "owner": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "default": null
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "message"
+                    ],
+                    "default": null
+                  }
+                },
+                "required": [
+                  "id",
+                  "request",
+                  "state",
+                  "outcome",
+                  "createdUtc",
+                  "updatedUtc"
+                ]
               },
-              "required": [
-                "index",
-                "slaveAddress",
-                "utc",
-                "result"
-              ]
-            }
-          },
-          "successful": {
-            "type": [
-              "string",
-              "integer"
-            ],
-            "pattern": "^-?(?:0|[1-9]\\d*)$"
-          },
-          "failed": {
-            "type": [
-              "string",
-              "integer"
-            ],
-            "pattern": "^-?(?:0|[1-9]\\d*)$"
+              "error": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "connectionId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid",
+                    "default": null
+                  },
+                  "operationId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid",
+                    "default": null
+                  },
+                  "owner": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "default": null
+                  }
+                },
+                "required": [
+                  "code",
+                  "message"
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "operation"
+            ]
           }
-        },
-        "required": [
-          "samples",
-          "successful",
-          "failed"
         ]
       },
       "error": {

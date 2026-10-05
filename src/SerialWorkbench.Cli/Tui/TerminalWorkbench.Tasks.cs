@@ -110,14 +110,9 @@ public sealed partial class TerminalWorkbench
             }
 
             var id = RequiredConnection();
-            var request = OperationJson.Create("xmodem.receive", id, new { });
+            var request = OperationJson.Create("xmodem.receive", id, new XmodemReceiveRequest(Path.GetFullPath(destination)));
             var result = await client.RunOperationAsync<XmodemReceiveResult>(request, lifetime.Token,
                 item => app.Invoke(() => ShowProgress(item))).ConfigureAwait(false);
-            if (result.Result.Success)
-            {
-                await File.WriteAllBytesAsync(destination, result.Data, lifetime.Token).ConfigureAwait(false);
-            }
-
             app.Invoke(() => message.Text = result.Result.Success ? $"已保存 {result.Data.Length} 字节" : result.Result.Error ?? "接收失败");
         }));
         receive.Y = 4;

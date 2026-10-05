@@ -99,14 +99,32 @@ public sealed class HostRuntime : IAsyncDisposable
         await connectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (request.Options.DeviceInstanceId is null)
-            {
-                var ports = await SerialPortCatalog.GetPortsAsync(cancellationToken).ConfigureAwait(false);
-                var port = ports.FirstOrDefault(item => item.PortName.Equals(request.Options.PortName, StringComparison.OrdinalIgnoreCase));
-                request = request with { Options = request.Options with { DeviceInstanceId = port?.DeviceInstanceId } };
-            }
-            await Sessions.EnsureSessionAsync(cancellationToken).ConfigureAwait(false);
-            return await Connections.OpenAsync(request.Options, cancellationToken, request.ReuseExisting).ConfigureAwait(false);
+            return await OpenConnectionCoreAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            connectionGate.Release();
+        }
+    }
+
+    internal async Task<ConnectionSnapshot> OpenConnectionCoreAsync(OpenConnectionRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Options.DeviceInstanceId is null)
+        {
+            var ports = await SerialPortCatalog.GetPortsAsync(cancellationToken).ConfigureAwait(false);
+            var port = ports.FirstOrDefault(item => item.PortName.Equals(request.Options.PortName, StringComparison.OrdinalIgnoreCase));
+            request = request with { Options = request.Options with { DeviceInstanceId = port?.DeviceInstanceId } };
+        }
+        await Sessions.EnsureSessionAsync(cancellationToken).ConfigureAwait(false);
+        return await Connections.OpenAsync(request.Options, cancellationToken, request.ReuseExisting).ConfigureAwait(false);
+    }
+
+    public async Task<StartOperationResult> StartOperationAsync(OperationRequest request, CancellationToken cancellationToken)
+    {
+        await connectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await Operations.StartAsync(request, cancellationToken).ConfigureAwait(false);
         }
         finally
         {

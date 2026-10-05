@@ -78,6 +78,11 @@ public static class AgentDiscovery
 
         var payloadType = ResultType(command);
         var output = EnvelopeSchema(payloadType, command);
+        if (definition.Options.ContainsKey("--background"))
+        {
+            var result = output["properties"]?.AsObject() ?? throw new InvalidDataException("The envelope schema has no properties.");
+            result["result"] = new JsonObject { ["anyOf"] = new JsonArray(result["result"]?.DeepClone(), schemaOptions.GetJsonSchemaAsNode(typeof(StartOperationResult))) };
+        }
         return new JsonObject
         {
             ["schemaVersion"] = 2,
@@ -106,7 +111,7 @@ public static class AgentDiscovery
         var resultSchemas = new JsonArray();
         foreach (var definition in definitions)
         {
-            resultSchemas.Add(EnvelopeSchema(ResultType(definition.Id), definition.Id));
+            resultSchemas.Add(Schema(definition.Id)["output"]?.DeepClone());
         }
 
         await File.WriteAllTextAsync(Path.Combine(path, "cli-result.schema.json"), new JsonObject

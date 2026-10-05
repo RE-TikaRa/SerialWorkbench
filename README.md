@@ -76,6 +76,13 @@ serial-workbench operations start --connection CONNECTION_ID --kind modbus.poll 
 
 `operations start` 返回后台任务标识，`operations result` 查询结果。`--request-id` 保存请求身份，相同身份和参数返回原任务；参数不同时返回 `REQUEST_ID_CONFLICT`。任务和结果保存于 `data/operations.sqlite3`。
 
+发送、Modbus、回环、序列和 XMODEM 命令支持 `--background` 与 `--request-id`。默认等待结果；后台模式返回 `operationId`，可通过任务命令查询或取消。使用 `--port` 与这两个选项时，连接由 Host 打开并保留，任务结束后可使用 `connections close` 关闭。相同端口请求在 Host 重启后也返回保存的结果，不再次打开串口或发送。XMODEM 接收文件由 Host 写入指定路径，后台接收同样保存文件。
+
+```powershell
+serial-workbench --agent send --port COM16 --text "测试" --background --request-id SEND_001
+serial-workbench --agent modbus poll --connection CONNECTION_ID --count 100 --background
+```
+
 连接被占用时返回 `CONNECTION_BUSY`，包含占用任务标识。Host 重启后未完成任务标为 `Interrupted`，执行结果为 `Unknown`，设备操作不自动重放。
 
 实时事件包含流标识和递增游标。监视从当前最新事件开始，通过长轮询接收新增数据；过滤未命中的事件同样推进游标。保留区间被截断时返回缺失序号范围，Host 事件流变化时要求重置游标。

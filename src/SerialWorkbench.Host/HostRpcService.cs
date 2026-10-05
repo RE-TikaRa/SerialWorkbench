@@ -7,7 +7,7 @@ namespace SerialWorkbench.Host;
 public sealed class HostRpcService(HostRuntime runtime) : IHostRpc
 {
     public Task<StartOperationResult> StartOperationAsync(OperationRequest request, CancellationToken cancellationToken) =>
-        runtime.Operations.StartAsync(request, cancellationToken);
+        runtime.StartOperationAsync(request, cancellationToken);
 
     public Task<IReadOnlyList<OperationSnapshot>> ListOperationsAsync(CancellationToken cancellationToken) =>
         runtime.Operations.ListAsync(cancellationToken);

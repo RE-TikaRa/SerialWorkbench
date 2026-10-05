@@ -55,7 +55,7 @@ public sealed class AgentTests
         }
 
         var modbus = AgentDiscovery.Schema("modbus.read");
-        Assert.NotNull(modbus["output"]?["properties"]?["result"]?["properties"]?["responseFrame"]);
+        Assert.NotNull(modbus["output"]?["properties"]?["result"]?["anyOf"]?[0]?["properties"]?["responseFrame"]);
         Assert.Equal(247, modbus["input"]?["properties"]?["--slave"]?["maximum"]?.GetValue<int>());
     }
 }

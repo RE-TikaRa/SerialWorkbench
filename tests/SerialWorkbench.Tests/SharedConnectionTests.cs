@@ -150,4 +150,36 @@ public sealed class SharedConnectionTests
         Assert.Equal(5, Assert.Single(progress.Updates).Progress.Completed);
         await service.CloseConnectionAsync(connection.Id, token);
     }
+
+    [Fact]
+    public async Task PortRequestsReuseTheirIdentityAfterClientsExitAndTheHostRestarts()
+    {
+        var port = Environment.GetEnvironmentVariable("SERIALWORKBENCH_TEST_PORT");
+        Assert.SkipWhen(string.IsNullOrWhiteSpace(port), "Set SERIALWORKBENCH_TEST_PORT to run serial hardware tests.");
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"port-request-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        var token = TestContext.Current.CancellationToken;
+        var request = OperationJson.Create("send", Guid.Empty, new SendRequest(Guid.Empty, "SWB\r\n"u8.ToArray()), "port-send")
+            with
+        { ConnectionOptions = new SerialConnectionOptions(port) };
+        Guid operationId;
+        await using (var runtime = new HostRuntime(paths))
+        {
+            var service = new HostRpcService(runtime);
+            var started = await service.StartOperationAsync(request, token);
+            var operation = Assert.IsType<OperationSnapshot>(started.Operation);
+            operationId = operation.Id;
+            await service.WaitOperationAsync<RpcResult>(operation, token);
+            Assert.Equal(operationId, (await service.StartOperationAsync(request, token)).Operation?.Id);
+            Assert.Equal(5, Assert.Single(runtime.Connections.GetSnapshots()).TransmittedBytes);
+            await service.CloseConnectionAsync(operation.Request.ConnectionId, token);
+        }
+
+        await using var restarted = new HostRuntime(paths);
+        var repeated = await new HostRpcService(restarted).StartOperationAsync(request, token);
+        Assert.Equal(operationId, repeated.Operation?.Id);
+        Assert.Equal(OperationState.Succeeded, repeated.Operation?.State);
+        Assert.Empty(restarted.Connections.GetSnapshots());
+        Assert.Empty(restarted.Journal.ReadAfter(0, 100));
+    }
 }

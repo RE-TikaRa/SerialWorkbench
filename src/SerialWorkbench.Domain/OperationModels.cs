@@ -28,7 +28,10 @@ public sealed record OperationRequest(
     string Command,
     Guid ConnectionId,
     string ParametersJson,
-    string? RequestId = null);
+    string? RequestId = null,
+    SerialConnectionOptions? ConnectionOptions = null);
+
+public sealed record XmodemReceiveRequest(string? DestinationPath = null);
 
 public sealed record OperationProgress(
     long Completed,

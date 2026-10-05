@@ -5,6 +5,18 @@ namespace SerialWorkbench.Tests;
 public sealed class CliCommandTests
 {
     [Fact]
+    public void DeviceCommandsExposeBackgroundExecutionAndPersistentRequests()
+    {
+        var catalog = new CommandCatalog();
+        var parsed = catalog.Root.Parse(["send", "--port", "COM16", "--text", "测试", "--background", "--request-id", "send-001"]);
+        Assert.Empty(parsed.Errors);
+        var definition = catalog.Commands.Single(static item => item.Id == "send");
+        var arguments = definition.Bind(parsed);
+        Assert.True(arguments.Has("--background"));
+        Assert.Equal("send-001", arguments.Get("--request-id"));
+    }
+
+    [Fact]
     public void TypedOptionsPreserveBooleanFlagsAndQuotedText()
     {
         var catalog = new CommandCatalog();

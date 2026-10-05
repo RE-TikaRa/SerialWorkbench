@@ -130,6 +130,116 @@
                       "null"
                     ],
                     "default": null
+                  },
+                  "connectionOptions": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "portName": {
+                        "type": "string"
+                      },
+                      "baudRate": {
+                        "type": [
+                          "string",
+                          "integer"
+                        ],
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "default": 115200
+                      },
+                      "dataBits": {
+                        "type": [
+                          "string",
+                          "integer"
+                        ],
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "default": 8
+                      },
+                      "parity": {
+                        "enum": [
+                          "None",
+                          "Odd",
+                          "Even",
+                          "Mark",
+                          "Space"
+                        ],
+                        "default": "None"
+                      },
+                      "stopBits": {
+                        "enum": [
+                          "One",
+                          "OnePointFive",
+                          "Two"
+                        ],
+                        "default": "One"
+                      },
+                      "handshake": {
+                        "enum": [
+                          "None",
+                          "XOnXOff",
+                          "RequestToSend",
+                          "RequestToSendXOnXOff"
+                        ],
+                        "default": "None"
+                      },
+                      "dtrEnable": {
+                        "type": "boolean",
+                        "default": false
+                      },
+                      "rtsEnable": {
+                        "type": "boolean",
+                        "default": false
+                      },
+                      "encodingName": {
+                        "type": "string",
+                        "default": "utf-8"
+                      },
+                      "role": {
+                        "enum": [
+                          "Dut",
+                          "Debug",
+                          "Controller",
+                          "Loopback"
+                        ],
+                        "default": "Dut"
+                      },
+                      "deviceInstanceId": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "default": null
+                      },
+                      "rs485Mode": {
+                        "type": "boolean",
+                        "default": false
+                      },
+                      "rtsBeforeSendMilliseconds": {
+                        "type": [
+                          "string",
+                          "integer"
+                        ],
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "default": 0
+                      },
+                      "rtsAfterSendMilliseconds": {
+                        "type": [
+                          "string",
+                          "integer"
+                        ],
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "default": 0
+                      },
+                      "autoReconnect": {
+                        "type": "boolean",
+                        "default": true
+                      }
+                    },
+                    "required": [
+                      "portName"
+                    ],
+                    "default": null
                   }
                 },
                 "required": [

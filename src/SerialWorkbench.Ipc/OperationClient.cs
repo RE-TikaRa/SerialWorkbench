@@ -13,6 +13,13 @@ public static class OperationClient
             throw new HostOperationException(started.Error ?? new WorkbenchError("OPERATION_FAILED", "The Host did not accept the operation."));
         }
 
+        return await client.WaitOperationAsync<T>(operation, cancellationToken, progress, updates).ConfigureAwait(false);
+    }
+
+    public static async Task<T> WaitOperationAsync<T>(this IHostRpc client, OperationSnapshot operation, CancellationToken cancellationToken,
+        Action<OperationSnapshot>? progress = null, IProgress<OperationProgress>? updates = null)
+    {
+
         using var tracking = (client as HostRpcClient)?.TrackForegroundOperation(operation.Id);
         try
         {

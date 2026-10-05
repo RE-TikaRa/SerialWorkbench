@@ -133,6 +133,13 @@ public sealed class CommandCatalog
         var inspect = Add("protocol.inspect", "离线检查协议帧");
         Text(inspect, "--hex", "帧 HEX", required: true);
         Text(inspect, "--template", "通用协议模板路径");
+
+        foreach (var definition in commands.Where(static item => item.Id is "send" or "loopback.run" or "sequence.run"
+            or "modbus.read" or "modbus.write" or "modbus.scan" or "modbus.poll" or "xmodem.send" or "xmodem.receive"))
+        {
+            definition.Add(new Option<bool>("--background") { Description = "返回任务标识，在 Host 后台执行" }, false);
+            Text(definition, "--request-id", "持久请求标识");
+        }
     }
 
     public RootCommand Root { get; } = new("SerialWorkbench 串口工作台");

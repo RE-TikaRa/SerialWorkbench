@@ -55,10 +55,17 @@ public sealed class OperationManager(HostRuntime runtime) : IAsyncDisposable
 
                 if (existing is not null)
                 {
-                    return existing.Request == request
+                    var original = request.ConnectionOptions is null ? existing.Request : Normalize(existing.Request with { ConnectionId = request.ConnectionId });
+                    return original == request
                         ? new StartOperationResult(existing)
                         : new StartOperationResult(null, new WorkbenchError("REQUEST_ID_CONFLICT", "The requestId was already used with different arguments.", request.ConnectionId, existing.Id));
                 }
+            }
+
+            if (request.ConnectionOptions is { } options)
+            {
+                var connection = await runtime.OpenConnectionCoreAsync(new OpenConnectionRequest(options), cancellationToken).ConfigureAwait(false);
+                request = Normalize(request with { ConnectionId = connection.Id });
             }
 
             if (!runtime.Connections.GetSnapshots().Any(item => item.Id == request.ConnectionId && item.State == ConnectionState.Open))
@@ -265,6 +272,11 @@ public sealed class OperationManager(HostRuntime runtime) : IAsyncDisposable
                     break;
                 case "xmodem.receive":
                     var received = await runtime.Connections.ReceiveXmodemAsync(request.ConnectionId, token, lease, Report).ConfigureAwait(false);
+                    var receiving = OperationJson.Read<XmodemReceiveRequest>(request.ParametersJson);
+                    if (received.Result.Success && receiving.DestinationPath is { } destination)
+                    {
+                        await File.WriteAllBytesAsync(destination, received.Data, token).ConfigureAwait(false);
+                    }
                     result = received;
                     error = received.Result.Success ? null : Failure(received.Result.ErrorCode, received.Result.Error, snapshot);
                     break;
@@ -484,7 +496,7 @@ public sealed class OperationManager(HostRuntime runtime) : IAsyncDisposable
             "loopback.run" => OperationJson.Read<LoopbackRequest>(request.ParametersJson) with { ConnectionId = request.ConnectionId },
             "sequence.run" => OperationJson.Read<SerialSequenceDefinition>(request.ParametersJson),
             "xmodem.send" => OperationJson.Read<byte[]>(request.ParametersJson),
-            "xmodem.receive" => new { },
+            "xmodem.receive" => OperationJson.Read<XmodemReceiveRequest>(request.ParametersJson),
             "modbus.read" or "modbus.write" => OperationJson.Read<ModbusTransactionRequest>(request.ParametersJson) with { ConnectionId = request.ConnectionId },
             "modbus.scan" => OperationJson.Read<ModbusScanRequest>(request.ParametersJson) with { ConnectionId = request.ConnectionId },
             "modbus.poll" => OperationJson.Read<ModbusPollRequest>(request.ParametersJson) with { ConnectionId = request.ConnectionId },
