@@ -45,8 +45,8 @@ public sealed partial class TerminalWorkbench : IDisposable
         Source = new ListWrapper<string>(new ObservableCollection<string>(["当前显示", "文本", "HEX", "连续 HEX", "日志"]))
     };
     private readonly DropDownList port = new() { X = 16, Y = 0, Width = Dim.Fill(1), ReadOnly = true };
-    private readonly NumericUpDown<int> baud = new() { X = 16, Y = 2, Value = 115200, Width = 20 };
-    private readonly NumericUpDown<int> dataBits = new() { X = 16, Y = 4, Value = 8, Width = 20 };
+    private readonly NumericUpDown<int> baud = new() { CanEdit = true, X = 16, Y = 2, Value = 115200, Width = 20 };
+    private readonly NumericUpDown<int> dataBits = new() { CanEdit = true, X = 16, Y = 4, Value = 8, Width = 20 };
     private readonly OptionSelector<SerialParity> parity = new() { X = 16, Y = 6, Orientation = Orientation.Horizontal };
     private readonly OptionSelector<SerialStopBits> stopBits = new() { X = 16, Y = 9, Orientation = Orientation.Horizontal };
     private readonly OptionSelector<SerialHandshake> handshake = new() { X = 16, Y = 20, Orientation = Orientation.Horizontal };
@@ -55,13 +55,13 @@ public sealed partial class TerminalWorkbench : IDisposable
     private readonly CheckBox rts = new() { X = 32, Y = 26, Text = "RTS" };
     private readonly CheckBox rs485 = new() { X = 16, Y = 28, Text = "RS-485 RTS 方向控制" };
     private readonly CheckBox autoReconnect = new() { X = 16, Y = 30, Text = "自动重连", Value = CheckState.Checked };
-    private readonly NumericUpDown<int> rtsBefore = new() { X = 16, Y = 32, Value = 0, Width = 20 };
-    private readonly NumericUpDown<int> rtsAfter = new() { X = 16, Y = 34, Value = 0, Width = 20 };
+    private readonly NumericUpDown<int> rtsBefore = new() { CanEdit = true, X = 16, Y = 32, Value = 0, Width = 20 };
+    private readonly NumericUpDown<int> rtsAfter = new() { CanEdit = true, X = 16, Y = 34, Value = 0, Width = 20 };
     private readonly DropDownList profileSelector = new() { X = 16, Y = 38, Width = 30, ReadOnly = true };
     private readonly TextField profileName = new() { X = 16, Y = 40, Width = 30 };
     private SerialProfile[] profiles = [];
     private long configurationRevision;
-    private readonly NumericUpDown<int> hexGap = new() { X = 16, Y = 13, Value = 10, Width = 20 };
+    private readonly NumericUpDown<int> hexGap = new() { CanEdit = true, X = 16, Y = 13, Value = 10, Width = 20 };
     private readonly TextField encoding = new() { X = 16, Y = 15, Width = 20, Text = "utf-8" };
     private readonly DropDownList lineEnding = new() { X = 16, Y = 17, Width = 20, Text = "无", ReadOnly = true, Source = new ListWrapper<string>(new ObservableCollection<string>(["无", "CR", "LF", "CRLF"])) };
     private readonly ListView history = new() { Width = Dim.Fill(), Height = Dim.Fill() };
@@ -177,6 +177,19 @@ public sealed partial class TerminalWorkbench : IDisposable
         };
         traffic.Accepting += (_, args) => { args.Handled = true; ShowTrafficDetails(); };
         port.ValueChanged += (_, _) => configuredDeviceId = null;
+        LimitNumber(hexGap, 0, 60_000);
+        LimitNumber(baud, 1, int.MaxValue);
+        LimitNumber(dataBits, 5, 8);
+        LimitNumber(rtsBefore, 0, 60_000);
+        LimitNumber(rtsAfter, 0, 60_000);
+        LimitNumber(sendInterval, 1, 600_000);
+        LimitNumber(sendCount, 0, 100_000);
+        LimitNumber(stepDelay, 0, 600_000);
+        LimitNumber(stepRepeat, 1, 10_000);
+        LimitNumber(stepWait, 0, 600_000);
+        LimitNumber(stepTimeout, 0, 600_000);
+        LimitNumber(stepRetries, 0, 100);
+        LimitNumber(waveformLength, 2, 64 * 1024);
         traffic.ValueChanged += (_, _) =>
         {
             if (!updatingTraffic && traffic.HasFocus)
@@ -212,6 +225,7 @@ public sealed partial class TerminalWorkbench : IDisposable
             return !workbench.lifetime.IsCancellationRequested;
         });
         _ = workbench.RunUiAsync(workbench.RefreshPortsAsync);
+        _ = workbench.RunUiAsync(workbench.RefreshSessionsAsync);
         app.Run(workbench.window);
         workbench.lifetime.Cancel();
         workbench.replay?.Cancel();
@@ -682,6 +696,9 @@ public sealed partial class TerminalWorkbench : IDisposable
         });
         return completion.Task.WaitAsync(lifetime.Token);
     }
+
+    private static void LimitNumber(NumericUpDown<int> input, int minimum, int maximum) =>
+        input.ValueChanging += (_, args) => args.Handled = args.NewValue < minimum || args.NewValue > maximum;
 
     private Button Button(string text, Func<Task> action)
     {

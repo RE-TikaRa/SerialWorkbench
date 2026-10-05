@@ -39,7 +39,7 @@ public sealed partial class TerminalWorkbench
         Text = "csv",
         Source = new ListWrapper<string>(new ObservableCollection<string>(["csv", "jsonl", "text", "hex", "binary"]))
     };
-    private readonly NumericUpDown<double> replayRate = new() { X = 46, Y = 4, Width = 10, Value = 1 };
+    private readonly NumericUpDown<double> replayRate = new() { CanEdit = true, X = 46, Y = 4, Width = 10, Value = 1 };
     private readonly Label sessionCount = new() { Y = Pos.AnchorEnd(), Width = Dim.Fill() };
     private bool updatingSessions;
     private bool replayPaused;
@@ -71,7 +71,7 @@ public sealed partial class TerminalWorkbench
         Text = "Int16LittleEndian",
         Source = new ListWrapper<string>(new ObservableCollection<string>(Enum.GetNames<WaveformSampleType>()))
     };
-    private readonly NumericUpDown<int> waveformLength = new() { X = 60, Y = 0, Value = 8, Width = 12 };
+    private readonly NumericUpDown<int> waveformLength = new() { CanEdit = true, X = 60, Y = 0, Value = 8, Width = 12 };
     private int sampleIndex;
     private readonly CheckBox waveformPaused = new() { X = 0, Y = 2, Text = "暂停波形" };
     private readonly CheckBox waveformFollow = new() { X = 16, Y = 2, Text = "自动缩放", Value = CheckState.Checked };
@@ -406,6 +406,7 @@ public sealed partial class TerminalWorkbench
         var template = Field(view, "模板路径", 2, "");
         var fields = new TableView { Y = 6, Width = Dim.Fill(), Height = Dim.Fill() };
         var detail = new Label { Y = 5, Width = Dim.Fill() };
+        string resultText = "";
         var browse = Button("选择模板", () =>
         {
             template.Text = ChooseFile(false) ?? template.Text;
@@ -419,6 +420,7 @@ public sealed partial class TerminalWorkbench
             {
                 var definition = ProtocolTemplateCodec.Deserialize(await File.ReadAllTextAsync(template.Text, lifetime.Token).ConfigureAwait(false));
                 var result = ProtocolTemplateParser.Inspect(definition, bytes);
+                resultText = JsonSerializer.Serialize(result, MachineOutput.DocumentOptions);
                 app.Invoke(() =>
                 {
                     detail.Text = result.IsValid ? $"{result.Template} · 校验通过" : result.Error ?? "解析失败";
@@ -434,6 +436,7 @@ public sealed partial class TerminalWorkbench
             else
             {
                 var result = ModbusRtuCodec.Inspect(bytes);
+                resultText = JsonSerializer.Serialize(result, MachineOutput.DocumentOptions);
                 app.Invoke(() =>
                 {
                     detail.Text = result.IsValid ? $"{result.Kind} · CRC 通过" : result.Error ?? "解析失败";
@@ -448,7 +451,21 @@ public sealed partial class TerminalWorkbench
         }));
         inspect.X = Pos.Right(browse) + 1;
         inspect.Y = 4;
-        view.Add(browse, inspect, detail, fields);
+        var selected = Button("载入所选报文", () =>
+        {
+            frame.Text = string.Concat(traffic.GetAllSelectedCells().Select(static cell => cell.Y).Distinct().Order()
+                .Where(index => index >= 0 && index < visibleRows.Length).Select(index => visibleRows[index].Hex));
+            return Task.CompletedTask;
+        });
+        selected.X = Pos.Right(inspect) + 1;
+        selected.Y = 4;
+        var clearTemplate = Button("Modbus", () => { template.Text = ""; return Task.CompletedTask; });
+        clearTemplate.X = Pos.Right(selected) + 1;
+        clearTemplate.Y = 4;
+        var copy = Button("复制结果", () => { app.Clipboard?.TrySetClipboardData(resultText); return Task.CompletedTask; });
+        copy.X = Pos.AnchorEnd();
+        copy.Y = 3;
+        view.Add(browse, inspect, selected, clearTemplate, copy, detail, fields);
         return view;
     }
 
@@ -460,6 +477,7 @@ public sealed partial class TerminalWorkbench
         waveformMode.ValueChanged += (_, _) => ResetWaveform();
         waveformType.ValueChanged += (_, _) => ResetWaveform();
         waveformLength.ValueChanged += (_, _) => ResetWaveform();
+        waveformPaused.ValueChanged += (_, _) => waveformParser.Reset();
         var clear = Button("清空", () => { ResetWaveform(); return Task.CompletedTask; });
         clear.X = 34;
         clear.Y = 2;

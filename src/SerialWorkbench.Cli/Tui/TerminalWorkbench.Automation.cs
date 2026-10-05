@@ -24,12 +24,12 @@ public sealed partial class TerminalWorkbench
         Text = "HEX",
         Source = new ListWrapper<string>(new ObservableCollection<string>(["HEX", "文本"]))
     };
-    private readonly NumericUpDown<int> stepDelay = new() { X = 20, Y = 4, Value = 0, Width = 16 };
-    private readonly NumericUpDown<int> stepRepeat = new() { X = 20, Y = 6, Value = 1, Width = 16 };
-    private readonly NumericUpDown<int> stepWait = new() { X = 20, Y = 8, Value = 0, Width = 16 };
+    private readonly NumericUpDown<int> stepDelay = new() { CanEdit = true, X = 20, Y = 4, Value = 0, Width = 16 };
+    private readonly NumericUpDown<int> stepRepeat = new() { CanEdit = true, X = 20, Y = 6, Value = 1, Width = 16 };
+    private readonly NumericUpDown<int> stepWait = new() { CanEdit = true, X = 20, Y = 8, Value = 0, Width = 16 };
     private readonly TextField stepResponse = new() { Id = "sequence-response", X = 20, Y = 10, Width = Dim.Fill(1) };
-    private readonly NumericUpDown<int> stepTimeout = new() { X = 20, Y = 12, Value = 2000, Width = 16 };
-    private readonly NumericUpDown<int> stepRetries = new() { X = 20, Y = 14, Value = 0, Width = 16 };
+    private readonly NumericUpDown<int> stepTimeout = new() { CanEdit = true, X = 20, Y = 12, Value = 2000, Width = 16 };
+    private readonly NumericUpDown<int> stepRetries = new() { CanEdit = true, X = 20, Y = 14, Value = 0, Width = 16 };
     private bool updatingSequence;
 
     private View BuildAutomation()
@@ -67,8 +67,8 @@ public sealed partial class TerminalWorkbench
             RefreshSequence(sequenceSteps.Count - 1);
             return Task.CompletedTask;
         }));
-        add.X = Pos.Right(run) + 1;
-        add.Y = 2;
+        add.X = 0;
+        add.Y = 3;
         var update = Button("更新步骤", () => RunUiAsync(() =>
         {
             if (SequenceIndex() is { } index)
@@ -79,7 +79,7 @@ public sealed partial class TerminalWorkbench
             return Task.CompletedTask;
         }));
         update.X = Pos.Right(add) + 1;
-        update.Y = 2;
+        update.Y = 3;
         var delete = Button("删除步骤", () =>
         {
             if (SequenceIndex() is { } index)
@@ -90,13 +90,13 @@ public sealed partial class TerminalWorkbench
             return Task.CompletedTask;
         });
         delete.X = Pos.Right(update) + 1;
-        delete.Y = 2;
+        delete.Y = 3;
         var up = Button("上移", () => { MoveSequenceStep(-1); return Task.CompletedTask; });
-        up.X = 0;
-        up.Y = 3;
+        up.X = Pos.Right(run) + 1;
+        up.Y = 2;
         var down = Button("下移", () => { MoveSequenceStep(1); return Task.CompletedTask; });
         down.X = Pos.Right(up) + 1;
-        down.Y = 3;
+        down.Y = 2;
         var edit = new FrameView { Title = "步骤参数 · 修改后更新步骤", Y = Pos.Bottom(sequenceTable), Width = Dim.Fill(), Height = Dim.Fill(), ViewportSettings = ViewportSettingsFlags.HasScrollBars };
         edit.Add(new Label { Text = "发送数据" }, stepData, new Label { Text = "格式", Y = 2 }, stepFormat,
             new Label { Text = "发送间隔 ms", Y = 4 }, stepDelay, new Label { Text = "重复次数", Y = 6 }, stepRepeat,

@@ -170,19 +170,30 @@ public sealed partial class TerminalWorkbench
             throw new HostOperationException(started.Error ?? new WorkbenchError("OPERATION_FAILED", "任务未接受。"));
         }
 
-        app.Invoke(() =>
+        try
         {
-            message.Text = $"任务已启动：{operation.Id}";
-            accepted?.Invoke(operation);
-            if (operation.Request.Command.StartsWith("modbus.", StringComparison.Ordinal))
+            await InvokeUiAsync(() =>
             {
-                modbusOperationId = operation.Id;
-                modbusRevision = 0;
-                modbusSamples.Clear();
-                RefreshModbusResults();
+                message.Text = $"任务已启动：{operation.Id}";
+                accepted?.Invoke(operation);
+                if (operation.Request.Command.StartsWith("modbus.", StringComparison.Ordinal))
+                {
+                    modbusOperationId = operation.Id;
+                    modbusRevision = 0;
+                    modbusSamples.Clear();
+                    RefreshModbusResults();
+                }
+                ShowProgress(operation);
+            }).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+        {
+            if (!background)
+            {
+                await client.CancelOperationAsync(operation.Id, CancellationToken.None).ConfigureAwait(false);
             }
-            ShowProgress(operation);
-        });
+            throw;
+        }
         if (!background)
         {
             await client.WaitOperationAsync<JsonElement>(operation, lifetime.Token, item =>
@@ -256,7 +267,7 @@ public sealed partial class TerminalWorkbench
                 taskTable.Value = new TableSelection(new System.Drawing.Point(0, index));
                 taskTable.Viewport = viewport;
             }
-            if (displayedTasks.FirstOrDefault(static item => item.State == OperationState.Running) is { } current)
+            if ((displayedTasks.FirstOrDefault(item => item.Id == selected) ?? displayedTasks.FirstOrDefault()) is { } current)
             {
                 ShowProgress(current);
             }
@@ -335,7 +346,7 @@ public sealed partial class TerminalWorkbench
 
     private static NumericUpDown<int> Number(View view, string label, int row, int value)
     {
-        var input = new NumericUpDown<int> { X = 20, Y = row, Value = value, Width = 20 };
+        var input = new NumericUpDown<int> { CanEdit = true, X = 20, Y = row, Value = value, Width = 20 };
         view.Add(new Label { Text = label, Y = row }, input);
         return input;
     }

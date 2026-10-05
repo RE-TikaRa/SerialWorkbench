@@ -29,6 +29,11 @@ public sealed class TuiTests
             tabs.Value = page;
             workbench.Window.Layout(new System.Drawing.Size(width, height));
             Assert.True(page.Frame.Width > 0 && page.Frame.Height > 0, page.Title);
+            Assert.All(page.SubViews.OfType<Button>(), button =>
+            {
+                Assert.True(button.Frame.Right <= page.Viewport.Width, $"{page.Title}: {button.Text}");
+                Assert.True(button.Frame.Bottom <= page.Viewport.Height || page.ViewportSettings.HasFlag(ViewportSettingsFlags.HasScrollBars), button.Text);
+            });
         }
         var sending = workbench.Window.SubViews.OfType<FrameView>().Single();
         Assert.True(sending.Frame.Bottom <= workbench.Window.Viewport.Height);

@@ -27,8 +27,8 @@ public sealed partial class TerminalWorkbench
         Text = "无校验",
         Source = new ListWrapper<string>(new ObservableCollection<string>(["无校验", "XOR", "SUM8", "CRC16 Modbus", "CRC16 XMODEM", "CRC32"]))
     };
-    private readonly NumericUpDown<int> sendInterval = new() { X = 9, Y = 3, Value = 1000, Width = 10 };
-    private readonly NumericUpDown<int> sendCount = new() { X = 32, Y = 3, Value = 0, Width = 10 };
+    private readonly NumericUpDown<int> sendInterval = new() { CanEdit = true, X = 9, Y = 3, Value = 1000, Width = 10 };
+    private readonly NumericUpDown<int> sendCount = new() { CanEdit = true, X = 32, Y = 3, Value = 0, Width = 10 };
     private Guid? repeatOperationId;
 
     private FrameView BuildSending()
