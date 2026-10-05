@@ -346,6 +346,7 @@ public sealed partial class TerminalWorkbench
         replay?.Cancel();
         replayBuffer = null;
         paused = false;
+        follow.Value = CheckState.Checked;
         ResetWaveform();
         RefreshTraffic();
         message.Text = "实时报文";

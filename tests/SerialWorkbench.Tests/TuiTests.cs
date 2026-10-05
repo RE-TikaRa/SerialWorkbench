@@ -25,15 +25,14 @@ public sealed class TuiTests
         var first = new ConnectionSnapshot(Guid.NewGuid(), new SerialConnectionOptions("COM16", 9600, EncodingName: "gb18030"),
             ConnectionState.Open, 0, 0, 0, 0, 0, null, null);
         var second = first with { Id = Guid.NewGuid(), Options = new SerialConnectionOptions("COM20", 115200) };
-        var sending = Assert.Single(workbench.Window.SubViews.OfType<FrameView>());
+        var sending = SendingPanel(workbench);
         var input = sending.SubViews.OfType<TextField>().Single(static input => input.Id == "send-input");
         sending.SubViews.OfType<DropDownList>().Single(static input => input.Id == "send-format").Text = "文本";
         input.Text = "测试";
         workbench.SetConnections([first, second]);
         Assert.Equal(first.Id, workbench.CreateSendRequest().ConnectionId);
         Assert.Equal("B2E2CAD4", Convert.ToHexString(workbench.CreateSendRequest().Data));
-        var bar = Assert.Single(workbench.Window.SubViews, static view => view.Id == "connection-bar");
-        var baud = Assert.Single(bar.SubViews.OfType<NumericUpDown<int>>());
+        var baud = Assert.Single(workbench.ConnectionSettings.SubViews.OfType<NumericUpDown<int>>());
         Assert.Equal(9600, baud.Value);
         baud.Value = 19200;
         workbench.SetConnections([first, second]);
@@ -67,7 +66,14 @@ public sealed class TuiTests
             tabs.Value = page;
             app.LayoutAndDraw(true);
             var screen = driver.ToString();
-            Assert.Contains("[ 发送 ]", screen, StringComparison.Ordinal);
+            if (page.Title == "1 工作台")
+            {
+                Assert.Contains("[ 发送 ]", screen, StringComparison.Ordinal);
+            }
+            else
+            {
+                Assert.DoesNotContain("[ 发送 ]", screen, StringComparison.Ordinal);
+            }
             Assert.All(screen.EnumerateRunes(), rune => Assert.True(
                 System.Text.Rune.GetUnicodeCategory(rune) != System.Globalization.UnicodeCategory.OtherSymbol
                 || rune.Value is >= 0x2500 and <= 0x257F, $"{page.Title}: U+{rune.Value:X}"));
@@ -277,21 +283,26 @@ public sealed class TuiTests
         var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-filter-{Guid.NewGuid():N}"));
         paths.EnsureWritable();
         await using var runtime = new HostRuntime(paths);
-        using var app = Terminal.Gui.App.Application.Create();
+        using var app = Terminal.Gui.App.Application.Create().Init();
         using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
-        var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
-        workbench.Window.Layout(new System.Drawing.Size(80, 24));
+        var driver = Assert.IsAssignableFrom<Terminal.Gui.Drivers.IDriver>(app.Driver);
+        driver.SetScreenSize(80, 24);
         var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
-        var frame = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<FrameView>().Single(static frame => frame.Title == "报文");
-        var filters = Assert.Single(frame.SubViews, static view => view is not TableView && view.SubViews.OfType<TextField>().Any());
-        foreach (var field in filters.SubViews.OfType<TextField>().Where(static field => !field.ReadOnly))
+        RunDialog(app, workbench, () =>
         {
-            field.SetFocus();
-            Assert.Same(field, workbench.Window.MostFocused);
-            workbench.Window.NewKeyDownEvent(Key.A);
-            Assert.Equal("a", field.Text);
-        }
-        app.End(token);
+            workbench.Window.NewKeyDownEvent(Key.F8);
+            Assert.IsAssignableFrom<View>(tabs.Value).SubViews.OfType<Button>().Single(static button => button.Text == "报文显示").InvokeCommand(Command.Accept);
+        }, dialog =>
+        {
+            Assert.Equal("报文显示与筛选", dialog.Title);
+            foreach (var field in workbench.TrafficSettings.SubViews.OfType<TextField>().Where(static field => !field.ReadOnly))
+            {
+                field.SetFocus();
+                Assert.Same(field, dialog.MostFocused);
+                dialog.NewKeyDownEvent(Key.A);
+                Assert.Equal("a", field.Text);
+            }
+        });
     }
 
     [Theory]
@@ -337,7 +348,8 @@ public sealed class TuiTests
         Assert.Equal("5 设置", tabs.Value?.Title);
         var settings = Assert.IsAssignableFrom<View>(tabs.Value);
         Assert.All(settings.SubViews.Where(static view => view.CanFocus), view => Assert.True(view.Frame.Bottom <= settings.Viewport.Height, view.ToString()));
-        var sending = workbench.Window.SubViews.OfType<FrameView>().Single();
+        var sending = SendingPanel(workbench);
+        workbench.Window.NewKeyDownEvent(Key.D1.WithAlt);
         var format = sending.SubViews.OfType<DropDownList>().Single(static field => field.Id == "send-format");
         format.SetFocus();
         format.NewKeyDownEvent(Key.CursorDown);
@@ -347,49 +359,44 @@ public sealed class TuiTests
         app.End(token);
     }
 
-    [Fact]
-    public async Task ConnectionActionsHaveSeparateVisibleHitAreas()
-    {
-        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-controls-{Guid.NewGuid():N}"));
-        paths.EnsureWritable();
-        await using var runtime = new HostRuntime(paths);
-        using var app = Terminal.Gui.App.Application.Create();
-        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
-        workbench.Window.BeginInit();
-        workbench.Window.EndInit();
-        workbench.Window.Layout(new System.Drawing.Size(80, 24));
-        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
-        var frame = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<FrameView>().Single(static frame => frame.Title == "连接");
-        var close = frame.SubViews.OfType<Button>().Single(static button => button.Text == "关闭");
-        var reconnect = frame.SubViews.OfType<Button>().Single(static button => button.Text == "重连");
-        Assert.True(close.Frame.Bottom <= reconnect.Frame.Top, $"Close {close.Frame}, reconnect {reconnect.Frame}");
-        Assert.True(reconnect.Frame.Bottom <= frame.Viewport.Height);
-    }
-
     [Theory]
     [InlineData(80, 24)]
     [InlineData(120, 40)]
-    public async Task ConnectionToolbarRemainsAccessibleAcrossPages(int width, int height)
+    public async Task ConnectionManagementIsAccessibleAcrossWorkspaces(int width, int height)
     {
         var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-connect-{Guid.NewGuid():N}"));
         paths.EnsureWritable();
         await using var runtime = new HostRuntime(paths);
-        using var app = Terminal.Gui.App.Application.Create();
+        using var app = Terminal.Gui.App.Application.Create().Init();
         using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
-        var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
-        var bar = Assert.Single(workbench.Window.SubViews, static view => view.Id == "connection-bar");
+        var driver = Assert.IsAssignableFrom<Terminal.Gui.Drivers.IDriver>(app.Driver);
+        driver.SetScreenSize(width, height);
         var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
         foreach (var page in tabs.TabCollection)
         {
-            tabs.Value = page;
-            workbench.Window.Layout(new System.Drawing.Size(width, height));
-            Assert.Equal(0, bar.Frame.Y);
-            Assert.All(bar.SubViews, view => Assert.True(bar.Viewport.Contains(view.Frame), $"{page.Title}: {view}"));
-            var port = Assert.Single(bar.SubViews.OfType<DropDownList>());
-            port.SetFocus();
-            Assert.Same(port, workbench.Window.MostFocused);
+            RunDialog(app, workbench, () =>
+            {
+                tabs.Value = page;
+                if (page.Title == "1 工作台")
+                {
+                    SendingPanel(workbench).SubViews.OfType<DropDownList>().Single().SetFocus();
+                }
+                workbench.Window.NewKeyDownEvent(Key.F4);
+            }, dialog =>
+            {
+                Assert.Equal("连接管理", dialog.Title);
+                var content = workbench.ConnectionSettings;
+                Assert.All(content.SubViews, view => Assert.True(content.Viewport.Contains(view.Frame), $"{page.Title}: {view}, {view.Frame}, {content.Viewport}"));
+                var buttons = content.SubViews.OfType<Button>().ToArray();
+                foreach (var button in buttons)
+                {
+                    Assert.DoesNotContain(buttons.Where(other => other != button), other => button.Frame.IntersectsWith(other.Frame));
+                }
+                var port = Assert.Single(content.SubViews.OfType<DropDownList>());
+                port.SetFocus();
+                Assert.Same(port, dialog.MostFocused);
+            });
         }
-        app.End(token);
     }
 
     [Theory]
@@ -415,13 +422,15 @@ public sealed class TuiTests
                 Assert.True(button.Frame.Bottom <= page.Viewport.Height || page.ViewportSettings.HasFlag(ViewportSettingsFlags.HasScrollBars), button.Text);
             });
         }
-        var sending = workbench.Window.SubViews.OfType<FrameView>().Single();
-        Assert.True(sending.Frame.Bottom <= workbench.Window.Viewport.Height);
+        var sending = SendingPanel(workbench);
+        Assert.Equal(3, sending.Frame.Height);
+        Assert.True(sending.Frame.Bottom <= Assert.IsAssignableFrom<View>(sending.SuperView).Viewport.Height);
         var input = sending.SubViews.OfType<TextField>().Single(static field => field.Id == "send-input");
         Assert.True(input.Frame.Width > 0);
         Assert.True(input.Frame.Right <= sending.Viewport.Width);
         var frame = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<FrameView>().Single(static frame => frame.Title == "报文");
-        Assert.True(Assert.Single(frame.SubViews.OfType<TableView>()).Frame.Height >= 3);
+        Assert.True(Assert.Single(frame.SubViews.OfType<TableView>()).Frame.Height >= 8);
+        Assert.True(frame.Frame.Bottom <= sending.Frame.Top - 1);
         var sessionPage = tabs.TabCollection.Single(static page => page.Title == "4 会话");
         Assert.All(sessionPage.SubViews.OfType<TableView>(), table => Assert.True(table.Frame.Height >= 3));
     }
@@ -514,10 +523,10 @@ public sealed class TuiTests
         await using var runtime = new HostRuntime(paths);
         using var app = Terminal.Gui.App.Application.Create();
         using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
-        var sending = workbench.Window.SubViews.OfType<FrameView>().Single();
+        var sending = SendingPanel(workbench);
         var input = sending.SubViews.OfType<TextField>().Single(static field => field.Id == "send-input");
         var format = sending.SubViews.OfType<DropDownList>().Single(static field => field.Id == "send-format");
-        var checksum = sending.SubViews.OfType<DropDownList>().Single(static field => field.Id == "send-checksum");
+        var checksum = workbench.SendSettings.SubViews.OfType<DropDownList>().Single(static field => field.Id == "send-checksum");
         input.Text = "01 03 00 00 00 01";
         checksum.Text = "CRC16 Modbus";
         Assert.Equal("010300000001840A", Convert.ToHexString(workbench.CreateSendRequest(Guid.NewGuid()).Data));
@@ -538,7 +547,7 @@ public sealed class TuiTests
         var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
         var frame = tabs.SubViews.SelectMany(static view => view.SubViews).OfType<FrameView>().Single(static frame => frame.Title == "报文");
         var table = Assert.Single(frame.SubViews.OfType<TableView>());
-        frame.SubViews.OfType<CheckBox>().Single(static checkbox => checkbox.Text == "跟随").Value = CheckState.UnChecked;
+        workbench.TrafficSettings.SubViews.OfType<CheckBox>().Single(static checkbox => checkbox.Text == "跟随").Value = CheckState.UnChecked;
         var buffer = new TrafficBuffer(System.Text.Encoding.UTF8);
         var connectionId = Guid.NewGuid();
         buffer.SetPresentation(System.Text.Encoding.UTF8, false, true, 0);
@@ -573,5 +582,69 @@ public sealed class TuiTests
         Assert.Single(traffic);
         Assert.Single(workbench.Window.SubViews.OfType<StatusBar>());
         Assert.False(app.Initialized);
+    }
+
+    private static FrameView SendingPanel(TerminalWorkbench workbench) => Assert.Single(
+        Assert.Single(workbench.Window.SubViews.OfType<Tabs>()).TabCollection.SelectMany(static page => page.SubViews).OfType<FrameView>(),
+        static frame => frame.Id == "send-panel");
+
+    private static void RunDialog(IApplication app, TerminalWorkbench workbench, Action open, Action<Dialog> inspect)
+    {
+        var stage = 0;
+        var timedOut = false;
+        Exception? failure = null;
+        var timeout = app.AddTimeout(TimeSpan.FromSeconds(5), () =>
+        {
+            timedOut = true;
+            app.RequestStop();
+            return false;
+        });
+        EventHandler<Terminal.Gui.App.EventArgs<IApplication?>> iteration = (_, _) =>
+        {
+            if (timedOut || failure is not null)
+            {
+                app.RequestStop();
+                return;
+            }
+            try
+            {
+                if (app.TopRunnableView is Dialog dialog)
+                {
+                    inspect(dialog);
+                    stage = 2;
+                    app.Keyboard.RaiseKeyDownEvent(Key.Esc);
+                }
+                else if (stage == 0)
+                {
+                    stage = 1;
+                    open();
+                }
+                else if (stage == 2)
+                {
+                    app.RequestStop(workbench.Window);
+                }
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+                app.RequestStop();
+            }
+        };
+        app.Iteration += iteration;
+        try
+        {
+            app.Run(workbench.Window);
+        }
+        finally
+        {
+            app.Iteration -= iteration;
+            if (timeout is not null)
+            {
+                app.RemoveTimeout(timeout);
+            }
+        }
+        Assert.Null(failure);
+        Assert.Equal(2, stage);
+        Assert.False(timedOut);
     }
 }

@@ -12,6 +12,73 @@ public sealed partial class TerminalWorkbench
     private readonly View serialSettings = new() { CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
     private readonly View controlSettings = new() { CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
     private readonly View profileSettings = new() { CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
+    private readonly View connectionSettings = new() { CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill(1) };
+    private readonly ListView managedConnections = new() { Width = Dim.Fill(), Height = Dim.Fill(2) };
+    private Dialog? connectionDialog;
+
+    internal View ConnectionSettings => connectionSettings;
+
+    private void BuildConnectionSettings()
+    {
+        var portLabel = new Label { Text = "端口" };
+        port.X = Pos.Right(portLabel) + 1;
+        var baudLabel = new Label { Text = "波特率", X = Pos.Right(port) + 2 };
+        baud.X = Pos.Right(baudLabel) + 1;
+        var open = Button("连接", () => RunUiAsync(OpenConnectionAsync));
+        open.Id = "connection-open";
+        open.X = Pos.Right(baud) + 1;
+        var refresh = Button("刷新", () => RunUiAsync(RefreshPortsAsync));
+        refresh.X = Pos.Right(open) + 1;
+        var parameters = Button("串口参数", () => { ShowSettingsDialog("串口参数", serialSettings, 16); return Task.CompletedTask; });
+        parameters.Y = Pos.Bottom(port) + 1;
+        var profiles = Button("配置与工作区", () => { ShowSettingsDialog("配置与工作区", profileSettings, 14); return Task.CompletedTask; });
+        profiles.X = Pos.Right(parameters) + 1;
+        profiles.Y = Pos.Top(parameters);
+        managedConnections.Y = Pos.Bottom(parameters) + 1;
+        managedConnections.SetSource(connectionItems);
+        managedConnections.ValueChanged += (_, args) =>
+        {
+            if (!updatingConnections)
+            {
+                connections.Value = args.NewValue;
+            }
+        };
+        var close = Button("断开", () => RunUiAsync(CloseConnectionAsync));
+        close.Y = Pos.Bottom(managedConnections) + 1;
+        var details = Button("详情", () => RunUiAsync(ShowConnectionAsync));
+        details.X = Pos.Right(close) + 1;
+        details.Y = Pos.Top(close);
+        var reconnect = Button("重连", () => RunUiAsync(async () =>
+        {
+            await client.ReconnectConnectionAsync(RequiredConnection(), lifetime.Token).ConfigureAwait(false);
+            app.Invoke(() => message.Text = "连接已重连");
+        }));
+        reconnect.X = Pos.Right(details) + 1;
+        reconnect.Y = Pos.Top(close);
+        connectionSettings.Add(portLabel, port, baudLabel, baud, open, refresh, parameters, profiles, managedConnections, close, details, reconnect);
+    }
+
+    private void ShowConnections()
+    {
+        using var dialog = new Dialog { Title = "连接管理", Width = Dim.Percent(90), Height = Dim.Percent(85) };
+        managedConnections.Value = connections.Value;
+        connectionDialog = dialog;
+        dialog.Add(connectionSettings);
+        dialog.AddButton(new Button { Text = "关闭", ShadowStyle = null });
+        try
+        {
+            app.Run(dialog);
+        }
+        finally
+        {
+            dialog.Remove(connectionSettings);
+            connectionDialog = null;
+        }
+        if (dialog.Result == 1)
+        {
+            input.SetFocus();
+        }
+    }
 
     private void BuildSerialSettings()
     {
@@ -117,8 +184,14 @@ public sealed partial class TerminalWorkbench
         using var dialog = new Dialog { Title = title, Width = Dim.Percent(90), Height = height };
         dialog.Add(content);
         dialog.AddButton(new Button { Text = "关闭", ShadowStyle = null });
-        app.Run(dialog);
-        dialog.Remove(content);
+        try
+        {
+            app.Run(dialog);
+        }
+        finally
+        {
+            dialog.Remove(content);
+        }
     }
 
     private static void AddSetting(View view, string label, View input, int row)

@@ -9,6 +9,23 @@ namespace SerialWorkbench.Cli.Tui;
 
 public sealed partial class TerminalWorkbench
 {
+    private readonly View trafficSettings = new() { CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill(1) };
+
+    internal View TrafficSettings => trafficSettings;
+
+    private void BuildTrafficSettings()
+    {
+        AddSetting(trafficSettings, "显示格式", format, 0);
+        AddSetting(trafficSettings, "方向", direction, 2);
+        AddSetting(trafficSettings, "内容包含", filter, 4);
+        AddSetting(trafficSettings, "来源包含", sourceFilter, 6);
+        AddSetting(trafficSettings, "复制格式", copyFormat, 8);
+        follow.Y = Pos.Bottom(copyFormat) + 1;
+        timestamps.X = Pos.Right(follow) + 2;
+        timestamps.Y = Pos.Top(follow);
+        trafficSettings.Add(follow, timestamps);
+    }
+
     private void RegisterTrafficMenu()
     {
         trafficMenu = new PopoverMenu(Enum.GetValues<TrafficCopyFormat>().Select(value => (View)new MenuItem
@@ -34,7 +51,10 @@ public sealed partial class TerminalWorkbench
                 };
                 CopySelected();
             },
-        }).Append(new MenuItem { Title = "查看详情", Action = ShowTrafficDetails }).ToArray());
+        }).Concat([
+            new MenuItem { Title = "查看详情", Action = ShowTrafficDetails },
+            new MenuItem { Title = "显示与筛选", Action = () => ShowSettingsDialog("报文显示与筛选", trafficSettings, 18) },
+        ]).ToArray());
         app.Popovers?.Register(trafficMenu);
     }
 
@@ -73,7 +93,7 @@ public sealed partial class TerminalWorkbench
 
     private void ShowHelp() => ShowText("快捷键与操作", """
         Tab / Shift+Tab 切换控件焦点
-        F1 帮助    F2 暂停报文    F3 清空报文    F4 展开下拉选项
+        F1 帮助    F2 暂停报文    F3 清空报文    F4 连接管理
         F5 刷新端口    F6 复制    F7 返回实时    F8 设置    F9 工具    Ctrl+Q 退出
         Alt+1 工作台    Alt+2 历史    Alt+3 任务    Alt+4 会话    Alt+5 设置
         工具：Modbus、文件与回环、自动化、协议分析、波形；Esc 返回
@@ -81,8 +101,9 @@ public sealed partial class TerminalWorkbench
         Ctrl+C 复制所选内容，Ctrl+Space 或右键打开复制菜单
         Enter 查看完整报文或会话事件
         发送框：Enter 发送，格式与报文显示独立
-        循环发送：次数 0 持续发送，停止按钮结束任务
-        后台任务：勾选后退出保留任务；前台任务退出时取消
+        设置：报文显示与筛选、复制格式、行尾和校验追加
+        发送设置：循环次数 0 持续发送，停止按钮结束任务
+        设置页后台任务：勾选后退出保留任务；前台任务退出时取消
         Modbus 和回环参数支持滚轮、PageUp / PageDown，Tab 自动显示焦点
         步骤参数在独立对话框中编辑，波形方向键浏览历史
         回放结束后 F7 返回实时，Host 持续记录原始数据

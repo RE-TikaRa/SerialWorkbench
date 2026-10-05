@@ -3,6 +3,7 @@ using System.Text;
 using SerialWorkbench.Domain;
 using SerialWorkbench.Ipc;
 using SerialWorkbench.Protocols;
+using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
@@ -21,25 +22,39 @@ public sealed partial class TerminalWorkbench
     private readonly DropDownList checksum = new()
     {
         Id = "send-checksum",
-        X = 25,
         Width = 20,
         ReadOnly = true,
         Text = "无校验",
         Source = new ListWrapper<string>(new ObservableCollection<string>(["无校验", "XOR", "SUM8", "CRC16 Modbus", "CRC16 XMODEM", "CRC32"]))
     };
-    private readonly NumericUpDown<int> sendInterval = new() { CanEdit = true, X = 9, Y = 2, Value = 1000, Width = 10 };
-    private readonly NumericUpDown<int> sendCount = new() { CanEdit = true, X = 32, Y = 2, Value = 0, Width = 10 };
+    private readonly NumericUpDown<int> sendInterval = new() { CanEdit = true, Value = 1000, Width = 10 };
+    private readonly NumericUpDown<int> sendCount = new() { CanEdit = true, Value = 0, Width = 10 };
+    private readonly View sendSettings = new() { CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill(1) };
     private Guid? repeatOperationId;
+
+    internal View SendSettings => sendSettings;
 
     private FrameView BuildSending()
     {
-        var view = new FrameView { Title = "发送 · Enter 发送 · 次数 0 持续发送", Y = Pos.AnchorEnd(6), Height = 5, Width = Dim.Fill() };
-        lineEnding.X = 12;
-        lineEnding.Y = 0;
-        lineEnding.Width = 11;
+        var view = new FrameView { Id = "send-panel", Title = "发送", Y = Pos.AnchorEnd(), Height = 3, Width = Dim.Fill() };
+        var send = Button("发送", () => RunUiAsync(SendAsync));
+        send.X = Pos.AnchorEnd();
+        input.X = Pos.Right(sendFormat) + 1;
+        input.Width = Dim.Fill(Dim.Width(send) + 1);
+        input.Accepting += (_, args) => { args.Handled = true; _ = RunUiAsync(SendAsync); };
+        sendFormat.KeyBindings.Remove(Key.F4);
+        view.Add(sendFormat, input, send);
+        return view;
+    }
+
+    private void BuildSendSettings()
+    {
+        AddSetting(sendSettings, "文本行尾", lineEnding, 0);
+        AddSetting(sendSettings, "追加校验", checksum, 2);
+        AddSetting(sendSettings, "循环间隔 ms", sendInterval, 4);
+        AddSetting(sendSettings, "循环次数", sendCount, 6);
         var repeat = Button("循环发送", () => RunUiAsync(RepeatSendAsync));
-        repeat.X = 44;
-        repeat.Y = 2;
+        repeat.Y = Pos.Bottom(sendCount) + 1;
         var stop = Button("停止", () => RunUiAsync(async () =>
         {
             if (repeatOperationId is { } id)
@@ -50,10 +65,8 @@ public sealed partial class TerminalWorkbench
             }
         }));
         stop.X = Pos.Right(repeat) + 1;
-        stop.Y = 2;
-        view.Add(sendFormat, lineEnding, checksum, backgroundTasks, new Label { Text = "间隔 ms", Y = 2 }, sendInterval,
-            new Label { Text = "次数", X = 22, Y = 2 }, sendCount, repeat, stop);
-        return view;
+        stop.Y = Pos.Top(repeat);
+        sendSettings.Add(repeat, stop);
     }
 
     internal SendRequest CreateSendRequest(Guid? selectedConnection = null)
