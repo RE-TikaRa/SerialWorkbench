@@ -12,6 +12,49 @@ namespace SerialWorkbench.Tests;
 
 public sealed class TuiTests
 {
+    [Theory]
+    [InlineData("csv")]
+    [InlineData("jsonl")]
+    [InlineData("hex")]
+    [InlineData("text")]
+    [InlineData("binary")]
+    public async Task SessionExportKeepsFiltersAndRawBytesAcrossPages(string format)
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-export-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        var token = TestContext.Current.CancellationToken;
+        var connection = Guid.NewGuid();
+        var events = Enumerable.Range(1, 1001).Select(index => new SerialTrafficEvent(index, DateTimeOffset.UtcNow, index, connection,
+            index % 2 == 0 ? SerialDirection.Transmit : SerialDirection.Receive, [0x41], "device,rx")).ToArray();
+        await runtime.Sessions.AppendManyAsync(events, token);
+        var sessionId = runtime.Sessions.ActiveSession!.Id;
+        var query = new SerialWorkbench.Ipc.SessionEventQuery(sessionId, MaximumCount: 100, ConnectionId: connection,
+            Direction: SerialDirection.Receive, SourceContains: "device", DataContainsHex: "41");
+        var path = Path.Combine(paths.DataRoot, "export." + format);
+        var result = await SerialWorkbench.Cli.SessionExporter.ExportAsync(new HostRpcService(runtime), query, path, format, token);
+        Assert.Equal(new FileInfo(path).Length, result.Bytes);
+        if (format == "binary")
+        {
+            Assert.Equal(501, result.Bytes);
+            Assert.All(await File.ReadAllBytesAsync(path, token), value => Assert.Equal(0x41, value));
+        }
+        else
+        {
+            var lines = await File.ReadAllLinesAsync(path, token);
+            Assert.Equal(format == "csv" ? 502 : 501, lines.Length);
+            if (format == "csv")
+            {
+                Assert.Contains("\"device,rx\"", lines[1], StringComparison.Ordinal);
+            }
+            if (format == "jsonl")
+            {
+                using var document = System.Text.Json.JsonDocument.Parse(lines[^1]);
+                Assert.Equal(1001, document.RootElement.GetProperty("sequence").GetInt64());
+            }
+        }
+    }
+
     [Fact]
     public async Task AutomationEditorKeepsStepDataAndResponseConditions()
     {

@@ -15,9 +15,35 @@ namespace SerialWorkbench.Cli.Tui;
 
 public sealed partial class TerminalWorkbench
 {
-    private readonly TableView sessions = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Percent(40), FullRowSelect = true };
-    private readonly TableView sessionEvents = new() { Y = Pos.Percent(40) + 3, Width = Dim.Fill(), Height = Dim.Fill(2), FullRowSelect = true };
-    private readonly TextField sessionFilter = new() { Y = Pos.AnchorEnd(), Width = Dim.Fill(16) };
+    private readonly TableView sessions = new() { Y = 6, Width = Dim.Fill(), Height = Dim.Percent(25), FullRowSelect = true };
+    private readonly TableView sessionEvents = new() { Width = Dim.Fill(), Height = Dim.Fill(1), FullRowSelect = true };
+    private readonly TextField sessionFilter = new() { Id = "session-hex", Y = 3, X = 8, Width = Dim.Fill(16) };
+    private readonly DropDownList sessionDirection = new()
+    {
+        Id = "session-direction",
+        X = 0,
+        Y = 2,
+        Width = 10,
+        ReadOnly = true,
+        Text = "全部",
+        Source = new ListWrapper<string>(new ObservableCollection<string>(["全部", "RX", "TX"]))
+    };
+    private readonly TextField sessionSource = new() { Id = "session-source", X = 18, Y = 2, Width = 14 };
+    private readonly TextField sessionConnection = new() { Id = "session-connection", X = 41, Y = 2, Width = Dim.Fill() };
+    private readonly DropDownList sessionExportFormat = new()
+    {
+        X = 0,
+        Y = 4,
+        Width = 12,
+        ReadOnly = true,
+        Text = "csv",
+        Source = new ListWrapper<string>(new ObservableCollection<string>(["csv", "jsonl", "text", "hex", "binary"]))
+    };
+    private readonly NumericUpDown<double> replayRate = new() { X = 46, Y = 4, Width = 10, Value = 1 };
+    private readonly Label sessionCount = new() { Y = Pos.AnchorEnd(), Width = Dim.Fill() };
+    private bool updatingSessions;
+    private bool replayPaused;
+    private TaskCompletionSource replayResumed = CompletedReplaySignal();
     private SessionDescriptor[] displayedSessions = [];
     private Guid? selectedSession;
     private long sessionSequence;
@@ -41,7 +67,7 @@ public sealed partial class TerminalWorkbench
         var refresh = Button("刷新", () => RunUiAsync(RefreshSessionsAsync));
         var load = Button("加载更多", () => RunUiAsync(ReadSessionAsync));
         load.X = Pos.Right(refresh) + 1;
-        var export = Button("导出 CSV", () => RunUiAsync(ExportSessionAsync));
+        var export = Button("导出", () => RunUiAsync(ExportSessionAsync));
         export.X = Pos.Right(load) + 1;
         var play = Button("回放", () => RunUiAsync(ReplaySessionAsync));
         play.X = Pos.Right(export) + 1;
@@ -51,9 +77,42 @@ public sealed partial class TerminalWorkbench
             return Task.CompletedTask;
         });
         stop.X = Pos.Right(play) + 1;
+        var pause = Button("暂停／继续", () =>
+        {
+            replayPaused = !replayPaused;
+            if (replayPaused)
+            {
+                replayResumed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+            else
+            {
+                replayResumed.TrySetResult();
+            }
+            return Task.CompletedTask;
+        });
+        pause.Y = 4;
+        pause.X = 14;
+        var delete = Button("删除会话", () => RunUiAsync(async () =>
+        {
+            var id = selectedSession ?? throw new InvalidOperationException("请选择会话。");
+            if (MessageBox.Query(app, "删除会话", "删除所选会话文件？", "删除", "取消") == 0)
+            {
+                await client.DeleteSessionAsync(id, lifetime.Token).ConfigureAwait(false);
+                await RefreshSessionsAsync().ConfigureAwait(false);
+            }
+        }));
+        delete.Y = 1;
+        var history = Button("回环记录", () => RunUiAsync(async () =>
+        {
+            var id = selectedSession ?? throw new InvalidOperationException("请选择会话。");
+            var results = await client.ReadLoopbackResultsAsync(id, lifetime.Token).ConfigureAwait(false);
+            await InvokeUiAsync(() => ShowText("回环记录", JsonSerializer.Serialize(results, MachineOutput.DocumentOptions))).ConfigureAwait(false);
+        }));
+        history.X = Pos.Right(delete) + 1;
+        history.Y = 1;
         sessions.ValueChanged += (_, args) =>
         {
-            if (args.NewValue is { } selection && selection.SelectedCell.Y >= 0 && selection.SelectedCell.Y < displayedSessions.Length)
+            if (!updatingSessions && args.NewValue is { } selection && selection.SelectedCell.Y >= 0 && selection.SelectedCell.Y < displayedSessions.Length)
             {
                 var id = displayedSessions[selection.SelectedCell.Y].Id;
                 if (selectedSession != id)
@@ -62,6 +121,7 @@ public sealed partial class TerminalWorkbench
                     sessionRevision++;
                     sessionSequence = 0;
                     displayedSessionEvents.Clear();
+                    sessionEvents.Table = null;
                     _ = RunUiAsync(ReadSessionAsync);
                 }
             }
@@ -74,8 +134,19 @@ public sealed partial class TerminalWorkbench
             return ReadSessionAsync();
         }));
         applyFilter.X = Pos.AnchorEnd();
-        applyFilter.Y = Pos.AnchorEnd();
-        view.Add(refresh, load, export, play, stop, sessions, sessionEvents, sessionFilter, applyFilter);
+        applyFilter.Y = 3;
+        sessionEvents.Y = Pos.Bottom(sessions);
+        view.Add(refresh, load, export, play, stop, delete, history, pause, sessions, sessionEvents, sessionFilter, applyFilter,
+            sessionDirection, new Label { Text = "来源", X = 12, Y = 2 }, sessionSource, new Label { Text = "连接 ID", X = 33, Y = 2 }, sessionConnection,
+            new Label { Text = "HEX", Y = 3 }, sessionExportFormat, new Label { Text = "倍率", X = 39, Y = 4 }, replayRate, sessionCount);
+        sessionEvents.Accepting += (_, args) =>
+        {
+            args.Handled = true;
+            if (sessionEvents.Value is { } selection && selection.SelectedCell.Y >= 0 && selection.SelectedCell.Y < displayedSessionEvents.Count)
+            {
+                ShowText("会话事件", JsonSerializer.Serialize(displayedSessionEvents[selection.SelectedCell.Y], MachineOutput.DocumentOptions));
+            }
+        };
         return view;
     }
 
@@ -84,6 +155,8 @@ public sealed partial class TerminalWorkbench
         var listed = await client.ListSessionsAsync(lifetime.Token).ConfigureAwait(false);
         app.Invoke(() =>
         {
+            var selected = selectedSession;
+            updatingSessions = true;
             displayedSessions = listed.ToArray();
             sessions.Table = new EnumerableTableSource<SessionDescriptor>(displayedSessions, new Dictionary<string, Func<SessionDescriptor, object>>
             {
@@ -93,6 +166,19 @@ public sealed partial class TerminalWorkbench
                 ["字节"] = item => item.RawByteCount,
                 ["文件"] = item => item.Path,
             });
+            var index = Array.FindIndex(displayedSessions, item => item.Id == selected);
+            sessions.Value = displayedSessions.Length == 0 ? null : new TableSelection(new Point(0, Math.Max(0, index)));
+            updatingSessions = false;
+            var next = displayedSessions.Length == 0 ? (Guid?)null : displayedSessions[Math.Max(0, index)].Id;
+            if (selectedSession != next)
+            {
+                selectedSession = next;
+                sessionRevision++;
+                sessionSequence = 0;
+                displayedSessionEvents.Clear();
+                sessionEvents.Table = null;
+            }
+            _ = RunUiAsync(ReadSessionAsync);
         });
     }
 
@@ -104,7 +190,7 @@ public sealed partial class TerminalWorkbench
         }
 
         var revision = sessionRevision;
-        var query = new SessionEventQuery(id, 1000, sessionSequence, DataContainsHex: sessionFilter.Text.Length == 0 ? null : Convert.ToHexString(HexCodec.Parse(sessionFilter.Text)));
+        var query = CreateSessionQuery(id) with { AfterSequence = sessionSequence };
         await sessionReadGate.WaitAsync(lifetime.Token).ConfigureAwait(false);
         try
         {
@@ -136,6 +222,7 @@ public sealed partial class TerminalWorkbench
                 });
                 sessionEvents.Value = selection;
                 sessionEvents.Viewport = viewport;
+                sessionCount.Text = $"已加载 {displayedSessionEvents.Count:N0} 条 · 游标 {sessionSequence}";
             }).ConfigureAwait(false);
         }
         finally
@@ -153,9 +240,8 @@ public sealed partial class TerminalWorkbench
             return;
         }
 
-        var csv = await client.ExportSessionCsvAsync(new SessionEventQuery(id), lifetime.Token).ConfigureAwait(false);
-        await File.WriteAllTextAsync(destination, csv, new UTF8Encoding(false), lifetime.Token).ConfigureAwait(false);
-        app.Invoke(() => message.Text = $"已导出：{destination}");
+        var result = await SessionExporter.ExportAsync(client, CreateSessionQuery(id), destination, sessionExportFormat.Text, lifetime.Token).ConfigureAwait(false);
+        app.Invoke(() => message.Text = $"已导出 {result.Bytes:N0} 字节：{destination}");
     }
 
     private async Task ReplaySessionAsync()
@@ -167,6 +253,15 @@ public sealed partial class TerminalWorkbench
         }
 
         using var source = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        if (replayRate.Value is <= 0 or > 100 || !double.IsFinite(replayRate.Value))
+        {
+            throw new ArgumentOutOfRangeException(nameof(replayRate), "回放倍率需要大于 0 且不超过 100。");
+        }
+        var rate = replayRate.Value;
+        var query = CreateSessionQuery(id);
+        var remaining = displayedSessions.First(item => item.Id == id).EventCount;
+        replayPaused = false;
+        replayResumed.TrySetResult();
         replay = source;
         replayBuffer = new SerialWorkbench.Application.TrafficBuffer(Encoding.GetEncoding(encoding.Text));
         paused = false;
@@ -180,20 +275,22 @@ public sealed partial class TerminalWorkbench
             {
                 var afterSequence = 0L;
                 DateTimeOffset? previous = null;
-                while (true)
+                while (remaining > 0)
                 {
-                    var events = await client.ReadSessionEventsAsync(new SessionEventQuery(id, 1000, afterSequence), source.Token).ConfigureAwait(false);
+                    var events = await client.ReadSessionEventsAsync(query with { AfterSequence = afterSequence }, source.Token).ConfigureAwait(false);
                     if (events.Count == 0)
                     {
                         break;
                     }
-                    foreach (var item in events)
+                    foreach (var item in events.Take((int)Math.Min(remaining, events.Count)))
                     {
                         source.Token.ThrowIfCancellationRequested();
                         if (previous is { } timestamp && item.Utc > timestamp)
                         {
-                            await Task.Delay(item.Utc - timestamp, source.Token).ConfigureAwait(false);
+                            await Task.Delay(TimeSpan.FromTicks((long)((item.Utc - timestamp).Ticks / rate)), source.Token).ConfigureAwait(false);
                         }
+                        await replayResumed.Task.WaitAsync(source.Token).ConfigureAwait(false);
+                        remaining--;
                         previous = item.Utc;
                         afterSequence = item.Sequence;
                         await InvokeUiAsync(() =>
@@ -240,6 +337,22 @@ public sealed partial class TerminalWorkbench
         ResetWaveform();
         RefreshTraffic();
         message.Text = "实时报文";
+    }
+
+    internal SessionEventQuery CreateSessionQuery(Guid id)
+    {
+        Guid? connection = string.IsNullOrWhiteSpace(sessionConnection.Text) ? null : Guid.Parse(sessionConnection.Text);
+        return new SessionEventQuery(id, ConnectionId: connection,
+            Direction: sessionDirection.Text switch { "RX" => SerialDirection.Receive, "TX" => SerialDirection.Transmit, _ => null },
+            SourceContains: string.IsNullOrWhiteSpace(sessionSource.Text) ? null : sessionSource.Text,
+            DataContainsHex: string.IsNullOrWhiteSpace(sessionFilter.Text) ? null : Convert.ToHexString(HexCodec.Parse(sessionFilter.Text)));
+    }
+
+    private static TaskCompletionSource CompletedReplaySignal()
+    {
+        var signal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        signal.SetResult();
+        return signal;
     }
 
     private View BuildProtocol()
