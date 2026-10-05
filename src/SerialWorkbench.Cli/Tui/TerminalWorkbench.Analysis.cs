@@ -149,6 +149,8 @@ public sealed partial class TerminalWorkbench
         sessionEvents.Y = Pos.Bottom(sessions);
         history.X = 0;
         history.Y = 1;
+        pause.X = Pos.Right(history) + 1;
+        stop.X = Pos.Right(pause) + 1;
         delete.X = Pos.Right(stop) + 1;
         view.Add(refresh, load, export, play, stop, delete, history, pause, sessions, sessionEvents, applyFilter, sessionCount);
         sessionEvents.Accepting += (_, args) =>

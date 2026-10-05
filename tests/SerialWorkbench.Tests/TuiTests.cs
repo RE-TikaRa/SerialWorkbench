@@ -102,7 +102,7 @@ public sealed class TuiTests
             app.LayoutAndDraw(true);
             foreach (var title in tabs.TabCollection.Select(static page => page.Title))
             {
-                Assert.Contains(title, driver.ToString(), StringComparison.Ordinal);
+                Assert.True(driver.ToString().Contains(title, StringComparison.Ordinal), $"Missing {title}\n{driver.ToString()}");
             }
         }
         app.End(token);
@@ -362,6 +362,7 @@ public sealed class TuiTests
     [Theory]
     [InlineData(80, 24)]
     [InlineData(120, 40)]
+    [InlineData(60, 20)]
     public async Task ConnectionManagementIsAccessibleAcrossWorkspaces(int width, int height)
     {
         var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-connect-{Guid.NewGuid():N}"));
@@ -402,6 +403,7 @@ public sealed class TuiTests
     [Theory]
     [InlineData(80, 24)]
     [InlineData(120, 40)]
+    [InlineData(60, 20)]
     public async Task WorkbenchLayoutKeepsSendingAndTrafficUsable(int width, int height)
     {
         var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-layout-{Guid.NewGuid():N}"));
@@ -429,10 +431,82 @@ public sealed class TuiTests
         Assert.True(input.Frame.Width > 0);
         Assert.True(input.Frame.Right <= sending.Viewport.Width);
         var frame = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<FrameView>().Single(static frame => frame.Title == "报文");
-        Assert.True(Assert.Single(frame.SubViews.OfType<TableView>()).Frame.Height >= 8);
+        Assert.True(Assert.Single(frame.SubViews.OfType<TableView>()).Frame.Height >= 7);
         Assert.True(frame.Frame.Bottom <= sending.Frame.Top - 1);
         var sessionPage = tabs.TabCollection.Single(static page => page.Title == "4 会话");
         Assert.All(sessionPage.SubViews.OfType<TableView>(), table => Assert.True(table.Frame.Height >= 3));
+    }
+
+    [Fact]
+    public async Task ResizingTheWorkbenchPreservesDraftInputAndRestoresFocus()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-resize-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create().Init();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var driver = Assert.IsAssignableFrom<Terminal.Gui.Drivers.IDriver>(app.Driver);
+        driver.SetScreenSize(120, 40);
+        var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        var page = Assert.IsAssignableFrom<View>(tabs.Value);
+        Assert.Equal("1 工作台", page.Title);
+        var sending = SendingPanel(workbench);
+        var input = Assert.Single(sending.SubViews.OfType<TextField>(), static field => field.Id == "send-input");
+        input.Text = "测试 e\u0301";
+        Assert.Single(sending.SubViews.OfType<DropDownList>()).Text = "文本";
+        input.SetFocus();
+        var minimum = Assert.Single(workbench.Window.SubViews, static view => view.Id == "terminal-size");
+        var connections = Assert.Single(page.SubViews.OfType<FrameView>(), static frame => frame.Title == "连接");
+        var traffic = Assert.Single(page.SubViews.OfType<FrameView>(), static frame => frame.Title == "报文");
+        foreach (var size in new[] { (120, 40), (80, 24), (60, 20), (40, 20), (60, 12), (80, 24), (120, 40) })
+        {
+            driver.SetScreenSize(size.Item1, size.Item2);
+            app.LayoutAndDraw(true);
+            var tooSmall = size.Item1 < 60 || size.Item2 < 20;
+            Assert.Equal(tooSmall, minimum.Visible);
+            Assert.Equal(!tooSmall, tabs.Visible);
+            Assert.Equal("测试 e\u0301"u8.ToArray(), workbench.CreateSendRequest(Guid.NewGuid()).Data);
+            if (tooSmall)
+            {
+                Assert.Contains("终端至少需要 60 列、20 行", driver.ToString(), StringComparison.Ordinal);
+            }
+            else
+            {
+                Assert.Equal(size.Item1 >= 80, connections.Visible);
+                Assert.True(traffic.Frame.Width >= size.Item1 * (size.Item1 >= 80 ? 0.7 : 0.9));
+                Assert.Same(input, workbench.Window.MostFocused);
+                Assert.Contains("SerialWorkbench", driver.ToString(), StringComparison.Ordinal);
+            }
+        }
+        app.End(token);
+    }
+
+    [Fact]
+    public async Task TrafficPresentationDistinguishesConnectionFilteringAndPause()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-empty-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        var frame = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<FrameView>().Single(static frame => frame.Title == "报文");
+        var empty = Assert.Single(frame.SubViews.OfType<Label>());
+        Assert.Equal("未连接", empty.Text);
+        workbench.SetConnections([new ConnectionSnapshot(Guid.NewGuid(), new SerialConnectionOptions("COM20"), ConnectionState.Open, 12, 8, 2, 1, 0, null, null)]);
+        Assert.Equal("等待数据", empty.Text);
+        workbench.TrafficSettings.SubViews.OfType<TextField>().Single(static field => field.Id == "traffic-filter").Text = "missing";
+        Assert.Equal("无匹配报文", empty.Text);
+        var status = Assert.Single(workbench.Window.SubViews.OfType<Label>(), static label => label.Id == "connection-status");
+        Assert.Contains("COM20 已连接", status.Text, StringComparison.Ordinal);
+        Assert.Contains("115200 8N1", status.Text, StringComparison.Ordinal);
+        var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
+        workbench.Window.NewKeyDownEvent(Key.F2);
+        Assert.Equal("显示已暂停", empty.Text);
+        workbench.Window.NewKeyDownEvent(Key.F7);
+        Assert.Equal("无匹配报文", empty.Text);
+        app.End(token);
     }
 
     [Fact]

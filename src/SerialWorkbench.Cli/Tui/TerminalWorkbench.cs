@@ -66,7 +66,7 @@ public sealed partial class TerminalWorkbench : IDisposable
     private readonly IHostRpc client;
     private readonly CancellationTokenSource lifetime = new();
     private readonly Window window = new() { Title = "SerialWorkbench", BorderStyle = LineStyle.None, Width = Dim.Fill(), Height = Dim.Fill() };
-    private readonly Tabs tabs = new() { Width = Dim.Fill(), Height = Dim.Fill(2) };
+    private readonly Tabs tabs = new() { Width = Dim.Fill(), Height = Dim.Fill(2), TabLineStyle = LineStyle.Single };
     private readonly Label status = new() { Id = "connection-status", Width = Dim.Fill(), Height = 1, Text = "未连接" };
     private readonly CheckBox backgroundTasks = new() { Text = "后台任务" };
     private readonly Label message = new() { Y = Pos.AnchorEnd(2), Width = Dim.Fill(), Height = 1 };
@@ -179,13 +179,15 @@ public sealed partial class TerminalWorkbench : IDisposable
             new Shortcut(Key.Q.WithCtrl, "退出", () => app.RequestStop(window)),
         ]);
         shortcuts.Width = Dim.Fill();
-        window.Add(title, status, message, tabs, shortcuts);
+        window.Add(title, status, message, tabs, shortcuts, terminalSize);
+        window.SubViewLayout += (_, _) => UpdateTerminalSize();
         tabs.Value = workbenchView;
         format.ValueChanged += (_, _) => RefreshTraffic();
         direction.ValueChanged += (_, _) => RefreshTraffic();
         filter.TextChanged += (_, _) => RefreshTraffic();
         timestamps.ValueChanged += (_, _) => RefreshTraffic();
         sourceFilter.TextChanged += (_, _) => RefreshTraffic();
+        follow.ValueChanged += (_, _) => UpdateConnectionStatus();
         window.Initialized += (_, _) => RegisterTrafficMenu();
         traffic.KeyBindings.Add(Key.C.WithCtrl, Command.Copy);
         traffic.KeyBindings.Add(Key.Space.WithCtrl, Command.Context);
@@ -329,18 +331,16 @@ public sealed partial class TerminalWorkbench : IDisposable
         advanced.X = Pos.Right(connect) + 1;
         advanced.Y = Pos.Top(connect);
         var controls = Button("控制线", () => { ShowSettingsDialog("控制线与 RS-485", controlSettings, 17); return Task.CompletedTask; });
-        controls.X = Pos.Right(advanced) + 1;
-        controls.Y = Pos.Top(connect);
+        controls.Y = Pos.Bottom(connect) + 1;
         var profiles = Button("配置与工作区", () => { ShowSettingsDialog("配置与工作区", profileSettings, 14); return Task.CompletedTask; });
         profiles.X = Pos.Right(controls) + 1;
-        profiles.Y = Pos.Top(connect);
+        profiles.Y = Pos.Top(controls);
         var display = Button("报文显示", () => { ShowSettingsDialog("报文显示与筛选", trafficSettings, 18); return Task.CompletedTask; });
-        display.Y = Pos.Bottom(connect) + 1;
+        display.Y = Pos.Bottom(controls) + 1;
         var sending = Button("发送设置", () => { ShowSettingsDialog("发送设置", sendSettings, 16); return Task.CompletedTask; });
         sending.X = Pos.Right(display) + 1;
         sending.Y = Pos.Top(display);
-        backgroundTasks.X = Pos.Right(sending) + 2;
-        backgroundTasks.Y = Pos.Top(display);
+        backgroundTasks.Y = Pos.Bottom(display) + 1;
         BuildSerialSettings();
         BuildControlSettings();
         BuildProfileSettings();
@@ -647,6 +647,7 @@ public sealed partial class TerminalWorkbench : IDisposable
             RefreshTraffic();
         }
         message.Text = paused ? "显示已暂停，Host 继续采集" : "继续显示";
+        UpdateConnectionStatus();
     }
 
     private void ClearTraffic()

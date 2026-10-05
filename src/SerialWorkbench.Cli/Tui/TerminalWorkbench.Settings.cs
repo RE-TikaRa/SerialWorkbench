@@ -20,21 +20,21 @@ public sealed partial class TerminalWorkbench
 
     private void BuildConnectionSettings()
     {
-        var portLabel = new Label { Text = "端口" };
-        port.X = Pos.Right(portLabel) + 1;
-        var baudLabel = new Label { Text = "波特率", X = Pos.Right(port) + 2 };
-        baud.X = Pos.Right(baudLabel) + 1;
+        AddSetting(connectionSettings, "端口", port, 0);
+        port.Width = Dim.Fill(1);
+        AddSetting(connectionSettings, "波特率", baud, 2);
         var open = Button("连接", () => RunUiAsync(OpenConnectionAsync));
         open.Id = "connection-open";
-        open.X = Pos.Right(baud) + 1;
+        open.Y = Pos.Bottom(baud) + 1;
         var refresh = Button("刷新", () => RunUiAsync(RefreshPortsAsync));
         refresh.X = Pos.Right(open) + 1;
+        refresh.Y = Pos.Top(open);
         var parameters = Button("串口参数", () => { ShowSettingsDialog("串口参数", serialSettings, 16); return Task.CompletedTask; });
-        parameters.Y = Pos.Bottom(port) + 1;
+        parameters.Y = Pos.Top(open);
+        parameters.X = Pos.Right(refresh) + 1;
         var profiles = Button("配置与工作区", () => { ShowSettingsDialog("配置与工作区", profileSettings, 14); return Task.CompletedTask; });
-        profiles.X = Pos.Right(parameters) + 1;
-        profiles.Y = Pos.Top(parameters);
-        managedConnections.Y = Pos.Bottom(parameters) + 1;
+        profiles.Y = Pos.Bottom(parameters) + 1;
+        managedConnections.Y = Pos.Bottom(profiles) + 1;
         managedConnections.SetSource(connectionItems);
         managedConnections.ValueChanged += (_, args) =>
         {
@@ -55,7 +55,7 @@ public sealed partial class TerminalWorkbench
         }));
         reconnect.X = Pos.Right(details) + 1;
         reconnect.Y = Pos.Top(close);
-        connectionSettings.Add(portLabel, port, baudLabel, baud, open, refresh, parameters, profiles, managedConnections, close, details, reconnect);
+        connectionSettings.Add(open, refresh, parameters, profiles, managedConnections, close, details, reconnect);
     }
 
     private void ShowConnections()
