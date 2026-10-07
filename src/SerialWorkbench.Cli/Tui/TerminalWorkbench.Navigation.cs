@@ -17,7 +17,7 @@ public sealed partial class TerminalWorkbench
             new Shortcut(Key.F2, "暂停", TogglePause),
             new Shortcut(Key.F3, "清空", ClearTraffic),
             new Shortcut(Key.F4, "连接", ShowConnections),
-            new Shortcut(Key.F5, "刷新", () => _ = RunUiAsync(RefreshPortsAsync)),
+            new Shortcut(Key.F5, "刷新", () => _ = RunUiAsync(RefreshPortsAsync, "刷新端口")),
             new Shortcut(Key.F6, "复制", CopySelected),
             new Shortcut(Key.F7, "实时", ResumeLiveTraffic),
             new Shortcut(Key.F8, "设置", () => tabs.Value = settingsView),

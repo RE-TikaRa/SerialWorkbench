@@ -81,8 +81,8 @@ public sealed partial class TerminalWorkbench
     private View BuildSessions()
     {
         var view = new View { Title = "会话", Width = Dim.Fill(), Height = Dim.Fill() };
-        var refresh = Button("刷新", () => RunUiAsync(RefreshSessionsAsync));
-        var load = Button("加载更多", () => RunUiAsync(ReadSessionAsync));
+        var refresh = Button("刷新", () => RunUiAsync(RefreshSessionsAsync, "刷新会话"));
+        var load = Button("加载更多", () => RunUiAsync(ReadSessionAsync, "读取会话"));
         load.X = Pos.Right(refresh) + 1;
         var export = Button("导出", () => RunUiAsync(ExportSessionAsync));
         export.X = Pos.Right(load) + 1;
@@ -271,8 +271,11 @@ public sealed partial class TerminalWorkbench
             return;
         }
 
-        var result = await SessionExporter.ExportAsync(client, CreateSessionQuery(id), destination, sessionExportFormat.Text, lifetime.Token).ConfigureAwait(false);
-        app.Invoke(() => message.Text = $"已导出 {result.Bytes:N0} 字节：{destination}");
+        await RunUiAsync(async () =>
+        {
+            var result = await SessionExporter.ExportAsync(client, CreateSessionQuery(id), destination, sessionExportFormat.Text, lifetime.Token).ConfigureAwait(false);
+            app.Invoke(() => ShowMessage($"已导出 {result.Bytes:N0} 字节：{destination}", successStyle, true));
+        }, "导出会话").ConfigureAwait(false);
     }
 
     private async Task ReplaySessionAsync()
@@ -299,7 +302,7 @@ public sealed partial class TerminalWorkbench
         ResetWaveform();
         RefreshTraffic();
         tabs.Value = workbenchView;
-        message.Text = "正在回放会话";
+        ShowMessage("正在回放会话", accentStyle);
         replayTask = RunUiAsync(async () =>
         {
             try
@@ -351,7 +354,8 @@ public sealed partial class TerminalWorkbench
                     {
                         if (replayBuffer is not null)
                         {
-                            message.Text = source.IsCancellationRequested ? "回放已停止 · F7 返回实时" : "会话回放完成 · F7 返回实时";
+                            ShowMessage(source.IsCancellationRequested ? "回放已停止 · F7 返回实时" : "会话回放完成 · F7 返回实时",
+                                source.IsCancellationRequested ? mutedStyle : successStyle);
                         }
                     }).ConfigureAwait(false);
                 }
@@ -368,7 +372,7 @@ public sealed partial class TerminalWorkbench
         follow.Value = CheckState.Checked;
         ResetWaveform();
         RefreshTraffic();
-        message.Text = "实时报文";
+        ShowMessage("实时报文");
     }
 
     internal SessionEventQuery CreateSessionQuery(Guid id)
@@ -516,15 +520,18 @@ public sealed partial class TerminalWorkbench
             {
                 return;
             }
-            var channels = wavePoints.Select(static points => points.ToDictionary(static point => point.X, static point => point.Y)).ToArray();
-            await using var writer = new StreamWriter(path, false, new UTF8Encoding(false));
-            await writer.WriteLineAsync("sample," + string.Join(',', Enumerable.Range(1, channels.Length).Select(static index => $"channel{index}"))).ConfigureAwait(false);
-            foreach (var sample in channels.SelectMany(static channel => channel.Keys).Distinct().Order())
+            await RunUiAsync(async () =>
             {
-                var values = channels.Select(channel => channel.TryGetValue(sample, out var value) ? value.ToString("R", CultureInfo.InvariantCulture) : "");
-                await writer.WriteLineAsync(sample.ToString("R", CultureInfo.InvariantCulture) + "," + string.Join(',', values)).ConfigureAwait(false);
-            }
-            app.Invoke(() => message.Text = $"已导出波形：{path}");
+                var channels = wavePoints.Select(static points => points.ToDictionary(static point => point.X, static point => point.Y)).ToArray();
+                await using var writer = new StreamWriter(path, false, new UTF8Encoding(false));
+                await writer.WriteLineAsync("sample," + string.Join(',', Enumerable.Range(1, channels.Length).Select(static index => $"channel{index}"))).ConfigureAwait(false);
+                foreach (var sample in channels.SelectMany(static channel => channel.Keys).Distinct().Order())
+                {
+                    var values = channels.Select(channel => channel.TryGetValue(sample, out var value) ? value.ToString("R", CultureInfo.InvariantCulture) : "");
+                    await writer.WriteLineAsync(sample.ToString("R", CultureInfo.InvariantCulture) + "," + string.Join(',', values)).ConfigureAwait(false);
+                }
+                app.Invoke(() => ShowMessage($"已导出波形：{path}", successStyle, true));
+            }, "导出波形").ConfigureAwait(false);
         }));
         export.X = Pos.Right(clear) + 1;
         export.Y = Pos.Top(clear);

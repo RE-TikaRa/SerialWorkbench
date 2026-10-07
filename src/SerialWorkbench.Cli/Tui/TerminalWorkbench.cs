@@ -70,7 +70,7 @@ public sealed partial class TerminalWorkbench : IDisposable
     private readonly Tabs tabs = new() { Width = Dim.Fill(), Height = Dim.Fill(2), TabLineStyle = LineStyle.Single };
     private readonly Label status = new() { Id = "connection-status", Width = Dim.Fill(), Height = 1, Text = "未连接" };
     private readonly CheckBox backgroundTasks = new() { Text = "后台任务" };
-    private readonly Label message = new() { Y = Pos.AnchorEnd(2), Width = Dim.Fill(), Height = 1 };
+    private readonly Label message = new() { Id = "feedback-message", Y = Pos.AnchorEnd(2), Width = Dim.Fill(), Height = 1 };
     private readonly ListView connections = new() { Width = Dim.Fill(), Height = Dim.Fill() };
     private readonly ObservableCollection<string> connectionItems = [];
     private readonly TableView traffic = new() { Width = Dim.Fill(), Height = Dim.Fill(), FullRowSelect = true };
@@ -178,7 +178,7 @@ public sealed partial class TerminalWorkbench : IDisposable
             tool.CanFocus = true;
         }
         BuildShortcuts();
-        window.Add(title, status, message, tabs, shortcuts, terminalSize);
+        window.Add(title, status, message, activitySpinner, activityText, tabs, shortcuts, terminalSize);
         window.SubViewLayout += (_, _) => { UpdateTerminalSize(); UpdateWorkspaceTitle(); };
         tabs.Value = workbenchView;
         UpdateShortcutHints();
@@ -260,6 +260,25 @@ public sealed partial class TerminalWorkbench : IDisposable
         StyleTraffic(traffic);
         StyleTraffic(sessionEvents);
         shortcuts.SetScheme(bodyStyle);
+        activitySpinner.SetScheme(accentStyle);
+        activityText.SetScheme(accentStyle);
+        animations.ValueChanged += (_, _) =>
+        {
+            UpdateActivity();
+            if (animations.Value != CheckState.Checked && messageTimeout is not null)
+            {
+                app.RemoveTimeout(messageTimeout);
+                messageTimeout = null;
+                message.SetScheme(mutedStyle);
+                connectionMessage.SetScheme(mutedStyle);
+            }
+            SetProgressAnimation(false);
+            if ((displayedTasks.FirstOrDefault(item => item.Id == SelectedTaskId()) ?? displayedTasks.FirstOrDefault()) is { } operation)
+            {
+                ShowProgress(operation);
+            }
+        };
+        UpdateConnectionStatus();
     }
 
     public Window Window => window;
@@ -312,6 +331,7 @@ public sealed partial class TerminalWorkbench : IDisposable
 
         disposed = true;
         lifetime.Cancel();
+        StopFeedback();
         replay?.Cancel();
         if (refreshToken is not null)
         {
@@ -394,7 +414,7 @@ public sealed partial class TerminalWorkbench : IDisposable
 
                 if (batch.Gap is { } gap)
                 {
-                    message.Text = $"事件缺失：{gap.FromSequence}–{gap.ToSequence}";
+                    ShowMessage($"事件缺失：{gap.FromSequence}–{gap.ToSequence}", warningStyle);
                 }
 
                 sequence = batch.NextSequence;
@@ -576,7 +596,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         ApplyConnectionOptions(snapshot.Options);
         ResumeLiveTraffic();
         tabs.Value = workbenchView;
-        message.Text = $"已连接 {snapshot.Options.PortName}，{snapshot.Options.BaudRate} baud";
+        ShowMessage($"已连接 {snapshot.Options.PortName}，{snapshot.Options.BaudRate} baud", successStyle, true);
         if (connectionDialog is not null)
         {
             connectionOpened = true;
@@ -615,7 +635,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         app.Invoke(() =>
         {
             ApplyConfiguration(configuration);
-            message.Text = $"已发送 {request.Data.Length} 字节";
+            ShowMessage($"已发送 {request.Data.Length} 字节", successStyle, true);
         });
     }
 
@@ -630,7 +650,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         {
             RefreshTraffic();
         }
-        message.Text = paused ? "显示已暂停，Host 继续采集" : "继续显示";
+        ShowMessage(paused ? "显示已暂停，Host 继续采集" : "继续显示", paused ? warningStyle : mutedStyle);
         UpdateConnectionStatus();
     }
 
@@ -658,17 +678,17 @@ public sealed partial class TerminalWorkbench : IDisposable
         };
         if (app.Clipboard?.TrySetClipboardData(TrafficCopyFormatter.Format(selected, kind)) != true)
         {
-            message.Text = "剪贴板不可用";
+            ShowMessage("剪贴板不可用", errorStyle);
         }
         else
         {
-            message.Text = $"已复制 {selected.Length} 条报文";
+            ShowMessage($"已复制 {selected.Length} 条报文", successStyle, true);
         }
     }
 
-    private Task RunUiAsync(Func<Task> action)
+    internal Task RunUiAsync(Func<Task> action, string? description = null)
     {
-        var task = ExecuteUiAsync(action);
+        var task = ExecuteUiAsync(action, description);
         lock (actionsGate)
         {
             pendingActions.Add(task);
@@ -683,8 +703,14 @@ public sealed partial class TerminalWorkbench : IDisposable
         return task;
     }
 
-    private async Task ExecuteUiAsync(Func<Task> action)
+    private async Task ExecuteUiAsync(Func<Task> action, string? description)
     {
+        object? activity = null;
+        if (description is not null)
+        {
+            activity = new object();
+            BeginActivity(activity, description);
+        }
         try
         {
             await action().ConfigureAwait(false);
@@ -696,7 +722,14 @@ public sealed partial class TerminalWorkbench : IDisposable
         {
             if (!lifetime.IsCancellationRequested)
             {
-                app.Invoke(() => message.Text = ex.Message);
+                app.Invoke(() => ShowMessage(ex.Message, errorStyle));
+            }
+        }
+        finally
+        {
+            if (activity is not null && !lifetime.IsCancellationRequested)
+            {
+                await InvokeUiAsync(() => EndActivity(activity)).ConfigureAwait(false);
             }
         }
     }

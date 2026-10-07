@@ -14,6 +14,149 @@ namespace SerialWorkbench.Tests;
 public sealed class TuiTests
 {
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ActivityFeedbackWaitsForSlowActionsAndStopsAfterAllActionsFinish(bool animated)
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-activity-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create().Init();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        var settings = tabs.TabCollection.Single(static page => page.Title == "5 设置");
+        settings.SubViews.OfType<CheckBox>().Single(static checkbox => checkbox.Id == "tui-animations").Value = animated ? CheckState.Checked : CheckState.UnChecked;
+        var spinner = Assert.Single(workbench.Window.SubViews.OfType<SpinnerView>());
+        var first = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var second = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task quick = Task.CompletedTask;
+        Task firstAction = Task.CompletedTask;
+        Task secondAction = Task.CompletedTask;
+        var stage = 0;
+        var timedOut = false;
+        Exception? failure = null;
+        app.AddTimeout(TimeSpan.FromSeconds(5), () => { timedOut = true; app.RequestStop(); return false; });
+        app.Iteration += (_, _) =>
+        {
+            if (failure is not null || timedOut)
+            {
+                app.RequestStop();
+                return;
+            }
+            try
+            {
+                if (stage == 0)
+                {
+                    quick = workbench.RunUiAsync(() => Task.CompletedTask, "快速刷新");
+                    stage = 1;
+                }
+                else if (stage == 1 && quick.IsCompleted)
+                {
+                    Assert.False(spinner.Visible);
+                    firstAction = workbench.RunUiAsync(() => first.Task, "刷新端口");
+                    secondAction = workbench.RunUiAsync(() => second.Task, "读取会话");
+                    Assert.False(spinner.Visible);
+                    app.AddTimeout(TimeSpan.FromMilliseconds(220), () => { stage = 2; return false; });
+                    stage = -1;
+                }
+                else if (stage == 2)
+                {
+                    Assert.Equal(animated, spinner.Visible);
+                    Assert.Equal(animated, spinner.AutoSpin);
+                    Assert.All(spinner.Sequence.SelectMany(static frame => frame), value => Assert.True(char.IsAscii(value)));
+                    first.SetResult();
+                    stage = 3;
+                }
+                else if (stage == 3 && firstAction.IsCompleted)
+                {
+                    Assert.Equal(animated, spinner.AutoSpin);
+                    second.SetResult();
+                    stage = 4;
+                }
+                else if (stage == 4 && secondAction.IsCompleted)
+                {
+                    Assert.False(spinner.Visible);
+                    Assert.False(spinner.AutoSpin);
+                    stage = 5;
+                    app.RequestStop(workbench.Window);
+                }
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+                first.TrySetResult();
+                second.TrySetResult();
+                app.RequestStop();
+            }
+        };
+        app.Run(workbench.Window);
+        Assert.Null(failure);
+        Assert.False(timedOut);
+        Assert.Equal(5, stage);
+        await Task.WhenAll(quick, firstAction, secondAction);
+    }
+
+    [Fact]
+    public async Task AnErrorReplacesTransientFeedbackAndKeepsItsStyle()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-feedback-error-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create().Init();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var title = workbench.Window.SubViews.OfType<Label>().Single(static label => label.Id == "workbench-title");
+        var stage = 0;
+        var timedOut = false;
+        Task failed = Task.CompletedTask;
+        Terminal.Gui.Drawing.Scheme? errorStyle = null;
+        Exception? failure = null;
+        app.AddTimeout(TimeSpan.FromSeconds(5), () => { timedOut = true; app.RequestStop(); return false; });
+        app.Iteration += (_, _) =>
+        {
+            if (failure is not null || timedOut)
+            {
+                app.RequestStop();
+                return;
+            }
+            try
+            {
+                var message = workbench.Window.SubViews.OfType<Label>().Single(static label => label.Id == "feedback-message");
+                if (stage == 1)
+                {
+                    Assert.Equal(title.GetScheme(), message.GetScheme());
+                    failed = workbench.RunUiAsync(() => Task.FromException(new IOException("设备已断开")));
+                    stage = 2;
+                }
+                else if (stage == 2 && failed.IsCompleted)
+                {
+                    errorStyle = message.GetScheme();
+                    app.AddTimeout(TimeSpan.FromMilliseconds(2100), () => { stage = 3; return false; });
+                    stage = -1;
+                }
+                else if (stage == 3)
+                {
+                    Assert.Equal("设备已断开", message.Text);
+                    Assert.Equal(errorStyle, message.GetScheme());
+                    stage = 4;
+                    app.RequestStop(workbench.Window);
+                }
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+                app.RequestStop();
+            }
+        };
+        workbench.ShowMessage("已复制", title.GetScheme(), true);
+        stage = 1;
+        app.Run(workbench.Window);
+        Assert.Null(failure);
+        Assert.False(timedOut);
+        Assert.Equal(4, stage);
+        await failed;
+    }
+
+    [Theory]
     [InlineData(60, 20)]
     [InlineData(80, 24)]
     [InlineData(120, 40)]

@@ -72,7 +72,7 @@ public sealed partial class TerminalWorkbench
             return;
         }
         terminalSize.Visible = tooSmall;
-        message.Visible = !tooSmall;
+        UpdateActivity();
         if (tooSmall)
         {
             focusBeforeResize = window.MostFocused;

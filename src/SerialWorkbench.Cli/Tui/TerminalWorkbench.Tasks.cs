@@ -26,7 +26,7 @@ public sealed partial class TerminalWorkbench
     private View BuildTasks()
     {
         var view = new View { Title = "任务", Width = Dim.Fill(), Height = Dim.Fill() };
-        var refresh = Button("刷新", () => RunUiAsync(RefreshTasksAsync));
+        var refresh = Button("刷新", () => RunUiAsync(RefreshTasksAsync, "刷新任务"));
         var cancel = Button("取消任务", () => RunUiAsync(CancelSelectedTaskAsync));
         cancel.X = Pos.Right(refresh) + 1;
         var result = Button("查看结果", () => RunUiAsync(ShowTaskResultAsync));
@@ -194,7 +194,7 @@ public sealed partial class TerminalWorkbench
         {
             await InvokeUiAsync(() =>
             {
-                message.Text = $"任务已启动：{operation.Id}";
+                ShowMessage($"任务已启动：{operation.Id}", accentStyle);
                 accepted?.Invoke(operation);
                 if (operation.Request.Command.StartsWith("modbus.", StringComparison.Ordinal))
                 {
@@ -221,7 +221,8 @@ public sealed partial class TerminalWorkbench
                 operation = item;
                 app.Invoke(() => ShowProgress(item));
             }).ConfigureAwait(false);
-            app.Invoke(() => message.Text = operation.Error?.Message ?? $"{operation.Request.Command} · {operation.State}");
+            app.Invoke(() => ShowMessage(operation.Error?.Message ?? $"{operation.Request.Command} · {OperationStateText(operation.State)}",
+                operation.Error is null ? successStyle : errorStyle, operation.Error is null));
         }
         await RefreshTasksAsync().ConfigureAwait(false);
     }
@@ -277,8 +278,7 @@ public sealed partial class TerminalWorkbench
         {
             return;
         }
-        var selected = taskTable.Value is { } selection && selection.SelectedCell.Y >= 0 && selection.SelectedCell.Y < displayedTasks.Length
-            ? displayedTasks[selection.SelectedCell.Y].Id : (Guid?)null;
+        var selected = SelectedTaskId();
         var viewport = taskTable.Viewport;
         updatingTasks = true;
         try
@@ -306,6 +306,7 @@ public sealed partial class TerminalWorkbench
             else
             {
                 progress.Fraction = 0;
+                SetProgressAnimation(false);
                 progressText.Text = "无任务";
             }
         }
@@ -314,6 +315,9 @@ public sealed partial class TerminalWorkbench
             updatingTasks = false;
         }
     }
+
+    private Guid? SelectedTaskId() => taskTable.Value is { } selection && selection.SelectedCell.Y >= 0 && selection.SelectedCell.Y < displayedTasks.Length
+        ? displayedTasks[selection.SelectedCell.Y].Id : null;
 
     private static string OperationStateText(OperationState state) => state switch
     {
@@ -330,6 +334,7 @@ public sealed partial class TerminalWorkbench
         var completed = operation.Progress?.Completed ?? 0;
         var total = operation.Progress?.Total;
         progress.Fraction = total is > 0 ? (float)Math.Clamp((double)completed / total.Value, 0, 1) : 0;
+        SetProgressAnimation(operation.State == OperationState.Running && total is not > 0);
         var unit = operation.Progress?.Unit switch { "bytes" => "字节", "blocks" => "块", "samples" => "采样", "addresses" => "地址", "sends" => "次", "steps" => "步骤", var value => value };
         progressText.Text = $"{operation.Request.Command} · {OperationStateText(operation.State)} · {completed}/{total?.ToString(CultureInfo.InvariantCulture) ?? "?"} {unit}";
         progressText.SetScheme(operation.State switch

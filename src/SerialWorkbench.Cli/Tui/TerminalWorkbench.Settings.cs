@@ -43,10 +43,11 @@ public sealed partial class TerminalWorkbench
         sending.X = Pos.Right(display) + 1;
         sending.Y = Pos.Top(display);
         backgroundTasks.Y = Pos.Bottom(display) + 1;
+        animations.Y = Pos.Bottom(backgroundTasks);
         BuildSerialSettings();
         BuildControlSettings();
         BuildProfileSettings();
-        view.Add(connect, advanced, controls, profiles, display, sending, backgroundTasks);
+        view.Add(connect, advanced, controls, profiles, display, sending, backgroundTasks, animations);
         return view;
     }
 
@@ -55,10 +56,10 @@ public sealed partial class TerminalWorkbench
         AddSetting(connectionSettings, "端口", port, 0);
         port.Width = Dim.Fill(1);
         AddSetting(connectionSettings, "波特率", baud, 2);
-        var open = Button("连接", () => RunUiAsync(OpenConnectionAsync));
+        var open = Button("连接", () => RunUiAsync(OpenConnectionAsync, "连接中"));
         open.Id = "connection-open";
         open.Y = Pos.Bottom(baud) + 1;
-        var refresh = Button("刷新", () => RunUiAsync(RefreshPortsAsync));
+        var refresh = Button("刷新", () => RunUiAsync(RefreshPortsAsync, "刷新端口"));
         refresh.X = Pos.Right(open) + 1;
         refresh.Y = Pos.Top(open);
         var parameters = Button("串口参数", () => { ShowSettingsDialog("串口参数", serialSettings, 16); return Task.CompletedTask; });
@@ -83,16 +84,16 @@ public sealed partial class TerminalWorkbench
         var reconnect = Button("重连", () => RunUiAsync(async () =>
         {
             await client.ReconnectConnectionAsync(RequiredConnection(), lifetime.Token).ConfigureAwait(false);
-            app.Invoke(() => message.Text = "连接已重连");
+            app.Invoke(() => ShowMessage("连接已重连", successStyle, true));
         }));
         reconnect.X = Pos.Right(details) + 1;
         reconnect.Y = Pos.Top(close);
-        connectionSettings.Add(open, refresh, parameters, profiles, managedConnections, close, details, reconnect, connectionMessage);
+        connectionSettings.Add(open, refresh, parameters, profiles, managedConnections, close, details, reconnect, connectionMessage, connectionSpinner);
         message.TextChanged += (_, _) =>
         {
             if (connectionDialog is not null)
             {
-                connectionMessage.Text = message.Text;
+                UpdateActivity();
             }
         };
     }
@@ -103,6 +104,7 @@ public sealed partial class TerminalWorkbench
         managedConnections.Value = connections.Value;
         connectionMessage.Text = "";
         connectionDialog = dialog;
+        UpdateActivity();
         connectionOpened = false;
         dialog.Add(connectionSettings);
         dialog.AddButton(new Button { Text = "关闭", ShadowStyle = null });
@@ -114,6 +116,7 @@ public sealed partial class TerminalWorkbench
         {
             dialog.Remove(connectionSettings);
             connectionDialog = null;
+            UpdateActivity();
         }
         if (connectionOpened)
         {

@@ -54,7 +54,7 @@ public sealed partial class TerminalWorkbench
             if (path is not null)
             {
                 await File.WriteAllTextAsync(path, SerialSequenceCodec.Serialize(definition), new UTF8Encoding(false), lifetime.Token).ConfigureAwait(false);
-                app.Invoke(() => message.Text = $"已保存：{path}");
+                app.Invoke(() => ShowMessage($"已保存：{path}", successStyle, true));
             }
         }));
         save.X = Pos.Right(load) + 1;
