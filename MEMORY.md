@@ -4,8 +4,8 @@
 
 - 仓库：`G:/TikaLab/SerialWorkbench`
 - 分支：`main`
-- 代码基线：`56123b8 保持终端主题切换的操作状态`，记录日期为 2026-10-07。
-- 发布目录：`publish/win-x64/`，四个入口的版本均为 `1.0.0+56123b8e8cf3b2e1349ef8bd8930d19fa7693ddd`，完整发布与命令验证通过，原有 `data/` 保留。
+- 代码基线：`197fda7 修正十六进制输入提示`，记录日期为 2026-10-07。
+- 发布目录：`publish/win-x64/`，四个入口的版本均为 `1.0.0+197fda7bfaebd9f43be8a05e06fe4af9ef4eebe9`，完整发布与命令验证通过，原有 `data/` 保留。
 - 记忆文件记录生成时的架构、功能和验证边界；当前提交状态以 `git status` 和 `git log` 为准。
 - 目标平台：Windows 11；目标运行时为 .NET 10、WinUI 3、self-contained `win-x64`。
 - 旧的 `E:/TikaLab/CableTester` 不属于当前项目基线，不能带回旧 WPF 架构、命名或实现。
@@ -53,6 +53,7 @@ SerialConnection.ReadLoopAsync
 - CTS、DSR、DCD 状态；RI 因当前 `System.IO.Ports.SerialPort` API 无公开属性而显示未知。
 - RS-485 RTS 半双工方向控制、发送前延时和发送后延时。
 - 文本/HEX 发送、编码、CR/LF/CRLF、XOR/SUM8/CRC16-Modbus/CRC16-XModem/CRC32、循环发送和终端输入历史。
+- HEX 输入严格按字节解析，每两个十六进制数字组成一个字节；奇数位和无效字符返回中文、带位置或示例的输入提示，不自动补位。
 - 实时监视全部/RX/TX、文本/HEX/来源筛选；CLI `monitor` 支持 `--direction` 和 `--source`。
 - CSV 文本和固定长度二进制波形。
 - 通用协议模板：帧头、固定长度、长度字段、字段偏移、U8/I8/U16/I16/U32/I32/F32/Hex、大小端、XOR/SUM8/CRC。
@@ -76,7 +77,7 @@ SerialConnection.ReadLoopAsync
 - TUI 使用 Terminal.Gui 原生控件，不自行绘制终端组件，不添加装饰性 emoji，设备原始文本与字节保持完整。
 - `SW_TUI.exe` 无参数启动工作台；`SW_CLI.exe` 无参数显示命令帮助，`--agent` 使用相同 Schema v2。两个入口共用同目录的 `SW_HOST.exe`。
 - 主屏为连接、报文、收发状态和单行发送。工作台、发送历史、任务、会话和设置使用 Alt+1 至 Alt+5 导航。
-- F4 连接管理，F8 设置，F9 工具。高级工具包含 Modbus、文件与回环、自动化、协议分析和波形，Esc 返回。
+- F4 连接管理，F8 设置，F9 工具。工具按“设备操作”和“数据分析”分组，包含 Modbus、传输与回环、自动化、协议分析和波形，窗口标题带 `工具 /` 层级，Esc 返回。
 - 80 列及以上使用两栏；60 至 79 列优先报文；最低 60 列、20 行。缩小后恢复保留发送草稿和焦点。
 - 底栏按焦点显示常用操作，F1 查看全部按键。报文 Ctrl+F 筛选，Ctrl+C 或右键复制，Enter 详情；发送框 Enter 发送。
 - 布局、导航、设置分别位于 `TerminalWorkbench.Layout.cs`、`TerminalWorkbench.Navigation.cs` 和 `TerminalWorkbench.Settings.cs`；业务请求继续通过 `IHostRpc`。
@@ -90,10 +91,10 @@ SerialConnection.ReadLoopAsync
 
 - 标准命令：`./eng/test.ps1`。
 - 该脚本按 solution 执行 Release 构建和测试。
-- 2026-10-07 的完整发布包含 `eng/test.ps1`：0 warnings、0 errors；211 项测试，204 项成功、0 项失败、7 项硬件测试跳过。默认 `NO_COLOR` 和模拟终端浅/深背景的 TUI 测试均通过。
+- 2026-10-07 的完整发布包含 `eng/test.ps1`：0 warnings、0 errors；212 项测试，205 项成功、0 项失败、7 项硬件测试跳过。默认 `NO_COLOR` 和模拟终端浅/深背景的 TUI 测试均通过。
 - 发布版验证 CLI/TUI 帮助、离线 capabilities/schema、JSON/JSONL、空实例 kill、Host 正常关闭、自身退出和重复 kill。验证结束时该发布目录没有残留项目进程。
 - CH340 COM20 已验证打开连接、kill 关闭连接与 Host、调用 CLI 退出，以及重新打开端口；未发送数据。该结果不能替代全部硬件测试，端口号需每次重新枚举。
-- TUI 自动化测试覆盖 60x20、80x24、120x40、窗口缩放、焦点、多选、导航、工具分组、设置输入、连接失败、主题切换、加载反馈和连接成功返回；不代表当前界面的人工视觉验收。
+- TUI 自动化测试覆盖 60x20、80x24、120x40、窗口缩放、焦点、多选、导航、工具分组、设置输入、连接失败、主题切换、加载反馈、HEX 输入提示和连接成功返回；不代表当前界面的人工视觉验收。
 - ApplicationTests、EntryPointTests 与 KillCommandTests 共用非并行的 `Application processes` 测试集合。它们操作同一目录的客户端与 Host，必须避免 kill 结束其他测试正在使用的进程。
 - Windows 进程识别使用有限查询权限与完整映像路径；已退出进程不作为终止失败。枚举与退出之间的状态变化需要通过真实进程句柄核对。
 - 便携发布：`./eng/publish.ps1`，输出目录为 `publish/win-x64/`。
@@ -130,4 +131,4 @@ SerialConnection.ReadLoopAsync
 
 ## 最近提交
 
-`56123b8` 主题切换状态；`ec1f53c` 加载与操作反馈；`3651944` 导航与任务状态；`fb38fa7` 配色与焦点层级；`5a73091` 项目记忆与使用文档；`6612818` 进程退出检查与测试隔离；`6198c8d` 全部连接与进程关闭。
+`197fda7` 十六进制输入提示；`3810e28` 终端功能记忆；`56123b8` 主题切换状态；`ec1f53c` 加载与操作反馈；`3651944` 导航与任务状态；`fb38fa7` 配色与焦点层级。

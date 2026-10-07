@@ -53,6 +53,8 @@ Host 将工作区选择保存于应用数据目录，启动时恢复；客户端
 
 `SerialWorkbench.Tui` 提供独立启动入口，工作台实现位于 `SerialWorkbench.Cli/Tui`。布局、导航、设置、报文、发送与任务等 partial 文件组织同一个客户端；`SW_CLI.exe` 无参数显示帮助，`SW_TUI.exe` 无参数进入交互界面。
 
+TUI 的五个主工作区保持稳定，F9 工具按设备操作和数据分析分组打开。Terminal.Gui Scheme 负责焦点、选择、RX/TX 和状态反馈；SpinnerView 与 ProgressBar 负责延迟加载和任务活动显示。没有额外绘制组件或增加运行时依赖。
+
 WinUI 使用 Windows App SDK 原生控件构成功能界面。NavigationView 负责页面选择和窗格状态，MainWindow 持有页面标题、说明和错误提示，Frame 缓存页面主体并呈现导航动画。SelectorBar 切换报文与波形，SettingsCard 呈现设置项，VisualState 根据内容宽度调整布局。
 
 ScottPlot 承载波形图。Light、Dark 和 HighContrast 样式分别使用内置主题或系统颜色。表单页限制字段宽度，工作台数据区与会话主从视图利用剩余空间。
