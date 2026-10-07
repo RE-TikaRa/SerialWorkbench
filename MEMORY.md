@@ -4,8 +4,8 @@
 
 - 仓库：`G:/TikaLab/SerialWorkbench`
 - 分支：`main`
-- 代码基线：`6612818 修正进程退出检查与测试隔离`，记录日期为 2026-10-06。
-- 发布目录：`publish/win-x64/`，四个入口的版本均为 `1.0.0+6612818cd54c1736388a84d972a68efa3f1c9501`，完整发布与命令验证通过，原有 `data/` 保留。
+- 代码基线：`56123b8 保持终端主题切换的操作状态`，记录日期为 2026-10-07。
+- 发布目录：`publish/win-x64/`，四个入口的版本均为 `1.0.0+56123b8e8cf3b2e1349ef8bd8930d19fa7693ddd`，完整发布与命令验证通过，原有 `data/` 保留。
 - 记忆文件记录生成时的架构、功能和验证边界；当前提交状态以 `git status` 和 `git log` 为准。
 - 目标平台：Windows 11；目标运行时为 .NET 10、WinUI 3、self-contained `win-x64`。
 - 旧的 `E:/TikaLab/CableTester` 不属于当前项目基线，不能带回旧 WPF 架构、命名或实现。
@@ -82,15 +82,18 @@ SerialConnection.ReadLoopAsync
 - 布局、导航、设置分别位于 `TerminalWorkbench.Layout.cs`、`TerminalWorkbench.Navigation.cs` 和 `TerminalWorkbench.Settings.cs`；业务请求继续通过 `IHostRpc`。
 - 连接成功只请求关闭弹窗，通过独立状态恢复输入焦点。`Dialog.Result` 仅表示按钮索引；单个按钮时不能写入 1。成功连接测试同时覆盖 F4 与设置页入口。
 - 本机技能：`C:/Users/Tika/.codex/skills/tui-design-pageton/` 与 `C:/Users/Tika/.codex/skills/tui-design-gfargo/`。名称按来源区分，设计参考结合 Terminal.Gui 官方接口使用。
+- TUI 采用 Terminal.Gui Scheme 语义样式：墨蓝背景、紫色焦点、灰色次要信息、青色 RX、琥珀色 TX；浅色终端按实际背景切换，`NO_COLOR` 使用无色与反色选择。主题变化保留输入草稿、焦点、多选范围和错误状态。
+- F9 工具按“设备操作”和“数据分析”分组，工具标题带 `工具 /` 层级；任务页优先显示运行中任务，刷新后按任务 ID 恢复选择；工作台固定显示实时/浏览/暂停/回放模式和所选报文数量，会话底部显示当前筛选摘要。
+- 连接、刷新、读取和导出操作超过 150 ms 才显示 ASCII `SpinnerView`；发送、复制、导出成功提示短暂强调，错误持续显示。未知总量任务使用原生活动进度条；设置页提供轻量动效开关。
 
 ## 验证
 
 - 标准命令：`./eng/test.ps1`。
 - 该脚本按 solution 执行 Release 构建和测试。
-- 2026-10-06 的完整发布包含 `eng/test.ps1`：0 warnings、0 errors；203 项测试，196 项成功、0 项失败、7 项硬件测试跳过。
+- 2026-10-07 的完整发布包含 `eng/test.ps1`：0 warnings、0 errors；211 项测试，204 项成功、0 项失败、7 项硬件测试跳过。默认 `NO_COLOR` 和模拟终端浅/深背景的 TUI 测试均通过。
 - 发布版验证 CLI/TUI 帮助、离线 capabilities/schema、JSON/JSONL、空实例 kill、Host 正常关闭、自身退出和重复 kill。验证结束时该发布目录没有残留项目进程。
 - CH340 COM20 已验证打开连接、kill 关闭连接与 Host、调用 CLI 退出，以及重新打开端口；未发送数据。该结果不能替代全部硬件测试，端口号需每次重新枚举。
-- TUI 自动化测试覆盖 60x20、80x24、120x40、窗口缩放、焦点、导航、设置输入、连接失败和连接成功返回；不代表当前界面的人工视觉验收。
+- TUI 自动化测试覆盖 60x20、80x24、120x40、窗口缩放、焦点、多选、导航、工具分组、设置输入、连接失败、主题切换、加载反馈和连接成功返回；不代表当前界面的人工视觉验收。
 - ApplicationTests、EntryPointTests 与 KillCommandTests 共用非并行的 `Application processes` 测试集合。它们操作同一目录的客户端与 Host，必须避免 kill 结束其他测试正在使用的进程。
 - Windows 进程识别使用有限查询权限与完整映像路径；已退出进程不作为终止失败。枚举与退出之间的状态变化需要通过真实进程句柄核对。
 - 便携发布：`./eng/publish.ps1`，输出目录为 `publish/win-x64/`。
@@ -127,4 +130,4 @@ SerialConnection.ReadLoopAsync
 
 ## 最近提交
 
-`6612818` 进程退出检查与测试隔离；`6198c8d` 全部连接与进程关闭；`da1d337` GUI 与 Host 构建名称；`8f75abb` TUI 与 CLI 独立入口；`595b399` 端口设备名称；`5e9fc46` 连接成功返回。
+`56123b8` 主题切换状态；`ec1f53c` 加载与操作反馈；`3651944` 导航与任务状态；`fb38fa7` 配色与焦点层级；`5a73091` 项目记忆与使用文档；`6612818` 进程退出检查与测试隔离；`6198c8d` 全部连接与进程关闭。
