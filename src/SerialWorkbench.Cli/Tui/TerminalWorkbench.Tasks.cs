@@ -342,12 +342,12 @@ public sealed partial class TerminalWorkbench
         if (save)
         {
             using var dialog = new SaveDialog { Title = "保存文件", Path = Environment.CurrentDirectory };
-            app.Run(dialog);
+            RunDialog(dialog);
             return dialog.Canceled ? null : dialog.Path;
         }
 
         using var open = new OpenDialog { Title = "选择文件", Path = Environment.CurrentDirectory, AllowsMultipleSelection = false, OpenMode = OpenMode.File };
-        app.Run(open);
+        RunDialog(open);
         return open.Canceled ? null : open.Path;
     }
 

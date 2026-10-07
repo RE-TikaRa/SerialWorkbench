@@ -88,7 +88,7 @@ public sealed partial class TerminalWorkbench
         dialog.Add(lines);
         dialog.AddButton(copy);
         dialog.AddButton(new Button { Text = "关闭" });
-        app.Run(dialog);
+        RunDialog(dialog);
     }
 
     private void ShowHelp() => ShowText("快捷键与操作", """

@@ -17,6 +17,49 @@ public sealed class TuiTests
     [InlineData(60, 20)]
     [InlineData(80, 24)]
     [InlineData(120, 40)]
+    public async Task FocusAndSelectionRemainDistinctAcrossTheWorkbench(int width, int height)
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-focus-style-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create().Init();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var driver = Assert.IsAssignableFrom<Terminal.Gui.Drivers.IDriver>(app.Driver);
+        driver.SetScreenSize(width, height);
+        var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        var frame = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<FrameView>().Single(static frame => frame.Title == "报文");
+        var table = Assert.Single(frame.SubViews.OfType<TableView>());
+        var sending = SendingPanel(workbench);
+        var input = Assert.Single(sending.SubViews.OfType<TextField>(), static field => field.Id == "send-input");
+        var buffer = new TrafficBuffer(System.Text.Encoding.UTF8);
+        buffer.SetPresentation(System.Text.Encoding.UTF8, false, true, 0);
+        buffer.Append(Enumerable.Range(1, 3).Select(index => new SerialTrafficEvent(index, DateTimeOffset.UtcNow, index,
+            Guid.Empty, SerialDirection.Receive, [(byte)(0x40 + index)], "serial")).ToArray());
+        workbench.SetTrafficRows(buffer.Rows.ToArray());
+        table.SetFocus();
+        table.SetSelection(0, 0, false);
+        table.SetSelection(0, 1, true);
+        app.LayoutAndDraw(true);
+        Assert.NotEqual(frame.Border.View?.GetScheme().Normal, sending.Border.View?.GetScheme().Normal);
+        var focused = table.GetScheme().Focus;
+        input.Text = "测试";
+        input.SetFocus();
+        app.LayoutAndDraw(true);
+        Assert.NotEqual(frame.Border.View?.GetScheme().Normal, sending.Border.View?.GetScheme().Normal);
+        Assert.NotEqual(focused, table.GetScheme().Active);
+        Assert.Equal([0, 1], table.GetAllSelectedCells().Select(static cell => cell.Y).Distinct().Order());
+        Assert.Equal("测试", input.Text);
+        Assert.Contains("41", driver.ToString(), StringComparison.Ordinal);
+        Assert.Contains("42", driver.ToString(), StringComparison.Ordinal);
+        Assert.Contains("43", driver.ToString(), StringComparison.Ordinal);
+        app.End(token);
+    }
+
+    [Theory]
+    [InlineData(60, 20)]
+    [InlineData(80, 24)]
+    [InlineData(120, 40)]
     public async Task PortSelectorDisplaysDeviceNamesAndOpensTheSelectedPort(int width, int height)
     {
         var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-port-names-{Guid.NewGuid():N}"));
@@ -368,6 +411,7 @@ public sealed class TuiTests
         }, dialog =>
         {
             Assert.Equal("报文显示与筛选", dialog.Title);
+            Assert.Equal(workbench.Window.GetScheme().Normal, dialog.GetScheme().Normal);
             foreach (var field in workbench.TrafficSettings.SubViews.OfType<TextField>().Where(static field => !field.ReadOnly))
             {
                 field.SetFocus();

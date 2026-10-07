@@ -135,7 +135,17 @@ public sealed partial class TerminalWorkbench : IDisposable
     {
         this.app = app;
         this.client = client;
-        var title = new Label { Text = "SerialWorkbench", Height = 1 };
+        var monochrome = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NO_COLOR"));
+        var light = app.Driver?.DefaultAttribute?.Background.IsDarkColor() == false;
+        bodyStyle = CreateBodyStyle(light, monochrome);
+        mutedStyle = CreateTextStyle("#949eb5", "#626b80", monochrome, light);
+        accentStyle = CreateTextStyle("#bcabeb", "#69469b", monochrome, light, TextStyle.Bold);
+        receiveStyle = CreateTextStyle("#71d5cf", "#08776f", monochrome, light);
+        transmitStyle = CreateTextStyle("#e5bd78", "#95601e", monochrome, light);
+        successStyle = CreateTextStyle("#91c9a4", "#28643c", monochrome, light, TextStyle.Bold);
+        warningStyle = CreateTextStyle("#e5bd78", "#95601e", monochrome, light, TextStyle.Bold);
+        errorStyle = CreateTextStyle("#ec929c", "#a22e43", monochrome, light, TextStyle.Bold);
+        var title = new Label { Id = "workbench-title", Text = "SerialWorkbench", Height = 1 };
         status.X = Pos.Right(title) + 2;
         tabs.Y = Pos.Bottom(title);
         connections.SetSource(connectionItems);
@@ -235,6 +245,16 @@ public sealed partial class TerminalWorkbench : IDisposable
                 follow.Value = CheckState.UnChecked;
             }
         };
+        ApplyStyles(window);
+        foreach (var view in tools.Concat([serialSettings, controlSettings, profileSettings, connectionSettings, trafficSettings, sendSettings, sequenceEditor]))
+        {
+            ApplyStyles(view);
+        }
+        title.SetScheme(accentStyle);
+        status.SetScheme(bodyStyle);
+        StyleTraffic(traffic);
+        StyleTraffic(sessionEvents);
+        shortcuts.SetScheme(bodyStyle);
     }
 
     public Window Window => window;

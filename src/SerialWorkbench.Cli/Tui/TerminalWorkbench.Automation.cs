@@ -157,7 +157,7 @@ public sealed partial class TerminalWorkbench
         dialog.Add(sequenceEditor);
         dialog.AddButton(new Button { Text = "取消", ShadowStyle = null });
         dialog.AddButton(new Button { Text = "保存步骤", ShadowStyle = null });
-        app.Run(dialog);
+        RunDialog(dialog);
         dialog.Remove(sequenceEditor);
         return dialog.Result == 1;
     }

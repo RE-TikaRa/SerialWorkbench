@@ -387,7 +387,7 @@ public sealed partial class TerminalWorkbench
         apply.Accepting += (_, _) => applied = true;
         dialog.AddButton(apply);
         dialog.AddButton(new Button { Text = "关闭" });
-        app.Run(dialog);
+        RunDialog(dialog);
         foreach (var control in controls)
         {
             dialog.Remove(control);

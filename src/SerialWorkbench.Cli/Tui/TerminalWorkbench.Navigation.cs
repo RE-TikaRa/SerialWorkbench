@@ -96,7 +96,7 @@ public sealed partial class TerminalWorkbench
         };
         dialog.Add(list);
         dialog.AddButton(new Button { Text = "关闭", ShadowStyle = null });
-        app.Run(dialog);
+        RunDialog(dialog);
         if (selected is not null)
         {
             ShowTool(selected);
@@ -112,7 +112,7 @@ public sealed partial class TerminalWorkbench
         dialog.AddButton(new Button { Text = "关闭", ShadowStyle = null });
         try
         {
-            app.Run(dialog);
+            RunDialog(dialog);
         }
         finally
         {

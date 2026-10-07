@@ -108,7 +108,7 @@ public sealed partial class TerminalWorkbench
         dialog.AddButton(new Button { Text = "关闭", ShadowStyle = null });
         try
         {
-            app.Run(dialog);
+            RunDialog(dialog);
         }
         finally
         {
@@ -202,7 +202,7 @@ public sealed partial class TerminalWorkbench
         var choose = Button("选择工作区", () => RunUiAsync(async () =>
         {
             using var dialog = new OpenDialog { Title = "选择工作区", OpenMode = OpenMode.Directory, Path = Environment.CurrentDirectory, AllowsMultipleSelection = false };
-            app.Run(dialog);
+            RunDialog(dialog);
             if (!dialog.Canceled)
             {
                 await client.SetWorkspaceAsync(new SetWorkspaceRequest(dialog.Path), lifetime.Token).ConfigureAwait(false);
@@ -227,7 +227,7 @@ public sealed partial class TerminalWorkbench
         dialog.AddButton(new Button { Text = "关闭", ShadowStyle = null });
         try
         {
-            app.Run(dialog);
+            RunDialog(dialog);
         }
         finally
         {
