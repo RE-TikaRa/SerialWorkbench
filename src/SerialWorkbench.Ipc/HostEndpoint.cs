@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO.Pipes;
 using System.Security.Cryptography;
 using System.Text;
@@ -47,7 +48,8 @@ public static class HostEndpoint
         }
 
         using var startupSemaphore = new Semaphore(1, 1, $"Local\\{pipeName}-startup");
-        var deadline = DateTime.UtcNow.AddSeconds(10);
+        var startupTimeout = TimeSpan.FromSeconds(30);
+        var deadline = DateTime.UtcNow + startupTimeout;
         while (DateTime.UtcNow < deadline)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -76,11 +78,16 @@ public static class HostEndpoint
                     throw new HostAccessException(applicationRoot, ex);
                 }
 
-                using (HostProcessLauncher.Start(hostPath, applicationRoot))
+                using (var hostProcess = HostProcessLauncher.Start(hostPath, applicationRoot))
                 {
                     while (DateTime.UtcNow < deadline)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
+                        if (hostProcess.HasExited)
+                        {
+                            throw new InvalidOperationException($"SerialWorkbench.Host exited during startup with code {hostProcess.ExitCode}.");
+                        }
+
                         await using var retry = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
                         try
                         {
@@ -107,7 +114,7 @@ public static class HostEndpoint
             }
         }
 
-        throw new TimeoutException("SerialWorkbench.Host did not create its IPC endpoint within 10 seconds.");
+        throw new TimeoutException($"SerialWorkbench.Host did not create its IPC endpoint within {startupTimeout.TotalSeconds:0} seconds.");
     }
 }
 
