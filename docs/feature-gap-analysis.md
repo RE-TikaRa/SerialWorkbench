@@ -58,7 +58,7 @@ Host 持有串口句柄、写入租约、原始事件和 SQLite 会话。WinUI�
 - CLI 设备命令提供后台执行与持久请求标识，端口请求由 Host 去重并保留连接，后台 XMODEM 接收由 Host 保存文件。
 - 实时事件提供流标识、最早和最新序号、过滤后的连续游标及缺失区间；CLI 监视通过长轮询获取数据。
 - CLI 使用 System.CommandLine 处理带类型的参数、Help、补全建议和 Response File，使用 Spectre.Console 呈现文本结果，并提供自动化序列入口。
-- Agent 与 CLI 共享 Schema v2，Agent 通过 `SW_CLI.exe --agent` 获取离线能力发现、命令 Schema 和帮助；结构化错误写入 stdout，JSONL 保持逐条单行并输出最终结果。
+- Agent 与 CLI 共享 Schema v2，Agent 通过 `SW_CLI.exe --agent` 获取完整 CLI 命令树、离线能力发现、命令 Schema 和帮助；结构化错误写入 stdout，JSONL 保持逐条单行并输出最终结果。
 - CLI 管理共享连接配置，支持查看、保存、修改、重命名、删除与按配置打开连接；在线 DTR/RTS、缓冲清理和 BREAK 使用同一套 Host RPC。
 - CLI 支持发送校验追加、Host 循环发送、分页进度读取和等待已有任务完成，退出等待不取消其他客户端的任务。
 - CLI `kill` 关闭当前应用目录的共享连接、Host 和客户端进程，报告退出结果后结束自身；支持 JSON/JSONL 与关闭时限。

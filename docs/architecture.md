@@ -30,7 +30,7 @@ Serial.Windows / Storage / IPC / Host
 WinUI / TUI / CLI / Agent
 ```
 
-这里的 Agent 是 `SW_CLI.exe --agent` 的调用方，不是第四种终端客户端。Agent 不启动 TUI、不读取终端画面，只消费 CLI 输出的 JSON/JSONL 和 Schema。
+这里的 Agent 是 `SW_CLI.exe --agent` 的调用方，不是第四种终端客户端。Agent 不启动 TUI、不读取终端画面；CLI 的完整命令树、参数和业务能力都可通过 `--agent` 使用，只把输出切换为 JSON/JSONL 和稳定 Schema。
 
 `SerialWorkbench.Domain` 定义串口、会话和数据通道模型。`Application` 管理写入租约、事件日志和共享报文视图；`Protocols` 提供协议及波形解析；`Sessions` 管理 SQLite 会话；`Serial.Windows` 访问 Windows 串口；`Host` 组合运行时服务；`IPC` 提供客户端与 Host 的本机 RPC 契约。
 
@@ -44,7 +44,7 @@ RPC 契约位于 `src/SerialWorkbench.Ipc/RpcContracts.cs`。握手使用主版�
 
 每个会话对应一个 `.swbsession` SQLite 文件。事件记录 UTC、单调时钟、递增序号、连接标识、方向、来源和原始字节。会话结束时执行 WAL checkpoint，单个文件可独立迁移和读取。
 
-Agent 与 CLI 的 JSON/JSONL 共用 Schema v2，契约记录包含固定信封和命令特定结果；Agent 通过 `SW_CLI.exe --agent` 获取这些记录。结果与结构化错误写 stdout，诊断写 stderr。契约位于 `schemas/`，由命令树和实际结果类型生成。
+Agent 与 CLI 的 JSON/JSONL 共用 Schema v2，契约记录包含固定信封和命令特定结果；Agent 通过 `SW_CLI.exe --agent <command>` 获取 CLI 全部业务命令的机器结果。结果与结构化错误写 stdout，诊断写 stderr。契约位于 `schemas/`，由命令树和实际结果类型生成。
 
 工作区切换由 Host 执行。客户端提交工作区路径，并使用 Host 返回的数据目录和会话状态更新界面。
 Host 将工作区选择保存于应用数据目录，启动时恢复；客户端连接时读取共享状态。
