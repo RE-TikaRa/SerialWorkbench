@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace SerialWorkbench.Ipc;
@@ -7,8 +6,9 @@ namespace SerialWorkbench.Ipc;
 internal static unsafe partial class HostProcessLauncher
 {
     private const uint DetachedProcess = 0x00000008;
+    private const uint StillActive = 259;
 
-    public static Process Start(string hostPath, string applicationRoot)
+    public static StartedProcess Start(string hostPath, string applicationRoot)
     {
         var startupInfo = new StartupInfo
         {
@@ -39,12 +39,30 @@ internal static unsafe partial class HostProcessLauncher
 
         try
         {
-            return Process.GetProcessById(checked((int)processInformation.ProcessId));
+            return new StartedProcess(processInformation.Process);
         }
         finally
         {
             CloseHandle(processInformation.Thread);
-            CloseHandle(processInformation.Process);
+        }
+    }
+
+    internal sealed class StartedProcess(nint handle) : IDisposable
+    {
+        public bool HasExited => GetExitCode() != StillActive;
+
+        public uint ExitCode => GetExitCode();
+
+        public void Dispose() => CloseHandle(handle);
+
+        private uint GetExitCode()
+        {
+            if (GetExitCodeProcess(handle, out var exitCode) == 0)
+            {
+                throw new Win32Exception(Marshal.GetLastPInvokeError());
+            }
+
+            return exitCode;
         }
     }
 
@@ -63,6 +81,9 @@ internal static unsafe partial class HostProcessLauncher
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     private static partial int CloseHandle(nint handle);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    private static partial int GetExitCodeProcess(nint process, out uint exitCode);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct StartupInfo

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO.Pipes;
 using System.Security.Cryptography;
 using System.Text;
@@ -85,7 +84,11 @@ public static class HostEndpoint
                         cancellationToken.ThrowIfCancellationRequested();
                         if (hostProcess.HasExited)
                         {
-                            throw new InvalidOperationException($"SerialWorkbench.Host exited during startup with code {hostProcess.ExitCode}.");
+                            var exitCode = hostProcess.ExitCode;
+                            if (exitCode != 0)
+                            {
+                                throw new InvalidOperationException($"SerialWorkbench.Host exited during startup with code {exitCode}.");
+                            }
                         }
 
                         await using var retry = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
