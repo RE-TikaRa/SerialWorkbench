@@ -2,6 +2,15 @@
 
 推送 `v*` 格式的 Git tag 后，GitHub Actions 会在 Windows runner 上运行完整测试并创建 Release。
 
+## 触发关系
+
+| 操作 | 工作流 | 结果 |
+| --- | --- | --- |
+| 推送 `main` | `CI` | 构建并运行完整测试 |
+| 创建面向 `main` 的 pull request | `CI` | 构建并运行完整测试 |
+| 手动运行 `CI` | `CI` | 使用当前提交构建并运行完整测试 |
+| 推送 `v*` tag | `Release` | 生成 lite/full 包、校验文件和 GitHub Release |
+
 ~~~powershell
 git tag v1.0.0
 git push origin v1.0.0
