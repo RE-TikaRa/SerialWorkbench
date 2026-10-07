@@ -26,7 +26,7 @@ WinUI / TUI / CLI / Agent
           └─ SQLite sessions
 ```
 
-GUI 面向完整的人机操作，TUI 聚焦终端中的高频收发，CLI 和 Agent 面向脚本、CI 与自动化。三种客户端不复制串口和会话业务，连接状态由 Host 统一管理。
+GUI 面向完整的人机操作，TUI 聚焦终端中的高频收发，CLI 面向脚本与 CI，Agent 只通过 `SW_CLI.exe --agent` 调用机器接口，不进入 TUI 或解析终端画面。三种客户端不复制串口和会话业务，连接状态由 Host 统一管理。
 
 ## 快速开始
 
@@ -118,7 +118,7 @@ HEX 输入每两个十六进制数字表示一个字节：
 
 ## CLI 与 Agent
 
-CLI 使用 System.CommandLine 管理命令、参数、Help、补全和 Response File。一次性文本结果使用 Spectre.Console；机器输出使用 Schema v2。
+CLI 使用 System.CommandLine 管理命令、参数、Help、补全和 Response File。一次性文本结果使用 Spectre.Console；机器输出使用 Schema v2。Agent 只调用 CLI 的 `--agent` 模式，不依赖 TUI 的布局、快捷键或终端状态。
 
 常用命令：
 

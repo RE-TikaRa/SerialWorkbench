@@ -66,14 +66,14 @@ SerialConnection.ReadLoopAsync
 - 连接快照显示累计 RX/TX 和连接打开以来平均 RX/TX 字节速率。
 - Host 状态显示待持久化事件数量和实际写入速率，单位为事件/s。
 - Host 共享连接、工作区、命名配置、发送历史与任务，客户端退出保留连接；无客户端、连接和任务后等待 30 秒退出。
-- Agent 与 CLI JSON/JSONL 共用 Schema v2；含失败在内的契约记录写 stdout，stderr 仅放诊断。capabilities、schema 和 help 可离线查询。
+- Agent 只调用 `SW_CLI.exe --agent`，不使用 TUI 或解析终端画面。Agent 与 CLI JSON/JSONL 共用 Schema v2；含失败在内的契约记录写 stdout，stderr 仅放诊断。capabilities、schema 和 help 可离线查询。
 - CLI 支持连接配置管理、在线控制线与缓冲操作、BREAK、校验追加、循环发送、任务进度和等待。核心业务能力的完整 CLI 覆盖仍需继续完善。
 - CLI `kill` 按完整可执行路径识别指定应用目录的四个入口，先结束其他客户端，再通过 RPC 取消连接任务、关闭串口与 Host。RPC 不可用或超时则强制结束 Host；结果记录是否强制结束，调用 CLI 输出结果后自行退出。
 - `kill` 默认关闭时限为 10000 ms，支持 `--app-root`、JSON/JSONL；没有 Host 时不会启动 Host。失败退出码为 3，结果保留失败进程和 `PROCESS_TERMINATION_FAILED`。
 
 ## 终端工作台
 
-- GUI 承载完整人工操作，TUI 聚焦连接、收发、日志与常用配置，CLI 承担完整程序控制与 AI 接口；三者共用 Host RPC。
+- GUI 承载完整人工操作，TUI 聚焦连接、收发、日志与常用配置，CLI 承担完整程序控制；Agent 只通过 `SW_CLI.exe --agent` 使用机器接口。三者共用 Host RPC。
 - TUI 使用 Terminal.Gui 原生控件，不自行绘制终端组件，不添加装饰性 emoji，设备原始文本与字节保持完整。
 - `SW_TUI.exe` 无参数启动工作台；`SW_CLI.exe` 无参数显示命令帮助，`--agent` 使用相同 Schema v2。两个入口共用同目录的 `SW_HOST.exe`。
 - 主屏为连接、报文、收发状态和单行发送。工作台、发送历史、任务、会话和设置使用 Alt+1 至 Alt+5 导航。
