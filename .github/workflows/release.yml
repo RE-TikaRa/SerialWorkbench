@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build release packages
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build and package releases
+        shell: pwsh
+        run: .\eng\release.ps1 -OutputDirectory artifacts\release -Version $env:GITHUB_REF_NAME
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: SerialWorkbench-${{ github.ref_name }}
+          path: |
+            artifacts/release/*.zip
+            artifacts/release/*.sha256
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $assets = @(Get-ChildItem -LiteralPath artifacts\release -File)
+          & gh release view $env:GITHUB_REF_NAME 2>$null
+          if ($LASTEXITCODE -eq 0) {
+              & gh release upload $env:GITHUB_REF_NAME $assets.FullName --clobber
+          }
+          else {
+              & gh release create $env:GITHUB_REF_NAME --title "SerialWorkbench $env:GITHUB_REF_NAME" --generate-notes $assets.FullName
+          }
+          if ($LASTEXITCODE -ne 0) {
+              throw "GitHub Release operation failed with exit code $LASTEXITCODE."
+          }
