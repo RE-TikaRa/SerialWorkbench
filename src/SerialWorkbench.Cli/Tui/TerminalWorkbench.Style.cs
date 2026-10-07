@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -8,15 +9,66 @@ namespace SerialWorkbench.Cli.Tui;
 
 public sealed partial class TerminalWorkbench
 {
-    private readonly Scheme bodyStyle;
-    private readonly Scheme mutedStyle;
-    private readonly Scheme accentStyle;
-    private readonly Scheme receiveStyle;
-    private readonly Scheme transmitStyle;
-    private readonly Scheme successStyle;
-    private readonly Scheme warningStyle;
-    private readonly Scheme errorStyle;
+    private readonly bool monochrome = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NO_COLOR"));
+    private Scheme bodyStyle = new();
+    private Scheme mutedStyle = new();
+    private Scheme accentStyle = new();
+    private Scheme receiveStyle = new();
+    private Scheme transmitStyle = new();
+    private Scheme successStyle = new();
+    private Scheme warningStyle = new();
+    private Scheme errorStyle = new();
     private readonly ConditionalWeakTable<View, object> styledPanels = new();
+
+    private void SetTheme(bool light)
+    {
+        bodyStyle = CreateBodyStyle(light, monochrome);
+        mutedStyle = CreateTextStyle("#949eb5", "#626b80", monochrome, light);
+        accentStyle = CreateTextStyle("#bcabeb", "#69469b", monochrome, light, TextStyle.Bold);
+        receiveStyle = CreateTextStyle("#71d5cf", "#08776f", monochrome, light);
+        transmitStyle = CreateTextStyle("#e5bd78", "#95601e", monochrome, light);
+        successStyle = CreateTextStyle("#91c9a4", "#28643c", monochrome, light, TextStyle.Bold);
+        warningStyle = CreateTextStyle("#e5bd78", "#95601e", monochrome, light, TextStyle.Bold);
+        errorStyle = CreateTextStyle("#ec929c", "#a22e43", monochrome, light, TextStyle.Bold);
+    }
+
+    private void ApplyWorkbenchStyles()
+    {
+        ApplyStyles(window);
+        foreach (var view in tools.Concat([serialSettings, controlSettings, profileSettings, connectionSettings, trafficSettings, sendSettings, sequenceEditor]))
+        {
+            ApplyStyles(view);
+        }
+        title.SetScheme(accentStyle);
+        status.SetScheme(bodyStyle);
+        StyleTraffic(traffic);
+        StyleTraffic(sessionEvents);
+        shortcuts.SetScheme(bodyStyle);
+        activitySpinner.SetScheme(accentStyle);
+        activityText.SetScheme(accentStyle);
+        UpdateConnectionStatus();
+        if ((displayedTasks.FirstOrDefault(item => item.Id == SelectedTaskId()) ?? displayedTasks.FirstOrDefault()) is { } operation)
+        {
+            ShowProgress(operation);
+        }
+    }
+
+    private void OnTerminalColorsChanged(object? sender, ValueChangedEventArgs<DrawingAttribute?> args)
+    {
+        var previous = message.GetScheme();
+        Func<Scheme> feedbackStyle = previous == errorStyle ? () => errorStyle
+            : previous == warningStyle ? () => warningStyle
+            : previous == successStyle ? () => successStyle
+            : previous == accentStyle ? () => accentStyle : () => mutedStyle;
+        SetTheme(args.NewValue?.Background.IsDarkColor() == false);
+        ApplyWorkbenchStyles();
+        if (app.TopRunnableView is Runnable current && current != window)
+        {
+            ApplyStyles(current);
+        }
+        message.SetScheme(feedbackStyle());
+        connectionMessage.SetScheme(feedbackStyle());
+    }
 
     private static Scheme CreateBodyStyle(bool light, bool monochrome)
     {

@@ -13,6 +13,40 @@ namespace SerialWorkbench.Tests;
 
 public sealed class TuiTests
 {
+    [Fact]
+    public async Task TerminalColorDetectionPreservesDraftsSelectionAndErrors()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-terminal-theme-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create().Init();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var driver = Assert.IsAssignableFrom<Terminal.Gui.Drivers.IDriver>(app.Driver);
+        driver.SetScreenSize(80, 24);
+        var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
+        var input = SendingPanel(workbench).SubViews.OfType<TextField>().Single(static field => field.Id == "send-input");
+        input.Text = "测试 e\u0301";
+        input.SetFocus();
+        await workbench.RunUiAsync(() => Task.FromException(new IOException("设备已断开")));
+        app.LayoutAndDraw(true);
+        var message = workbench.Window.SubViews.OfType<Label>().Single(static label => label.Id == "feedback-message");
+        var setColors = driver.GetType().GetMethod("SetDefaultAttribute", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(setColors);
+        foreach (var background in new[] { "#f5f6fa", "#171b2b" })
+        {
+            setColors.Invoke(driver, [new Terminal.Gui.Drawing.Attribute("#404040", background)]);
+            app.LayoutAndDraw(true);
+            var expectedBackground = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NO_COLOR"))
+                ? new Terminal.Gui.Drawing.Color(background) : Terminal.Gui.Drawing.Color.None;
+            Assert.Equal(expectedBackground, workbench.Window.GetScheme().Normal.Background);
+            Assert.Equal("测试 e\u0301", input.Text);
+            Assert.Same(input, workbench.Window.MostFocused);
+            Assert.Equal("设备已断开", message.Text);
+            Assert.NotEqual(input.GetScheme().Normal, message.GetScheme().Normal);
+        }
+        app.End(token);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

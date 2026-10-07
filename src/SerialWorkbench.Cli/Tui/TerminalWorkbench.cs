@@ -136,16 +136,7 @@ public sealed partial class TerminalWorkbench : IDisposable
     {
         this.app = app;
         this.client = client;
-        var monochrome = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NO_COLOR"));
-        var light = app.Driver?.DefaultAttribute?.Background.IsDarkColor() == false;
-        bodyStyle = CreateBodyStyle(light, monochrome);
-        mutedStyle = CreateTextStyle("#949eb5", "#626b80", monochrome, light);
-        accentStyle = CreateTextStyle("#bcabeb", "#69469b", monochrome, light, TextStyle.Bold);
-        receiveStyle = CreateTextStyle("#71d5cf", "#08776f", monochrome, light);
-        transmitStyle = CreateTextStyle("#e5bd78", "#95601e", monochrome, light);
-        successStyle = CreateTextStyle("#91c9a4", "#28643c", monochrome, light, TextStyle.Bold);
-        warningStyle = CreateTextStyle("#e5bd78", "#95601e", monochrome, light, TextStyle.Bold);
-        errorStyle = CreateTextStyle("#ec929c", "#a22e43", monochrome, light, TextStyle.Bold);
+        SetTheme(app.Driver?.DefaultAttribute?.Background.IsDarkColor() == false);
         status.X = Pos.Right(title) + 2;
         status.TextAlignment = Alignment.End;
         tabs.Y = Pos.Bottom(title);
@@ -250,18 +241,11 @@ public sealed partial class TerminalWorkbench : IDisposable
                 UpdateConnectionStatus();
             }
         };
-        ApplyStyles(window);
-        foreach (var view in tools.Concat([serialSettings, controlSettings, profileSettings, connectionSettings, trafficSettings, sendSettings, sequenceEditor]))
+        ApplyWorkbenchStyles();
+        if (app.Driver is { } driver)
         {
-            ApplyStyles(view);
+            driver.DefaultAttributeChanged += OnTerminalColorsChanged;
         }
-        title.SetScheme(accentStyle);
-        status.SetScheme(bodyStyle);
-        StyleTraffic(traffic);
-        StyleTraffic(sessionEvents);
-        shortcuts.SetScheme(bodyStyle);
-        activitySpinner.SetScheme(accentStyle);
-        activityText.SetScheme(accentStyle);
         animations.ValueChanged += (_, _) =>
         {
             UpdateActivity();
@@ -332,6 +316,10 @@ public sealed partial class TerminalWorkbench : IDisposable
         disposed = true;
         lifetime.Cancel();
         StopFeedback();
+        if (app.Driver is { } driver)
+        {
+            driver.DefaultAttributeChanged -= OnTerminalColorsChanged;
+        }
         replay?.Cancel();
         if (refreshToken is not null)
         {
@@ -729,7 +717,13 @@ public sealed partial class TerminalWorkbench : IDisposable
         {
             if (activity is not null && !lifetime.IsCancellationRequested)
             {
-                await InvokeUiAsync(() => EndActivity(activity)).ConfigureAwait(false);
+                try
+                {
+                    await InvokeUiAsync(() => EndActivity(activity)).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+                {
+                }
             }
         }
     }
