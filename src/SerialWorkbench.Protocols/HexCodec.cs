@@ -24,7 +24,7 @@ public static class HexCodec
 
             if (!Uri.IsHexDigit(character))
             {
-                throw new FormatException($"Invalid hexadecimal character '{character}' at index {index}.");
+                throw new FormatException($"十六进制输入包含无效字符“{character}”（第 {index + 1} 个字符）。");
             }
 
             digits.Add(character);
@@ -32,7 +32,7 @@ public static class HexCodec
 
         if ((digits.Count & 1) != 0)
         {
-            throw new FormatException("Hexadecimal input must contain an even number of digits.");
+            throw new FormatException("十六进制输入必须包含偶数位；每两个十六进制数字表示一个字节，例如 0A。");
         }
 
         var result = new byte[digits.Count / 2];

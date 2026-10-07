@@ -24,6 +24,14 @@ public sealed class ProtocolTests
     }
 
     [Fact]
+    public void HexCodecExplainsHowToCorrectOddDigitInput()
+    {
+        var exception = Assert.Throws<FormatException>(() => HexCodec.Parse("0"));
+
+        Assert.Equal("十六进制输入必须包含偶数位；每两个十六进制数字表示一个字节，例如 0A。", exception.Message);
+    }
+
+    [Fact]
     public void SerialSequenceCodecReadsAndWritesHexData()
     {
         var sequence = SerialSequenceCodec.Deserialize("""{"name":"read","steps":[{"data":"01 03 00 00 00 01 84 0A","format":"hex","delayMilliseconds":0,"repeatCount":1,"waitMilliseconds":0}]}""");
