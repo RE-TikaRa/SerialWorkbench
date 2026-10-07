@@ -1,6 +1,9 @@
 [CmdletBinding()]
 param(
-    [string]$OutputDirectory
+    [ValidateSet("full", "lite")]
+    [string]$Profile = "full",
+    [string]$OutputDirectory,
+    [switch]$SkipTests
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,7 +13,9 @@ if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
     $OutputDirectory = Join-Path $RepositoryRoot "publish\win-x64"
 }
 
-& (Join-Path $PSScriptRoot "test.ps1")
+if (-not $SkipTests) {
+    & (Join-Path $PSScriptRoot "test.ps1")
+}
 
 $componentRoot = Reset-RepositoryBuildDirectory (Join-Path $RepositoryRoot "artifacts\publish-components\win-x64")
 $outputRoot = Resolve-RepositoryBuildPath $OutputDirectory
@@ -18,9 +23,11 @@ New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
 $components = @(
     @{ Name = "host"; Project = "src\SerialWorkbench.Host\SerialWorkbench.Host.csproj" },
     @{ Name = "cli"; Project = "src\SerialWorkbench.Cli\SerialWorkbench.Cli.csproj" },
-    @{ Name = "tui"; Project = "src\SerialWorkbench.Tui\SerialWorkbench.Tui.csproj" },
-    @{ Name = "winui"; Project = "src\SerialWorkbench.WinUI\SerialWorkbench.WinUI.csproj" }
+    @{ Name = "tui"; Project = "src\SerialWorkbench.Tui\SerialWorkbench.Tui.csproj" }
 )
+if ($Profile -eq "full") {
+    $components += @{ Name = "winui"; Project = "src\SerialWorkbench.WinUI\SerialWorkbench.WinUI.csproj" }
+}
 
 Push-Location $RepositoryRoot
 try {
@@ -50,26 +57,30 @@ try {
     Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot "schemas") -Force | Copy-Item -Destination $schemaDirectory -Recurse -Force
 
     $requiredFiles = @(
-        "SW.exe",
         "SW_HOST.exe",
         "SW_CLI.exe",
         "SW_TUI.exe",
-        "SW.pri",
-        "App.xbf",
-        "MainWindow.xbf",
-        "Microsoft.ui.xaml.dll",
-        "Microsoft.WindowsAppRuntime.dll",
-        "Microsoft.WindowsAppRuntime.pri",
         "LICENSE",
         "README.md"
     )
+    if ($Profile -eq "full") {
+        $requiredFiles += @(
+            "SW.exe",
+            "SW.pri",
+            "App.xbf",
+            "MainWindow.xbf",
+            "Microsoft.ui.xaml.dll",
+            "Microsoft.WindowsAppRuntime.dll",
+            "Microsoft.WindowsAppRuntime.pri"
+        )
+    }
 
     $missing = @($requiredFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $outputRoot $_) -PathType Leaf) })
     if ($missing.Count -ne 0) {
         throw "Portable publish is missing: $($missing -join ', ')."
     }
 
-    Write-Host "Portable release: $outputRoot"
+    Write-Host "Portable release ($Profile): $outputRoot"
 }
 finally {
     Pop-Location
