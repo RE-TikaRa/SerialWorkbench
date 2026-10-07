@@ -32,10 +32,23 @@ public sealed partial class TerminalWorkbench
                 command.Action?.Invoke();
             }
         };
-        tabs.ValueChanged += (_, _) => UpdateShortcutHints();
+        tabs.ValueChanged += (_, _) =>
+        {
+            UpdateWorkspaceTitle();
+            UpdateShortcutHints();
+        };
         input.HasFocusChanged += (_, _) => UpdateShortcutHints();
         traffic.HasFocusChanged += (_, _) => UpdateShortcutHints();
         connections.HasFocusChanged += (_, _) => UpdateShortcutHints();
+    }
+
+    private void UpdateWorkspaceTitle()
+    {
+        var text = window.Viewport.Width < 80 ? "SerialWorkbench" : $"SerialWorkbench / {tabs.Value?.Title[2..]}";
+        if (title.Text != text)
+        {
+            title.Text = text;
+        }
     }
 
     private void UpdateShortcutHints()
@@ -81,20 +94,29 @@ public sealed partial class TerminalWorkbench
 
     private void ShowTools()
     {
-        using var dialog = new Dialog { Title = "工具", Width = 40, Height = 11 };
-        var list = new ListView { Width = Dim.Fill(), Height = Dim.Fill(1) };
-        list.SetSource(new ObservableCollection<string>(tools.Select(static tool => tool.Title)));
+        using var dialog = new Dialog { Title = "工具", Width = 42, Height = 12 };
+        var groups = new Tabs { Width = Dim.Fill(), Height = Dim.Fill(1), TabLineStyle = Terminal.Gui.Drawing.LineStyle.Single };
         string? selected = null;
-        list.Accepting += (_, args) =>
+        foreach (var group in new[] { ("设备操作", tools[..3]), ("数据分析", tools[3..]) })
         {
-            args.Handled = true;
-            if (list.Value is { } index && index >= 0 && index < tools.Length)
+            var page = new View { Title = group.Item1 };
+            var list = new ListView { Width = Dim.Fill(), Height = Dim.Fill() };
+            var names = new ObservableCollection<string>(group.Item2.Select(static tool => tool.Title));
+            list.SetSource(names);
+            list.Accepting += (_, args) =>
             {
-                selected = tools[index].Title;
-                app.RequestStop(dialog);
-            }
-        };
-        dialog.Add(list);
+                args.Handled = true;
+                if (list.Value is { } index && index >= 0 && index < names.Count)
+                {
+                    selected = names[index];
+                    app.RequestStop(dialog);
+                }
+            };
+            page.Add(list);
+            groups.Add(page);
+        }
+        groups.Value = groups.TabCollection.First();
+        dialog.Add(groups);
         dialog.AddButton(new Button { Text = "关闭", ShadowStyle = null });
         RunDialog(dialog);
         if (selected is not null)
@@ -106,7 +128,7 @@ public sealed partial class TerminalWorkbench
     internal void ShowTool(string title)
     {
         var tool = GetTool(title);
-        using var dialog = new Dialog { Title = title, Width = Dim.Fill(), Height = Dim.Fill() };
+        using var dialog = new Dialog { Title = $"工具 / {title}", Width = Dim.Fill(), Height = Dim.Fill() };
         tool.Height = Dim.Fill(1);
         dialog.Add(tool);
         dialog.AddButton(new Button { Text = "关闭", ShadowStyle = null });

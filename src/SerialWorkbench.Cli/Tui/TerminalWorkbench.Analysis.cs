@@ -236,7 +236,24 @@ public sealed partial class TerminalWorkbench
                 });
                 sessionEvents.Value = selection;
                 sessionEvents.Viewport = viewport;
-                sessionCount.Text = $"已加载 {displayedSessionEvents.Count:N0} 条 · 游标 {sessionSequence}";
+                var filters = new List<string>();
+                if (query.Direction is { } direction)
+                {
+                    filters.Add(direction == SerialDirection.Receive ? "RX" : "TX");
+                }
+                if (query.SourceContains is { } source)
+                {
+                    filters.Add($"来源 {source}");
+                }
+                if (query.DataContainsHex is { } hex)
+                {
+                    filters.Add($"HEX {hex}");
+                }
+                if (query.ConnectionId is { } connection)
+                {
+                    filters.Add($"连接 {connection.ToString()[..8]}");
+                }
+                sessionCount.Text = $"已加载 {displayedSessionEvents.Count:N0} 条 · {(filters.Count == 0 ? "全部事件" : string.Join(" · ", filters))}";
             }).ConfigureAwait(false);
         }
         finally

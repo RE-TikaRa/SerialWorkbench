@@ -8,6 +8,7 @@ namespace SerialWorkbench.Cli.Tui;
 public sealed partial class TerminalWorkbench
 {
     private readonly Label trafficStatus = new() { Id = "traffic-status", Width = Dim.Fill(), Height = 1 };
+    private readonly Label trafficMode = new() { Id = "traffic-mode", X = Pos.AnchorEnd(), Width = 14, Height = 1, TextAlignment = Alignment.End };
     private readonly Label trafficEmpty = new() { Id = "traffic-empty", X = Pos.Center(), Y = Pos.Center(), Height = 1 };
     private readonly Label connectionsEmpty = new() { Text = "无连接", X = Pos.Center(), Y = Pos.Center(), Height = 1 };
     private readonly Label terminalSize = new() { Id = "terminal-size", Text = "终端至少需要 60 列、20 行", Y = Pos.Center(), Width = Dim.Fill(), Height = 1, TextAlignment = Alignment.Center, Visible = false };
@@ -18,6 +19,8 @@ public sealed partial class TerminalWorkbench
         var view = new View { Title = "工作台", Width = Dim.Fill(), Height = Dim.Fill() };
         var sending = BuildSending();
         trafficStatus.Y = Pos.Top(sending) - 1;
+        trafficMode.Y = Pos.Top(trafficStatus);
+        trafficStatus.Width = Dim.Fill(Dim.Width(trafficMode) + 1);
         var connectionsFrame = new FrameView
         {
             Title = "连接",
@@ -34,7 +37,7 @@ public sealed partial class TerminalWorkbench
             Height = Dim.Height(connectionsFrame),
         };
         trafficFrame.Add(traffic, trafficEmpty);
-        view.Add(connectionsFrame, trafficFrame, trafficStatus, sending);
+        view.Add(connectionsFrame, trafficFrame, trafficStatus, trafficMode, sending);
         view.SubViewLayout += (_, _) =>
         {
             var narrow = window.Viewport.Width < 80;
@@ -110,17 +113,25 @@ public sealed partial class TerminalWorkbench
                 SerialStopBits.Two => "2",
                 _ => throw new ArgumentOutOfRangeException(nameof(options)),
             };
-            text = $"{options.PortName} {ConnectionStateText(current.State)}  {options.BaudRate} {options.DataBits}{parity}{stop}";
+            text = $"{options.PortName} · {options.BaudRate} {options.DataBits}{parity}{stop} · {ConnectionStateText(current.State)}";
         }
         if (status.Text != text)
         {
             status.Text = text;
         }
         var mode = paused ? "暂停" : replayBuffer is not null ? "回放" : follow.Value == CheckState.Checked ? "实时" : "浏览";
-        text = $"RX {current?.ReceivedBytes ?? 0:N0} B   TX {current?.TransmittedBytes ?? 0:N0} B   报文 {visibleRows.Length:N0}   {mode} {format.Text}";
+        var selected = follow.Value == CheckState.Checked ? 0 : traffic.GetAllSelectedCells().Select(static cell => cell.Y)
+            .Distinct().Count(index => index >= 0 && index < visibleRows.Length);
+        text = $"RX {current?.ReceivedBytes ?? 0:N0} B  TX {current?.TransmittedBytes ?? 0:N0} B  报文 {visibleRows.Length:N0}";
+        if (selected > 0)
+        {
+            text += $"  已选 {selected} 条";
+        }
         if (trafficStatus.Text != text)
         {
             trafficStatus.Text = text;
         }
+        trafficMode.Text = $"{mode} · {format.Text}";
+        trafficMode.SetScheme(paused || replayBuffer is not null ? warningStyle : accentStyle);
     }
 }

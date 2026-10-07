@@ -66,6 +66,7 @@ public sealed partial class TerminalWorkbench : IDisposable
     private readonly IHostRpc client;
     private readonly CancellationTokenSource lifetime = new();
     private readonly Window window = new() { Title = "SerialWorkbench", BorderStyle = LineStyle.None, Width = Dim.Fill(), Height = Dim.Fill() };
+    private readonly Label title = new() { Id = "workbench-title", Text = "SerialWorkbench", Height = 1 };
     private readonly Tabs tabs = new() { Width = Dim.Fill(), Height = Dim.Fill(2), TabLineStyle = LineStyle.Single };
     private readonly Label status = new() { Id = "connection-status", Width = Dim.Fill(), Height = 1, Text = "未连接" };
     private readonly CheckBox backgroundTasks = new() { Text = "后台任务" };
@@ -145,8 +146,8 @@ public sealed partial class TerminalWorkbench : IDisposable
         successStyle = CreateTextStyle("#91c9a4", "#28643c", monochrome, light, TextStyle.Bold);
         warningStyle = CreateTextStyle("#e5bd78", "#95601e", monochrome, light, TextStyle.Bold);
         errorStyle = CreateTextStyle("#ec929c", "#a22e43", monochrome, light, TextStyle.Bold);
-        var title = new Label { Id = "workbench-title", Text = "SerialWorkbench", Height = 1 };
         status.X = Pos.Right(title) + 2;
+        status.TextAlignment = Alignment.End;
         tabs.Y = Pos.Bottom(title);
         connections.SetSource(connectionItems);
         connections.ValueChanged += (_, args) =>
@@ -178,7 +179,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         }
         BuildShortcuts();
         window.Add(title, status, message, tabs, shortcuts, terminalSize);
-        window.SubViewLayout += (_, _) => UpdateTerminalSize();
+        window.SubViewLayout += (_, _) => { UpdateTerminalSize(); UpdateWorkspaceTitle(); };
         tabs.Value = workbenchView;
         UpdateShortcutHints();
         format.ValueChanged += (_, _) => RefreshTraffic();
@@ -240,9 +241,13 @@ public sealed partial class TerminalWorkbench : IDisposable
         LimitNumber(waveformLength, 2, 64 * 1024);
         traffic.ValueChanged += (_, _) =>
         {
-            if (!updatingTraffic && traffic.HasFocus)
+            if (!updatingTraffic)
             {
-                follow.Value = CheckState.UnChecked;
+                if (traffic.HasFocus)
+                {
+                    follow.Value = CheckState.UnChecked;
+                }
+                UpdateConnectionStatus();
             }
         };
         ApplyStyles(window);
@@ -485,7 +490,6 @@ public sealed partial class TerminalWorkbench : IDisposable
         var columnOffset = traffic.ColumnOffset;
         var unchanged = visibleRows.SequenceEqual(rows);
         visibleRows = rows;
-        UpdateConnectionStatus();
         updatingTraffic = true;
         try
         {
@@ -537,6 +541,7 @@ public sealed partial class TerminalWorkbench : IDisposable
         finally
         {
             updatingTraffic = false;
+            UpdateConnectionStatus();
         }
     }
 

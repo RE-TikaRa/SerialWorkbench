@@ -14,6 +14,8 @@ public sealed partial class TerminalWorkbench
     private readonly TableView taskTable = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Fill(4), FullRowSelect = true };
     private readonly ProgressBar progress = new() { Y = Pos.AnchorEnd(3), Width = Dim.Fill() };
     private readonly Label progressText = new() { Y = Pos.AnchorEnd(2), Width = Dim.Fill() };
+    private readonly Label taskSummary = new() { Id = "task-summary", Width = Dim.Fill(), Height = 1 };
+    private bool updatingTasks;
     private OperationSnapshot[] displayedTasks = [];
     private readonly TableView modbusResults = new() { Y = 2, Width = Dim.Fill(), Height = Dim.Fill(), FullRowSelect = true };
     private readonly Label modbusSummary = new() { Width = Dim.Fill(), Text = "选择参数并执行事务" };
@@ -29,7 +31,18 @@ public sealed partial class TerminalWorkbench
         cancel.X = Pos.Right(refresh) + 1;
         var result = Button("查看结果", () => RunUiAsync(ShowTaskResultAsync));
         result.X = Pos.Right(cancel) + 1;
-        view.Add(refresh, cancel, result, taskTable, progress, progressText);
+        taskSummary.X = Pos.Right(result) + 2;
+        taskTable.ValueChanged += (_, _) =>
+        {
+            if (!updatingTasks && taskTable.Value is { } selection && selection.SelectedCell.Y >= 0 && selection.SelectedCell.Y < displayedTasks.Length)
+            {
+                ShowProgress(displayedTasks[selection.SelectedCell.Y]);
+            }
+        };
+        taskTable.Style.GetOrCreateColumnStyle(0).MaxWidth = 12;
+        taskTable.Style.GetOrCreateColumnStyle(2).MaxWidth = 10;
+        taskTable.Style.RowColorGetter = row => displayedTasks[row.RowIndex].State == OperationState.Running ? bodyStyle : mutedStyle;
+        view.Add(refresh, cancel, result, taskTable, progress, progressText, taskSummary);
         return view;
     }
 
@@ -118,7 +131,7 @@ public sealed partial class TerminalWorkbench
 
     private View BuildTransfers()
     {
-        var page = new View { Title = "文件与回环", Width = Dim.Fill(), Height = Dim.Fill() };
+        var page = new View { Title = "传输与回环", Width = Dim.Fill(), Height = Dim.Fill() };
         var view = new FrameView { Title = "传输与回环参数", Width = Dim.Fill(), Height = Dim.Fill(), ViewportSettings = ViewportSettingsFlags.HasScrollBars };
         var path = Field(view, "文件路径", 0, "");
         var browse = Button("选择文件", () =>
@@ -254,17 +267,29 @@ public sealed partial class TerminalWorkbench
                 RefreshModbusResults();
             }).ConfigureAwait(false);
         }
-        app.Invoke(() =>
+        app.Invoke(() => SetTasks(listed));
+    }
+
+    internal void SetTasks(IReadOnlyList<OperationSnapshot> listed)
+    {
+        var sorted = listed.OrderBy(static item => item.State == OperationState.Running ? 0 : 1).ThenByDescending(static item => item.UpdatedUtc).ToArray();
+        if (displayedTasks.SequenceEqual(sorted))
         {
-            var selected = taskTable.Value is { } selection && selection.SelectedCell.Y >= 0 && selection.SelectedCell.Y < displayedTasks.Length
-                ? displayedTasks[selection.SelectedCell.Y].Id : (Guid?)null;
-            var viewport = taskTable.Viewport;
-            displayedTasks = listed.ToArray();
+            return;
+        }
+        var selected = taskTable.Value is { } selection && selection.SelectedCell.Y >= 0 && selection.SelectedCell.Y < displayedTasks.Length
+            ? displayedTasks[selection.SelectedCell.Y].Id : (Guid?)null;
+        var viewport = taskTable.Viewport;
+        updatingTasks = true;
+        try
+        {
+            displayedTasks = sorted;
+            taskSummary.Text = $"运行 {sorted.Count(static item => item.State == OperationState.Running)} · 总计 {sorted.Length}";
             taskTable.Table = new EnumerableTableSource<OperationSnapshot>(displayedTasks, new Dictionary<string, Func<OperationSnapshot, object>>
             {
-                ["任务"] = item => item.Id,
+                ["任务"] = item => item.Id.ToString()[..8],
                 ["命令"] = item => item.Request.Command,
-                ["状态"] = item => item.State,
+                ["状态"] = item => OperationStateText(item.State),
                 ["进度"] = item => item.Progress?.Completed.ToString(CultureInfo.InvariantCulture) ?? "",
                 ["结果"] = item => item.Error?.Code ?? "",
             });
@@ -278,15 +303,42 @@ public sealed partial class TerminalWorkbench
             {
                 ShowProgress(current);
             }
-        });
+            else
+            {
+                progress.Fraction = 0;
+                progressText.Text = "无任务";
+            }
+        }
+        finally
+        {
+            updatingTasks = false;
+        }
     }
+
+    private static string OperationStateText(OperationState state) => state switch
+    {
+        OperationState.Running => "运行中",
+        OperationState.Succeeded => "已完成",
+        OperationState.Failed => "失败",
+        OperationState.Cancelled => "已取消",
+        OperationState.Interrupted => "已中断",
+        _ => throw new ArgumentOutOfRangeException(nameof(state)),
+    };
 
     private void ShowProgress(OperationSnapshot operation)
     {
         var completed = operation.Progress?.Completed ?? 0;
         var total = operation.Progress?.Total;
         progress.Fraction = total is > 0 ? (float)Math.Clamp((double)completed / total.Value, 0, 1) : 0;
-        progressText.Text = $"{operation.Request.Command} · {operation.State} · {completed}/{total?.ToString(CultureInfo.InvariantCulture) ?? "?"} {operation.Progress?.Unit}";
+        var unit = operation.Progress?.Unit switch { "bytes" => "字节", "blocks" => "块", "samples" => "采样", "addresses" => "地址", "sends" => "次", "steps" => "步骤", var value => value };
+        progressText.Text = $"{operation.Request.Command} · {OperationStateText(operation.State)} · {completed}/{total?.ToString(CultureInfo.InvariantCulture) ?? "?"} {unit}";
+        progressText.SetScheme(operation.State switch
+        {
+            OperationState.Running => accentStyle,
+            OperationState.Failed or OperationState.Interrupted => errorStyle,
+            OperationState.Cancelled => warningStyle,
+            _ => mutedStyle,
+        });
     }
 
     private void RefreshModbusResults()

@@ -41,6 +41,8 @@ public sealed class TuiTests
         table.SetSelection(0, 0, false);
         table.SetSelection(0, 1, true);
         app.LayoutAndDraw(true);
+        var trafficStatus = Assert.Single(Assert.IsAssignableFrom<View>(frame.SuperView).SubViews.OfType<Label>(), static label => label.Id == "traffic-status");
+        Assert.Contains("已选 2 条", trafficStatus.Text, StringComparison.Ordinal);
         Assert.NotEqual(frame.Border.View?.GetScheme().Normal, sending.Border.View?.GetScheme().Normal);
         var focused = table.GetScheme().Focus;
         input.Text = "测试";
@@ -49,6 +51,7 @@ public sealed class TuiTests
         Assert.NotEqual(frame.Border.View?.GetScheme().Normal, sending.Border.View?.GetScheme().Normal);
         Assert.NotEqual(focused, table.GetScheme().Active);
         Assert.Equal([0, 1], table.GetAllSelectedCells().Select(static cell => cell.Y).Distinct().Order());
+        Assert.Contains("已选 2 条", trafficStatus.Text, StringComparison.Ordinal);
         Assert.Equal("测试", input.Text);
         Assert.Contains("41", driver.ToString(), StringComparison.Ordinal);
         Assert.Contains("42", driver.ToString(), StringComparison.Ordinal);
@@ -79,7 +82,8 @@ public sealed class TuiTests
         RunDialog(app, workbench, () =>
         {
             app.LayoutAndDraw(true);
-            Assert.Contains("COM20 已连接", driver.ToString(), StringComparison.Ordinal);
+            Assert.Contains("COM20", driver.ToString(), StringComparison.Ordinal);
+            Assert.Contains("已连接", driver.ToString(), StringComparison.Ordinal);
             workbench.Window.NewKeyDownEvent(Key.F4);
         }, dialog =>
         {
@@ -226,7 +230,7 @@ public sealed class TuiTests
 
     [Theory]
     [InlineData(0, "Modbus")]
-    [InlineData(1, "文件与回环")]
+    [InlineData(1, "传输与回环")]
     [InlineData(2, "自动化")]
     [InlineData(3, "协议分析")]
     [InlineData(4, "波形")]
@@ -261,14 +265,18 @@ public sealed class TuiTests
             {
                 if (app.TopRunnableView is Dialog dialog && dialog.Title == "工具")
                 {
-                    var list = Assert.Single(dialog.SubViews.OfType<ListView>());
-                    list.Value = index;
+                    var groups = Assert.Single(dialog.SubViews.OfType<Tabs>());
+                    Assert.Equal(["设备操作", "数据分析"], groups.TabCollection.Select(static group => group.Title));
+                    groups.Value = groups.TabCollection.ElementAt(index < 3 ? 0 : 1);
+                    var list = Assert.Single(Assert.IsAssignableFrom<View>(groups.Value).SubViews.OfType<ListView>());
+                    list.SetFocus();
+                    list.Value = index < 3 ? index : index - 3;
                     stage = 2;
                     list.NewKeyDownEvent(Key.Enter);
                 }
                 else if (app.TopRunnableView is Dialog tool)
                 {
-                    Assert.Equal(title, tool.Title);
+                    Assert.Equal($"工具 / {title}", tool.Title);
                     Assert.Same(workbench.GetTool(title), Assert.Single(tool.SubViews, static view => view is not Button));
                     stage = 3;
                     app.Keyboard.RaiseKeyDownEvent(Key.Esc);
@@ -296,6 +304,35 @@ public sealed class TuiTests
         Assert.Null(failure);
         Assert.Equal(3, stage);
         Assert.False(timedOut);
+    }
+
+    [Fact]
+    public async Task RunningTasksSortFirstWithoutChangingTheSelectedTask()
+    {
+        var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-task-selection-{Guid.NewGuid():N}"));
+        paths.EnsureWritable();
+        await using var runtime = new HostRuntime(paths);
+        using var app = Terminal.Gui.App.Application.Create();
+        using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
+        var now = DateTimeOffset.UtcNow;
+        var request = new OperationRequest("modbus.poll", Guid.Empty, "{}");
+        var finished = new OperationSnapshot(Guid.NewGuid(), request, OperationState.Succeeded, ExecutionOutcome.Confirmed, now, now);
+        var running = finished with { Id = Guid.NewGuid(), State = OperationState.Running, UpdatedUtc = now.AddMinutes(-1) };
+        workbench.SetTasks([finished, running]);
+        var tabs = Assert.Single(workbench.Window.SubViews.OfType<Tabs>());
+        var page = tabs.TabCollection.Single(static view => view.Title == "3 任务");
+        var table = Assert.Single(page.SubViews.OfType<TableView>());
+        Assert.Equal(running.Id.ToString()[..8], table.Table?[0, 0]);
+        Assert.Equal("运行中", table.Table?[0, 2]);
+        table.SetSelection(0, 1, false);
+        var selected = finished with { State = OperationState.Failed, Error = new WorkbenchError("TIMEOUT", "超时"), UpdatedUtc = now.AddSeconds(1) };
+        var another = running with { Id = Guid.NewGuid(), UpdatedUtc = now.AddSeconds(2) };
+        workbench.SetTasks([selected, another, running]);
+        Assert.Equal(selected.Id.ToString()[..8], table.Table?[2, 0]);
+        Assert.Equal(2, table.Value?.SelectedCell.Y);
+        Assert.Equal("失败", table.Table?[2, 2]);
+        Assert.Contains("失败", page.SubViews.OfType<Label>().Single(static label => label.Id != "task-summary").Text, StringComparison.Ordinal);
+        Assert.Contains("运行 2", page.SubViews.OfType<Label>().Single(static label => label.Id == "task-summary").Text, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -329,7 +366,7 @@ public sealed class TuiTests
             }
             try
             {
-                if (app.TopRunnableView is Dialog tool && tool.Title == "自动化")
+                if (app.TopRunnableView is Dialog tool && tool.Title == "工具 / 自动化")
                 {
                     if (edits == 2)
                     {
@@ -424,7 +461,7 @@ public sealed class TuiTests
 
     [Theory]
     [InlineData("Modbus", "事务参数")]
-    [InlineData("文件与回环", "")]
+    [InlineData("传输与回环", "")]
     public async Task ParameterPanelsFollowKeyboardFocus(string pageName, string panelTitle)
     {
         var paths = new ApplicationPaths(Path.Combine(AppContext.BaseDirectory, "artifacts", $"tui-scrolling-{Guid.NewGuid():N}"));
@@ -464,11 +501,11 @@ public sealed class TuiTests
         using var workbench = new TerminalWorkbench(app, new HostRpcService(runtime));
         var driver = Assert.IsAssignableFrom<Terminal.Gui.Drivers.IDriver>(app.Driver);
         driver.SetScreenSize(width, height);
-        foreach (var title in new[] { "Modbus", "文件与回环", "自动化", "协议分析", "波形" })
+        foreach (var title in new[] { "Modbus", "传输与回环", "自动化", "协议分析", "波形" })
         {
             RunDialog(app, workbench, () => workbench.ShowTool(title), dialog =>
             {
-                Assert.Equal(title, dialog.Title);
+                Assert.Equal($"工具 / {title}", dialog.Title);
                 var tool = workbench.GetTool(title);
                 var sections = tool.SubViews.OfType<Tabs>().SingleOrDefault();
                 foreach (var page in sections?.TabCollection ?? [tool])
@@ -657,7 +694,8 @@ public sealed class TuiTests
         workbench.TrafficSettings.SubViews.OfType<TextField>().Single(static field => field.Id == "traffic-filter").Text = "missing";
         Assert.Equal("无匹配报文", empty.Text);
         var status = Assert.Single(workbench.Window.SubViews.OfType<Label>(), static label => label.Id == "connection-status");
-        Assert.Contains("COM20 已连接", status.Text, StringComparison.Ordinal);
+        Assert.Contains("COM20", status.Text, StringComparison.Ordinal);
+        Assert.Contains("已连接", status.Text, StringComparison.Ordinal);
         Assert.Contains("115200 8N1", status.Text, StringComparison.Ordinal);
         var token = Assert.IsType<SessionToken>(app.Begin(workbench.Window));
         workbench.Window.NewKeyDownEvent(Key.F2);
@@ -691,7 +729,7 @@ public sealed class TuiTests
         workbench.Window.NewKeyDownEvent(Key.D2);
         Assert.Equal("12", input.Text);
         workbench.Window.NewKeyDownEvent(Key.F2);
-        var status = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<Label>().Single(static label => label.Id == "traffic-status");
+        var status = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<Label>().Single(static label => label.Id == "traffic-mode");
         Assert.Contains("暂停", status.Text, StringComparison.Ordinal);
         workbench.Window.NewKeyDownEvent(Key.F2);
         var table = tabs.TabCollection.SelectMany(static page => page.SubViews).OfType<FrameView>()

@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -15,7 +16,7 @@ public sealed partial class TerminalWorkbench
     private readonly Scheme successStyle;
     private readonly Scheme warningStyle;
     private readonly Scheme errorStyle;
-    private readonly HashSet<View> styledPanels = [];
+    private readonly ConditionalWeakTable<View, object> styledPanels = new();
 
     private static Scheme CreateBodyStyle(bool light, bool monochrome)
     {
@@ -69,10 +70,11 @@ public sealed partial class TerminalWorkbench
         else if (view is FrameView || view.SuperView is Tabs)
         {
             UpdatePanelStyle(view);
-            if (styledPanels.Add(view))
+            styledPanels.GetValue(view, panel =>
             {
-                view.HasFocusChanged += (_, _) => UpdatePanelStyle(view);
-            }
+                panel.HasFocusChanged += (_, _) => UpdatePanelStyle(panel);
+                return new object();
+            });
         }
 
         foreach (var child in view.SubViews)
