@@ -26,7 +26,15 @@ public static class HostEndpoint
         }
 
         var stream = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-        await stream.ConnectAsync(5000, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await stream.ConnectAsync(5000, cancellationToken).ConfigureAwait(false);
+        }
+        catch (UnauthorizedAccessException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            await stream.DisposeAsync().ConfigureAwait(false);
+            throw new HostAccessException(root, ex);
+        }
         return new HostRpcClient(stream);
     }
 
@@ -63,6 +71,10 @@ public static class HostEndpoint
                 catch (TimeoutException)
                 {
                 }
+                catch (UnauthorizedAccessException ex) when (!cancellationToken.IsCancellationRequested)
+                {
+                    throw new HostAccessException(applicationRoot, ex);
+                }
 
                 using (HostProcessLauncher.Start(hostPath, applicationRoot))
                 {
@@ -78,6 +90,10 @@ public static class HostEndpoint
                         catch (TimeoutException)
                         {
                             continue;
+                        }
+                        catch (UnauthorizedAccessException ex) when (!cancellationToken.IsCancellationRequested)
+                        {
+                            throw new HostAccessException(applicationRoot, ex);
                         }
                     }
                 }

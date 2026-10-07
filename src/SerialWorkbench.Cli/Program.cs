@@ -123,6 +123,11 @@ static async Task<int> ExecuteCommandAsync(CommandArguments arguments, Cancellat
         WriteError(output, "CANCELLED", "Task cancelled.", arguments.CommandId);
         return 5;
     }
+    catch (HostAccessException ex)
+    {
+        WriteError(output, "HOST_ACCESS_DENIED", ex.Message, arguments.CommandId);
+        return 3;
+    }
     catch (TimeoutException ex)
     {
         WriteError(output, "TIMEOUT", ex.Message, arguments.CommandId);

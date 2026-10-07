@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Text;
 using SerialWorkbench.Cli;
 using SerialWorkbench.Cli.Tui;
+using SerialWorkbench.Ipc;
 
 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 Console.OutputEncoding = new UTF8Encoding(false);
@@ -29,4 +30,12 @@ command.SetAction((result, token) => TerminalWorkbench.RunAsync(
     result.GetValue(applicationRoot) ?? AppContext.BaseDirectory,
     result.GetValue(culture) ?? CultureInfo.CurrentUICulture.Name, token));
 
-return await command.Parse(args).InvokeAsync().ConfigureAwait(false);
+try
+{
+    return await command.Parse(args).InvokeAsync().ConfigureAwait(false);
+}
+catch (HostAccessException ex)
+{
+    Console.Error.WriteLine(ex.Message);
+    return 3;
+}
